@@ -42,6 +42,12 @@ export function findShop(db: Db, shopId: string): Promise<ShopRow | undefined> {
   return firstRow(db.select(shopColumns).from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
 }
 
+/** What customers see of a shop (receipts, Telegram messages): its name, language and currency, and its status. */
+export function findShopProfile(db: Db, shopId: string) {
+  return firstRow(db.select({ name: organization.name, language: shopSettings.language, currency: shopSettings.currency, status: shopSettings.status })
+    .from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
+}
+
 /** Across shops (the platform's list): newest first, a page at a time, with how many match. */
 export async function listShops(db: Db, query: ShopListQuery): Promise<{ rows: ShopRow[], total: number }> {
   const { status, search, page, pageSize } = query

@@ -10,6 +10,7 @@ import { auditStatement, runIdempotent } from '#server/features/platform'
 import { counterCustomer, getCustomer, phoneSearchDigits, requireActiveCustomerStatement } from '#server/features/customers'
 import { priceItemsForLines, requireActivePriceItemsStatement } from '#server/features/pricing'
 import { getSettings } from '#server/features/shops'
+import { queueOrderMessagesStatement } from '#server/features/notifications'
 import type { ShopActor } from '#server/features/identity'
 import { alreadyPaid, cancelledNoPayment, customerUnavailable, invalidLines, invalidTransition, orderChanged, orderNotEditable, orderNotFound, orderPaid, orderUnpaid, priceItemUnavailable } from './orders.errors'
 import * as repo from './orders.repository'
@@ -58,8 +59,16 @@ function toOrder(row: OrderRow, lines: LineRow[], events: EventRow[]): Order {
 
 // --- Reads ---
 
-export async function getOrder(db: Db, actor: ShopActor, id: string): Promise<Order> {
-  const { shopId } = actor
+export function getOrder(db: Db, actor: ShopActor, id: string): Promise<Order> {
+  return orderInShop(db, actor.shopId, id)
+}
+
+/**
+ * The shop's order, for work that runs without a signed-in user (the receipt sent on Telegram,
+ * D28): the caller holds the shop's id from a trusted place (a link, a queued message), never
+ * from a request. Another shop's order is 404, as in `getOrder`.
+ */
+export async function orderInShop(db: Db, shopId: string, id: string): Promise<Order> {
   const { order, lines, events } = await repo.orderDetail(db, shopId, id, EVENTS_SHOWN)
   if (!order) throw orderNotFound()
   return toOrder(order, lines, events)
@@ -306,6 +315,8 @@ export async function transitionOrder(db: Db, actor: ShopActor, id: string, opti
     repo.updateOrderStatement(db, { shopId, id, version: input.version }, { set, from, now }),
     requireOneChange(db),
     event(db, actor, id, EVENT_OF[action], now, data),
+    // Ready: the customer's linked chats hear it (D28). A ready after a rework is a new message.
+    ...(action === 'ready' ? [queueOrderMessagesStatement(db, { shopId, orderId: id, customerId: order.customerId, kind: 'ready', key: String(input.version + 1) }, now)] : []),
     ...(action === 'cancel' ? [auditStatement(db, { userId: actor.userId, shopId, requestId: actor.requestId }, { action: 'order.cancel', targetType: 'order', targetId: id, data }, now)] : []),
   ], explainOrder(db, shopId, id, input.version, current => (canTransition(current.status, action) ? undefined : invalidTransition(action))))
   return getOrder(db, actor, id)
@@ -322,6 +333,7 @@ export async function collectOrder(db: Db, actor: ShopActor, id: string, input: 
     repo.updateOrderStatement(db, { shopId, id, version: input.version }, { set: { status: to, collectedAt: now }, from, now }),
     requireOneChange(db),
     event(db, actor, id, 'collected', now, { from: order.status, unpaid: order.paymentStatus !== 'paid' }),
+    queueOrderMessagesStatement(db, { shopId, orderId: id, customerId: order.customerId, kind: 'collected', key: String(input.version + 1) }, now),
   ], explainOrder(db, shopId, id, input.version, (current) => {
     if (!canTransition(current.status, 'collect')) return invalidTransition('collect')
     return current.paymentStatus !== 'paid' && !input.allowUnpaid ? orderUnpaid() : undefined

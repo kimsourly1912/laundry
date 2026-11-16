@@ -16,6 +16,7 @@ import { useShopSettings } from '~/features/shop-settings'
 import type { SlipForm } from '../schemas/slip-form'
 import { customerLabel, emptySlip, filledCount, slipErrors, slipTotal, stepPieces, toSlipRequest } from '../schemas/slip-form'
 import { parseQuantity } from '../schemas/order-lines'
+import TelegramQr from './TelegramQr.vue'
 
 const { t, te, locale } = useI18n()
 const settings = useShopSettings()
@@ -167,6 +168,10 @@ function retry() {
               class="mt-2"
             />
           </div>
+          <TelegramQr
+            :order-id="created.id"
+            hide-when-off
+          />
           <div class="flex flex-col gap-2 sm:flex-row-reverse">
             <UButton
               :label="t('orders.slip.next')"

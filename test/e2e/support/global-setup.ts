@@ -49,6 +49,8 @@ export default async function ({ provide }: TestProject) {
       // Better Auth needs the site's address and a secret in a production build. Test values.
       NUXT_PUBLIC_SITE_URL: host,
       NUXT_BETTER_AUTH_SECRET: 'e2e-better-auth-secret-at-least-32-characters',
+      // A bot name only, no token: the counter's QR shows; nothing is ever sent to Telegram.
+      NUXT_TELEGRAM_BOT_USERNAME: 'laundry_e2e_bot',
     },
     stdio: 'inherit',
   })

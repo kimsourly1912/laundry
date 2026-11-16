@@ -36,16 +36,16 @@ Before the first deploy, the owner adds two **GitHub Actions secrets** (reposito
 
 ## Configuration
 
-Runtime values come from `NUXT_*` variables (`runtimeConfig` in `nuxt.config.ts`). Locally they go in `.env` (git-ignored; copy `.env.example`). Deployed, they are **Worker secrets** (secret values) or Worker vars (public values).
+Runtime values come from `NUXT_*` variables (`runtimeConfig` in `nuxt.config.ts`). Locally they go in `.env` (git-ignored; copy `.env.example`). Deployed, a public value the same in every deploy is in `nuxt.config.ts` (`vars`); **anything set in the dashboard is added as type Secret**, even a public value: each deploy replaces the plain variables with the config's and keeps secrets.
 
 | Variable | Secret | Used from |
 |---|---|---|
 | `NUXT_BETTER_AUTH_SECRET` | yes | M1.4 |
 | `NUXT_PUBLIC_SITE_URL` | no | M1.4 (Better Auth base URL, trusted origin) |
-| `NUXT_PUBLIC_SUPPORT_URL` | no | D27: "Contact support" on the shop's More page (a Telegram chat link like `https://t.me/<name>`); hidden when empty. Set it as a Worker var |
-| `NUXT_TELEGRAM_BOT_TOKEN` | yes | M4.1 |
-| `NUXT_TELEGRAM_BOT_USERNAME` | no | M4.1 (`t.me/<bot>?start=<token>` links) |
-| `NUXT_TELEGRAM_WEBHOOK_SECRET` | yes | M4.1 |
+| `NUXT_PUBLIC_SUPPORT_URL` | no | D27: "Contact support" on the shop's More page (a Telegram chat link like `https://t.me/<name>`); hidden when empty. Set it in the dashboard as a **Secret** (see above) |
+| `NUXT_TELEGRAM_BOT_TOKEN` | yes | D28 ([Telegram](#telegram)) |
+| `NUXT_TELEGRAM_BOT_USERNAME` | no (set as a Secret) | D28: the QR's `t.me/<bot>?start=<token>` link; no QR while empty |
+| `NUXT_TELEGRAM_WEBHOOK_SECRET` | yes | D28: checked on every webhook call |
 | `NUXT_PLATFORM_ADMIN_USERNAME`, `NUXT_PLATFORM_ADMIN_PASSWORD` | yes | M1.4 seed only |
 
 A new variable is added to `.env.example` (name only), `nuxt.config.ts` (`runtimeConfig`, empty default) and this table in the same PR.
@@ -91,29 +91,49 @@ D1 Time Travel restores a database to any minute in its retention window. Record
 
 ## Scheduled jobs
 
-Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nuxt.config.ts`, and to Cloudflare as Worker cron triggers. Each job is wrapped in `runJob` (logs and records the run). Today the list is empty; each job is added in the step that builds it.
+Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nuxt.config.ts`, and to Cloudflare as Worker cron triggers. Each job logs what it did; `runJob` (recording each run) comes when a job needs its history. Each job is added in the step that builds it.
 
 | Cron (UTC) | Job | Does | Step |
 |---|---|---|---|
-| `* * * * *` | `notifications:deliver` | Send due outbox rows, backoff, max 5 attempts | M4.2 |
-| `0 2 * * *` (09:00 Phnom Penh) | `orders:remind-uncollected` | Queue reminders (spec §8.5) | M4.3 |
+| `* * * * *` | `notifications:deliver` | Send due Telegram messages, backoff 1 / 5 / 15 / 60 min, max 5 attempts. Does nothing without a bot token | Built (D28) |
 | `15 20 * * *` | `platform:expire-idempotency-keys` | Delete keys older than 24 h | Built (M2.3) |
-| `30 20 * * *` | `notifications:purge` | Delete sent/skipped rows older than 90 days | M4.2 |
+| `30 20 * * *` | `notifications:purge` | Delete sent, skipped and failed messages older than 90 days; expired QR tokens and waiting scans | Built (D28) |
+| `0 2 * * *` (09:00 Phnom Penh) | `orders:remind-uncollected` | Queue reminders (spec §8.5) | Not planned yet |
 
 - A job must be safe to run twice and safe to overlap with itself (claims and dedupe keys, never "read then write").
 - In local dev Nitro runs the jobs itself.
 
 ## Telegram
 
-**Status:** M4.1. One platform bot for all shops (spec P9); every message names the shop.
+**Status:** Built ([D28](../decisions.md#d28-the-receipt-on-telegram)). One platform bot for all shops (spec P9); every message names the shop. Until the bot is set up, the app shows no QR and nothing is sent.
 
-Setup per environment (written fully in M4.1):
-1. Create the bot with @BotFather → `NUXT_TELEGRAM_BOT_TOKEN`, `NUXT_TELEGRAM_BOT_USERNAME`.
-2. Generate `NUXT_TELEGRAM_WEBHOOK_SECRET` (32–256 of `A-Z a-z 0-9 _ -`).
-3. Register the webhook: `setWebhook` with `url = <site>/api/webhooks/telegram` and `secret_token = <secret>`. Telegram then sends the secret in `X-Telegram-Bot-Api-Secret-Token` on every update.
-4. Local development uses a separate dev bot and a tunnel to the dev server.
+### Values
 
-The linking flow, phone check and delivery rules: spec §8.2–§8.3 and [architecture → Side effects](./architecture.md#side-effects).
+| Name | What | Where |
+|---|---|---|
+| `NUXT_TELEGRAM_BOT_USERNAME` | The bot's username without `@`, for the QR's `t.me` link | Worker **secret** |
+| `NUXT_TELEGRAM_BOT_TOKEN` | From @BotFather; sends messages, turns the webhook on | Worker **secret** |
+| `NUXT_TELEGRAM_WEBHOOK_SECRET` | 32–256 of `A-Z a-z 0-9 _ -`, made up once; Telegram sends it back on every update | Worker **secret** |
+
+**Add every value set in the dashboard as type Secret**, also ones that aren't secret (the username, `NUXT_PUBLIC_SUPPORT_URL`): each deploy replaces the Worker's plain variables with those in `nuxt.config.ts`, and keeps secrets.
+
+### Setup, once per environment
+1. In Telegram, talk to **@BotFather**: `/newbot`, give it a name and a username ending in `bot`. It answers with the token. Optionally `/setdescription` and `/setuserpic` (the platform's look, not a shop's).
+2. In the Cloudflare dashboard → the Worker → **Settings → Variables and Secrets**, add the three values above as **Secret**. Never paste the token in chat or a ticket.
+3. Register the webhook, from your own computer (the token stays on it):
+   ```bash
+   curl -sS "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://<site>/api/webhooks/telegram" -d "secret_token=<WEBHOOK_SECRET>" -d 'allowed_updates=["message"]'
+   ```
+   It answers `{"ok":true,…}`. Check it later with `getWebhookInfo` (same address, that method): `last_error_message` says what failed.
+4. Try it: save an order with your own phone, scan the QR on the saved screen with your phone's camera, share your number. The receipt arrives; mark the order ready and a message follows within a minute.
+
+Local development: a separate dev bot, and a tunnel to the dev server for its webhook; or leave the token empty (no QR, nothing sent).
+
+### How it behaves
+- **The webhook** answers 404 unless the secret header matches (constant-time) and a token is set, is rate-limited per address, and reads only private messages from people. A 200 tells Telegram the update is handled; an error makes it send the update again.
+- **Linking** ([D28](../decisions.md#d28-the-receipt-on-telegram), spec §8.2): the QR's token (a day) → the order → if the customer has a phone, the bot asks for the person's own contact (10 minutes) → the customer's phone links every order, anything else this order only → the receipt is sent at once.
+- **Sending**: ready and collected are queued in the order's batch and sent within a minute; the receipt right after a link. A blocked bot (`403`) or a deleted chat ends every link to that chat. Telegram's `429` wait is honoured.
+- **Receipt rendering** costs ~0.1–0.7 s of CPU per image (Workers Paid; the default 30 s limit is far off).
 
 ## Monitoring
 
