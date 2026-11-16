@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * A customer (spec §4): new, or the profile to edit and anonymize. A phone another customer has
- * offers that customer instead (spec §16). Their orders join this page with M2.3, Telegram with M4.
+ * offers that customer instead (spec §16). The page puts their orders in the `after` slot (the orders
+ * feature's history); Telegram joins with M4.
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { Customer } from '#shared/contracts/customers'
@@ -207,6 +208,10 @@ async function onAnonymize() {
             />
           </div>
         </UForm>
+        <slot
+          v-if="record"
+          name="after"
+        />
       </div>
 
       <UModal

@@ -88,6 +88,7 @@ erDiagram
 
 - Partial UNIQUE `customers_shop_phone_unique (shop_id, phone_e164)` where `phone_e164` is not null: one customer per phone in a shop, any number of customers without one. A duplicate → `409 PHONE_TAKEN`, and the UI offers the existing customer ([D23](../decisions.md#d23-customers)).
 - Index `(shop_id, updated_at)`: the list, most recently changed first.
+- UNIQUE `(shop_id, id)` (migration `0005_orders`): the target of `orders`' composite FK.
 - **Never deleted.** Anonymized (P11): name, phone and note cleared, the phone free for reuse; hidden from the list and search, never edited again. Audited (`customer.*`, `data.fields` names fields, never values).
 
 ## `service_types`, `price_items` (owner: `pricing`)
@@ -111,9 +112,9 @@ Rules (service, inside the batch):
 
 ## `order_counters`, `orders`, `order_lines`, `order_events` (owner: `orders`)
 
-**Status:** M2.3.
+**Status:** built (migration `0005_orders`, M2.3). Tickets come with M3 ([D24](../decisions.md#d24-orders)).
 
-`order_counters`: `shop_id` PK, `last_number`. Incremented in the same batch as the order insert.
+`order_counters`: `shop_id` PK, `last_number`. Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`.
 
 `orders`:
 
@@ -121,22 +122,26 @@ Rules (service, inside the batch):
 |---|---|---|
 | `id`, `shop_id` | | |
 | `number` | integer | Per shop. UNIQUE `(shop_id, number)` |
-| `customer_id` | text | FK → `customers`, restrict |
+| `customer_id` | text | Composite FK `(shop_id, customer_id)` → `customers (shop_id, id)`, restrict: the customer is the order's own shop's by construction |
 | `status` | text | `received` \| `in_progress` \| `ready` \| `collected` \| `cancelled` |
 | `payment_status` | text | `unpaid` \| `paid` |
 | `total` | integer | Minor units, computed by the server |
 | `currency` | text | Copied from the shop at creation |
 | `note` | text null | |
-| `ready_at`, `collected_at`, `paid_at`, `cancelled_at` | timestamp null | |
+| `ready_at`, `collected_at`, `paid_at`, `cancelled_at` | timestamp null | `ready_at` is cleared by rework. CHECK: `paid_at` is set exactly when `payment_status = 'paid'` |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Index `(shop_id, status, created_at)`.
+- Indexes: `(shop_id, status, created_at)` status tabs and Today; `(shop_id, created_at)` the list; `(shop_id, customer_id, created_at)` a customer's history. UNIQUE `(shop_id, id)`: the target of the lines' and events' composite FKs.
+- CHECKs on `status`, `payment_status`, `currency`, `total >= 0`, `number >= 1`.
 - **Never deleted.** Cancelled.
+- One payment per order, for the whole total (Phase 1). A paid order's lines can't change; its note can (D24).
 
-`order_lines`: `id`, `shop_id`, `order_id` (FK **cascade**), `price_item_id` (FK **set null**), `service_name_km`, `service_name_en`, `item_name_km`, `item_name_en`, `unit`, `quantity` (pieces or grams), `unit_price`, `line_total`, `sort`.
-- Names and price are **snapshots**: a later price change never changes old orders.
+`order_lines`: `id`, `shop_id`, `order_id` (composite FK `(shop_id, order_id)` **cascade**), `price_item_id` (FK **set null**), `service_name_km`, `service_name_en`, `item_name_km`, `item_name_en`, `unit`, `quantity` (pieces or grams), `unit_price`, `line_total`, `sort`.
+- Names and price are **snapshots**: a later price change never changes old orders. An edit keeps a kept line's snapshot (the request names it by `lineId`) and prices new lines now; the lines are rewritten in the edit's batch.
+- `line_total`: pieces × price, or grams × price per kg ÷ 1000 rounded half up (`lineTotal` in `shared/contracts/orders.ts`). CHECKs: `quantity >= 1`, amounts `>= 0`, `unit`.
+- Index `(shop_id, order_id, sort)`.
 
-`order_events`: `id`, `shop_id`, `order_id` (FK cascade), `type` (`created` \| `updated` \| `started` \| `ready` \| `rework` \| `collected` \| `cancelled` \| `payment_recorded` \| `ticket_bound`), `actor_user_id`, `data` (json), `created_at`.
+`order_events`: `id`, `shop_id`, `order_id` (composite FK cascade), `type` (`created` \| `updated` \| `started` \| `ready` \| `rework` \| `collected` \| `cancelled` \| `payment_recorded` \| `ticket_bound`, CHECK), `actor_user_id` (plain text, like the audit trail), `data` (json: `{ from }`, `{ fields, total }`, `{ amount, currency }`, `{ paidBeforeCancel }`, `{ unpaid }`; no personal values), `created_at`. Append-only. Index `(shop_id, order_id, created_at)`.
 
 (The cascades are a safety net only: orders are never deleted.)
 
@@ -173,7 +178,7 @@ Rules (service, inside the batch):
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 
-**Status:** `audit_events` built (migration `0002_audit_events`, M1.5); `idempotency_keys` with its first user, M2.3 (order create) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
+**Status:** `audit_events` built (migration `0002_audit_events`, M1.5); `idempotency_keys` built (migration `0005_orders`, M2.3) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
 
 `audit_events` (append-only; written only through `auditStatement`, in the batch of the change):
 
@@ -190,7 +195,7 @@ Rules (service, inside the batch):
 
 Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_type, target_id, created_at)` one record's history.
 
-`idempotency_keys`: `key`, `shop_id`, `actor_user_id`, `action`, `request_hash`, `response` (json), `created_at`. Unique on the scope + key. Purged after 24 h.
+`idempotency_keys`: `shop_id` (FK → `organization.id`, restrict), `actor_user_id`, `action` (`order.create`, `order.payment`), `key`, `request_hash` (SHA-256 of the validated request), `response` (json: `{ id }` of the record made or changed), `created_at`. PK `(shop_id, actor_user_id, action, key)`; index `(created_at)` for the purge. Purged after 24 h (`platform:expire-idempotency-keys`). API: [reference/idempotency.md](../reference/idempotency.md).
 
 ## Lifecycle summary
 

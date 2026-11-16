@@ -163,3 +163,17 @@ export function requireEmptyPriceListStatement(db: Db, shopId: string): Statemen
 export function hasPriceItems(db: Db, shopId: string): Promise<boolean> {
   return repo.hasPriceItems(db, shopId)
 }
+
+// --- For the orders feature ---
+
+export type LinePriceItem = Awaited<ReturnType<typeof repo.priceItemsForLines>>[number]
+
+/** The shop's price items among `ids` (any status), with their service type's names, for line snapshots. */
+export function priceItemsForLines(db: Db, shopId: string, ids: readonly string[]): Promise<LinePriceItem[]> {
+  return ids.length ? repo.priceItemsForLines(db, shopId, ids) : Promise.resolve([])
+}
+
+/** Guards an order's new lines: each of the distinct `ids` is still an active price item of the shop. */
+export function requireActivePriceItemsStatement(db: Db, shopId: string, ids: readonly string[]): Statement {
+  return repo.requireActivePriceItems(db, shopId, ids)
+}

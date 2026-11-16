@@ -15,15 +15,17 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M1.6 App shell | Done: data layer (`apiFetch`, `ApiError`, `useApiQuery`, `useMutation`, `usePaginatedQuery`), session and route access, auth/platform/shop layouts, sign-in, change password, account, English + Khmer (`@nuxtjs/i18n`, Noto Sans Khmer), platform screens (shops list, new shop, shop detail), e2e harness + CI job. D20, D21 |
 | M2.1 Shop settings + pricing | Done: `/api/shop/settings` (currency locked once prices exist), service types and price items with archive (migration `0003`, composite FK, caps), settings and price list screens, money formatter + lint rule, unsaved-changes guard, the super admin's 403 over HTTP (e2e). D22 |
 | M2.2 Customers | Done: `/api/shop/customers` (search by name or phone digits, pages), create, edit, anonymize; phones in E.164 (`libphonenumber-js`), one per shop by a partial unique index (migration `0004`); list and customer screens; shop route statements pinned to spec §9. D23 |
-| M2.3 Orders | **Next** |
+| M2.3 Orders | Done: `/api/shop/orders` (create with `Idempotency-Key`, list with status, payment, search and customer filters, detail, edit lines and note, start / ready / rework / collect / cancel, payment with `Idempotency-Key`), `/api/shop/today`; `order_counters`, `orders`, `order_lines`, `order_events`, `idempotency_keys` (migration `0005`), the daily key purge job; new-order flow with the customer picker, order list, order page, edit page, Today, a customer's orders, the bottom bar. D24 |
+| M3.1 Ticket batches | **Next** |
 
-## Next step: M2.3 Orders
+## Next step: M3.1 Ticket batches
 
-Create (task flow, with `Idempotency-Key`), list, detail, lines, state actions, payment, today view (spec §7, §8.1, §9). Brings `idempotency_keys` (D12), the bottom bar, the customer picker and row-error helpers. **Show a real shop after M2.3** (spec §18).
+Ticket batches, printable A4 sheet (8 slips), void (spec §6, §8.1, §9 → Platform). Adds `tickets` and `ticket_batches`, `uqr`, and gives every order made before it a generated ticket (D24). **Before that: show a real shop** (spec §18, after M2.3).
 
 ## Not built yet (on purpose)
 
-- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the bottom bar (M2.3), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry.
+- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry, `runJob` (job runs recorded; the first job only logs, M4.2 brings the per-minute delivery job).
+- **Pickup** (`/pickup`: scan or search → confirm → pay → collect, spec §8.4) comes with slip scanning (M3.2); until then the order page records payment and collects.
 - **Khmer on a real low-end Android phone:** checked in Chromium only so far.
 - **Production environment:** D1 `laundry-production` and the `prod` block, when the first release is near.
 - **Dependencies added in the step that uses them** (D2): grammY (M4) `uqr` (M3.1).
@@ -32,6 +34,7 @@ Create (task flow, with `Idempotency-Key`), list, detail, lines, state actions, 
 
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
+| Q7 | A paid order's lines are locked (D24): is "cancel and make a new order" acceptable at the counter, or are partial payments / top-ups needed? | Owner, with a real shop | Nothing now |
 
 ## Owner notes
 

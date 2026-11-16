@@ -282,3 +282,21 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Normalizing in the service only (the app would duplicate the rule for its messages). A `PHONE_TAKEN` body carrying the other customer (a second error shape). A full-text index (D1 has FTS5, but a shop's customers number in the hundreds).
 
 **Consequences.** A phone search by name-like text never matches digits, and a search under 3 digits is a name search. `libphonenumber-js/min` adds its phone metadata to the app bundle and the Worker (the smallest of its metadata sets).
+
+## D24. Orders
+
+**Context.** Spec M2.3: create (task flow, `Idempotency-Key`), list, detail, lines, state actions, payment, Today (spec §7, §8.1, §9). The spec also says "no slip → a ticket is generated in the batch", but tickets (table, tokens, serials, batches) are M3.1–M3.2. It leaves open what happens to a paid order whose lines change, and what a replayed request answers.
+
+**Decision.**
+- **Tickets wait for M3.** Orders are created without a ticket; M3.1 adds `tickets` and gives every order that has none a generated ticket (a one-off backfill in that step), so "every order has a ticket" holds from M3 on. Until then nothing reads tickets ([D12](#d12-tables-arrive-with-their-first-user)).
+- **The state machine is shared** (`ORDER_TRANSITIONS` in `shared/contracts/orders.ts`): the server enforces it, the app shows only the allowed actions from the same table. `orders.rules.ts` holds the server's other pure rules (snapshots, piece limit, "keeps the lines"). Each transition is a conditional update at the version read and in an allowed status, then `requireOneChange`.
+- **Totals on the server only.** A line is pieces × price or grams × price per kg ÷ 1000, rounded half up to a whole riel or cent; the order total is their sum. Requests carry price item ids and quantities, never prices or totals (the contract rejects them).
+- **Edits keep snapshots.** An edit names kept lines by `lineId` (their names and price stay) and new lines by `priceItemId` (priced now). The lines are deleted and inserted again in the edit's batch.
+- **One payment per order, for the whole total** (spec: `payment_status` paid / unpaid). **A paid order's lines can't change** (`409 ORDER_PAID`), its note can: there is no refund or top-up in Phase 1, so a total that moves after payment would be wrong either way. Cancelling a paid order is allowed and notes `paidBeforeCancel`.
+- **A replay answers with the record as it is now**: `idempotency_keys.response` stores the record's id, not a copy of the first response. A copy would show a stale order after later changes; the work itself never runs twice.
+- **History is `order_events`**, one row per action with its actor. Of order actions only cancel (owner-only, `order: ['cancel']`) also writes an `audit_events` row.
+- **Today** counts orders per status, unpaid (not cancelled), made and collected since Phnom Penh midnight (UTC+7, no daylight saving: `startOfShopDay`), and lists ready and unpaid orders (10 each), in one batch.
+
+**Alternatives.** Building `tickets` now without slips or batches (a table half-specified until M3). Partial payments (a `payments` table; the spec has none). Letting a paid order's total change and marking it unpaid again (silently turns a paid order into a debt). Storing the full first response (stale on replay). Auditing every order action twice (`audit_events` and `order_events`).
+
+**Consequences.** M3.1 owns the backfill of tickets for orders made before it. A shop that wants to change a paid order cancels it and makes a new one. The customer page shows the customer's latest 10 orders (`?customerId=` on the order list).

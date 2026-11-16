@@ -23,6 +23,8 @@ export const customers = sqliteTable('customers', {
 }, table => [
   // One customer per phone in a shop (spec §6); an anonymized customer has none, so it's free again.
   uniqueIndex('customers_shop_phone_unique').on(table.shopId, table.phoneE164).where(sql`${table.phoneE164} is not null`),
+  // The target of orders' composite foreign key: an order's customer is its own shop's.
+  uniqueIndex('customers_shop_id_id_unique').on(table.shopId, table.id),
   // The list: most recently changed first.
   index('customers_shop_updated_idx').on(table.shopId, table.updatedAt),
 ])

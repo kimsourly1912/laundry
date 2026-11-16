@@ -96,7 +96,7 @@ Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nux
 |---|---|---|---|
 | `* * * * *` | `notifications:deliver` | Send due outbox rows, backoff, max 5 attempts | M4.2 |
 | `0 2 * * *` (09:00 Phnom Penh) | `orders:remind-uncollected` | Queue reminders (spec §8.5) | M4.3 |
-| `15 20 * * *` | `platform:expire-idempotency-keys` | Delete keys older than 24 h | M2.3 |
+| `15 20 * * *` | `platform:expire-idempotency-keys` | Delete keys older than 24 h | Built (M2.3) |
 | `30 20 * * *` | `notifications:purge` | Delete sent/skipped rows older than 90 days | M4.2 |
 
 - A job must be safe to run twice and safe to overlap with itself (claims and dedupe keys, never "read then write").

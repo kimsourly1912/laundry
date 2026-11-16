@@ -42,6 +42,16 @@ The server refuses on its own; these rules only keep people on pages that work f
 
 `auth` (one card, the language), `platform` and `shop` (both `AppShell`: sidebar, drawer below `lg`, account menu). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
 
+**Bottom bar** ([responsive-layout → Page anatomy](../standards/responsive-layout.md#5-page-anatomy)): a page's primary actions in thumb reach. Below `lg` it's fixed to the bottom with the safe-area inset; from `lg` it's a row at the end of the content. One per page; put `<BottomBarSpacer />` last in the body so nothing hides behind it.
+
+```vue
+<BottomBar>
+  <UButton :label="t('common.actions.back')" color="neutral" variant="ghost" @click="back" />
+  <UButton type="submit" :label="t('orders.flow.next')" />
+</BottomBar>
+<BottomBarSpacer />
+```
+
 ## Language
 
 `@nuxtjs/i18n` ([D20](../decisions.md#d20-the-app-shell)): `useI18n()` → `t`, `locale`, `setLocale`. `<LanguageSelect />` switches without a reload; `<html lang>` and Nuxt UI's own texts follow. Dates: `formatDate(iso, locale)` in Phnom Penh time.
@@ -77,6 +87,7 @@ Form schemas are built with the user's language (`signInFormSchema(t)`, `newShop
 | `parseMoney(text, currency)` | What a person typed → minor units, or `null` (`'12.5'` USD → `1250`; riel refuse decimals) |
 | `moneyInput(minor, currency)` | Minor units → the plain text a form shows (`'12.50'`) |
 | `formatDate(iso, locale)` | `16 Nov 2026`, in Phnom Penh time |
+| `formatDateTime(iso, locale)` | `16 Nov 2026, 14:05`, 24-hour, in Phnom Penh time |
 | `localName({ nameEn, nameKm }, locale)` | Khmer when chosen and present, else English |
 
 The only place in `app/` that may call `Intl` (ESLint).

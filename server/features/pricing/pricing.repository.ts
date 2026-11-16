@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm'
+import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import type { PriceStatus, PriceUnit } from '#shared/contracts/pricing'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireAtMost, requireCount, updateAtVersion } from '#server/utils/batch'
@@ -60,7 +60,31 @@ export async function hasPriceItems(db: Db, shopId: string): Promise<boolean> {
   return (await db.$count(priceItems, eq(priceItems.shopId, shopId))) > 0
 }
 
+/**
+ * The shop's price items among `ids`, with their service type's names: what an order's lines copy
+ * (spec §16). Any status: the caller decides. At most `MAX_ORDER_LINES` ids, under D1's limit.
+ */
+export function priceItemsForLines(db: Db, shopId: string, ids: readonly string[]) {
+  return db.select({
+    id: priceItems.id,
+    nameEn: priceItems.nameEn,
+    nameKm: priceItems.nameKm,
+    serviceNameEn: serviceTypes.nameEn,
+    serviceNameKm: serviceTypes.nameKm,
+    unit: priceItems.unit,
+    price: priceItems.price,
+    status: priceItems.status,
+  }).from(priceItems)
+    .innerJoin(serviceTypes, and(eq(serviceTypes.shopId, priceItems.shopId), eq(serviceTypes.id, priceItems.serviceTypeId)))
+    .where(and(eq(priceItems.shopId, shopId), inArray(priceItems.id, [...ids])))
+}
+
 // --- Guards (abort the batch) ---
+
+/** Every one of `ids` (distinct) is an active price item of the shop: none was archived meanwhile. */
+export function requireActivePriceItems(db: Db, shopId: string, ids: readonly string[]): Statement {
+  return requireCount(db, sql`${db.$count(priceItems, and(activeItems(shopId), inArray(priceItems.id, [...ids])))}`, ids.length)
+}
 
 /** At most `max` active service types once the batch's earlier statements ran. */
 export function requireServiceTypesAtMost(db: Db, shopId: string, max: number): Statement {
