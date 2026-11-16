@@ -15,7 +15,7 @@ Commands, tests and the checks to run before a pull request.
 
 | Command | Does |
 |---|---|
-| `pnpm dev` | Dev server at `http://localhost:3000`, local SQLite in `.data/` |
+| `pnpm dev` | Dev server at `http://localhost:3000`, local SQLite in `.data/`. Accessibility problems (axe-core, `@nuxt/a11y`) appear in the browser console and the "Nuxt a11y" DevTools tab |
 | `pnpm build` | Production build (Node server preset locally) |
 | `pnpm preview` | Serve the production build |
 | `pnpm lint` / `pnpm lint:fix` | ESLint (style, feature boundaries, repository rules), cached |

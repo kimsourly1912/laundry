@@ -68,7 +68,7 @@ erDiagram
 | `currency` | text | `KHR` (default) \| `USD`. One currency per shop (P7) |
 | `policy_text_km`, `policy_text_en` | text null | Shown on the public ticket page |
 | `reminder_after_days` | integer | Default 3 (P13) |
-| `language` | text | `km` (default) \| `en`: customer-facing messages. Not in spec §6; spec §3 lists it as a shop setting ([Q5](../current-state.md#open-questions)) |
+| `language` | text | `en` (default) \| `km`: customer-facing messages and the ticket page. Not in spec §6; spec §3 lists it as a shop setting ([D6](../decisions.md#d6-shop-language-column)) |
 | `status` | text | `active` \| `suspended` |
 | `version`, `created_at`, `updated_at` | | |
 
@@ -97,7 +97,7 @@ erDiagram
 `price_items`: `id`, `shop_id`, `service_type_id` (FK restrict), `name_km`, `name_en`, `unit` (`piece` \| `kg`), `price` (integer, minor units, per piece or per kg), `sort`, `status` (`active` \| `archived`), `version`.
 
 - Archived, never deleted, once used by an order. Archived items aren't offered for new orders.
-- Required language fields: [Open, Q1](../current-state.md#open-questions).
+- `name_en` required, `name_km` optional ([D4](../decisions.md#d4-english-is-the-default-language)).
 
 ## `order_counters`, `orders`, `order_lines`, `order_events` (owner: `orders`)
 

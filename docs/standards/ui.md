@@ -197,7 +197,8 @@ A switch that saves at once (a shop setting toggle) **never blocks the others**:
 - **Announcements:** async results reach screen readers (toasts, inline alerts, `role="status"` for "Saving… / Saved"). A loading skeleton is `role="status"` with `aria-busy="true"` and an `aria-label`.
 - **Input:** everything works by keyboard; nothing is hover-only; gestures have button alternatives.
 - **Reflow and zoom:** works at 320 CSS px wide and 200% text zoom without two-dimensional scrolling.
-- **Language:** `<html lang>` follows the active locale (`km` or `en`), so screen readers pronounce text correctly.
+- **Language:** `<html lang>` follows the active locale (`en` or `km`), so screen readers pronounce text correctly.
+- **Checked while building:** the `@nuxt/a11y` module runs axe-core in the dev server against WCAG 2.0–2.2 A/AA rules, logs violations to the browser console and lists them in its Nuxt DevTools tab (D5). Fix what it reports before a PR. It's a dev aid, not proof: the e2e accessibility checks (M1.6) and the [review checklist](./ui-review-checklist.md) still apply.
 
 ## 13. Motion
 

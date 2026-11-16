@@ -99,7 +99,7 @@ Every step, in addition to [AGENTS.md → Verification](../../AGENTS.md#verifica
 
 - [ ] Plan written; [Open] items in current-state.
 - [ ] Structure per §3; public `index.ts` exports building blocks only.
-- [ ] Contracts in `shared/contracts`; strings in `km.json` + `en.json` ([i18n](./i18n.md)).
+- [ ] Contracts in `shared/contracts`; strings in `en.json` + `km.json` ([i18n](./i18n.md)).
 - [ ] `pnpm lint`, `pnpm typecheck`, `pnpm test:unit` pass; `pnpm build` too when config, plugins or modules changed.
 - [ ] Tests chosen by risk (§8). Each important test was checked to fail when its behavior or guard is removed.
 - [ ] Every new table or query has a two-shop isolation test.

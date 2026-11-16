@@ -20,7 +20,7 @@ The product spec (`laundry-portal-spec.md`, kept in the claude.ai project, not i
 - **Never delete** orders, customers (anonymize instead), tickets (void instead), shops (suspend instead).
 - **Thin routes:** access helper → validate (Valibot contract from `shared/contracts`) → one service call.
 - **Feature boundaries.** Code lives in `app/features/<f>/` and `server/features/<f>/`. Other code reaches a feature only through its `index.ts`. Server imports use `#server/` and `#shared/`, never `../` across directories. ESLint enforces this.
-- **Khmer + English.** Khmer is the default language. No hard-coded UI strings: every string is in `app/locales/km.json` and `en.json`.
+- **English + Khmer.** English is the default language (D4). No hard-coded UI strings: every string is in `app/locales/en.json` and `km.json`.
 - **Library APIs from the official docs for the installed version, never from memory.** Prefer what Nuxt, NuxtHub, Better Auth and Nuxt UI already provide before writing custom code or adding a dependency.
 - **Simplest design with strong boundaries.** No abstraction for a problem that doesn't exist yet. Functions, not classes; more than two inputs → one options object, destructured in the body.
 
@@ -51,7 +51,7 @@ Definition of done for every step:
 - The checks above pass. Report a check you couldn't run, and why.
 - Every new table or query has a two-shop isolation test.
 - Every new guard (permission, version, idempotency, tenant filter, state rule) is proven by removing it and seeing a test fail.
-- Contracts are in `shared/contracts`; strings in `km.json` + `en.json`.
+- Contracts are in `shared/contracts`; strings in `en.json` + `km.json`.
 - Docs updated: the owning standard or `reference/` page (examples must compile), `data-model.md` for schema changes, `decisions.md` for an architecture choice, `current-state.md` for status.
 
 Work one spec step per PR (small consecutive steps may share a PR, one commit each), then stop for review. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.

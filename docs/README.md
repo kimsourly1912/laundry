@@ -27,7 +27,7 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) â†
 | [`standards/responsive-layout.md`](standards/responsive-layout.md) | Compact-first layout for a phone at the counter, width classes, sticky bars |
 | [`standards/ui-review-checklist.md`](standards/ui-review-checklist.md) | The checklist run before merging a UI change |
 | [`standards/forms.md`](standards/forms.md) | Validation timing, the submit button, errors, unsaved changes, versions |
-| [`standards/i18n.md`](standards/i18n.md) | Khmer default + English, string keys, Khmer type, money and date display, `*_km`/`*_en` data |
+| [`standards/i18n.md`](standards/i18n.md) | English default + Khmer, string keys, Khmer type, money and date display, `*_km`/`*_en` data |
 | [`standards/feature-standard.md`](standards/feature-standard.md) | Feature plan template and definition of done |
 | [`server/architecture.md`](server/architecture.md) | Layers, routes, conventions, batch writes, versions, idempotency, errors, side effects, tests |
 | [`server/repositories.md`](server/repositories.md) | Query rules, the tenant rule, guards, writes, D1 limits |

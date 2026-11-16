@@ -44,7 +44,7 @@ function deployedSecurityRules() {
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxt/a11y'],
   $production: {
     // Production builds only: the Vite dev server needs inline scripts and a websocket.
     routeRules: deployedSecurityRules(),
@@ -56,7 +56,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Laundry Portal',
-      htmlAttrs: { lang: 'km' },
+      htmlAttrs: { lang: 'en' },
     },
   },
   css: ['~/assets/css/tailwind.css'],
@@ -115,6 +115,11 @@ export default defineNuxtConfig({
     'prepare:types'({ nodeReferences }) {
       nodeReferences.push({ path: 'hub/db/schema.d.ts' })
     },
+  },
+  // Accessibility checks (axe-core) in the dev server and its DevTools tab, against our WCAG 2.2 AA
+  // baseline (docs/standards/ui.md §12). Dev only: the module does nothing in a production build.
+  a11y: {
+    axe: { options: {}, runOptions: { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] } },
   },
   eslint: {
     config: {

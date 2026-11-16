@@ -42,3 +42,36 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Keep the starter's module and migration: ships a migration that M1.4 must replace, and an email sign-in the product doesn't use (P4).
 
 **Consequences.** The first migration in `server/db/migrations` comes from M1.3 or M1.4. Nothing is deployed yet, so nothing needs migrating.
+
+## D4. English is the default language
+
+**Context.** Spec P12 made Khmer the default, with English second. The owner decided (answer to Q1, 2026-11-16) that English is the default.
+
+**Decision.**
+- The default locale is `en`; `km` is the second locale and stays complete (every key in both files). `<html lang>` starts as `en`.
+- Two-language shop data: `*_en` required, `*_km` optional; display falls back to English.
+- A shop's customer-facing `language` (D6) defaults to `en`.
+
+**Alternatives.** Khmer default (spec P12): closer to what shop owners and customers read first, but not the owner's choice.
+
+**Consequences.** Replaces the default in spec P12; the spec should be updated to match. A Khmer-reading owner switches once and the choice is remembered. Khmer type rules (font, line height) still apply to every screen.
+
+## D5. `@nuxt/a11y` in development
+
+**Context.** The owner asked for the [`@nuxt/a11y`](https://github.com/nuxt/a11y) module. The published version is `1.0.0-alpha.1`. In that version the module is enabled only in the dev server (`enabled` defaults to `nuxt.options.dev`); its README describes a build-time report that this version doesn't ship yet.
+
+**Decision.** Install it as a dev dependency, pinned exactly (`1.0.0-alpha.1`, as an alpha can change between versions). Run axe-core against WCAG 2.0–2.2 A/AA tags, matching our accessibility baseline. Checked: a production build contains no axe code.
+
+**Alternatives.** Only the e2e axe checks planned for M1.6: later feedback, no in-browser highlighting while building.
+
+**Consequences.** Accessibility feedback while developing. It doesn't replace the e2e accessibility tests. On upgrade, read the changelog: the build-time report (`report.failOnViolation`, on by default per the README) could start failing builds.
+
+## D6. Shop language column
+
+**Context.** Spec §3 lists "language" as a shop setting; spec §6's `shop_settings` has no column for it. The owner accepted the proposal (answer to Q5, 2026-11-16).
+
+**Decision.** `shop_settings.language`: `en` (default, D4) | `km`, with a `CHECK`. It decides the language of that shop's customer-facing output: Telegram messages and the public ticket page. Each user's app language is their own choice, separate from this.
+
+**Alternatives.** Use each customer's Telegram language: unreliable and not available on the ticket page.
+
+**Consequences.** Spec §6 should add the column. Built with `shop_settings` in M1.5.
