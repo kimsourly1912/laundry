@@ -53,7 +53,8 @@
       "SERVICE_TYPE_IN_USE": "Archive this service type's price items first.",
       "SERVICE_TYPE_UNAVAILABLE": "Choose an active service type.",
       "PRICE_LIST_FULL": "The price list is full. Archive some entries first.",
-      "INVALID_STATE": "This was already changed. Reload to see it."
+      "INVALID_STATE": "This was already changed. Reload to see it.",
+      "PHONE_TAKEN": "Another customer already has this phone number."
     }
   },
   "account": {
@@ -101,7 +102,34 @@
     "between": "Between {min} and {max}",
     "moneyKhr": "Type a whole number of riel, like 13500",
     "moneyUsd": "Type dollars with up to 2 decimals, like 12.50",
-    "tooHigh": "Too high"
+    "tooHigh": "Too high",
+    "phoneNumber": "Not a valid phone number"
+  },
+  "customers": {
+    "nav": "Customers",
+    "title": "Customers",
+    "new": "New customer",
+    "search": "Search name or phone",
+    "empty": "No customers yet",
+    "emptyDescription": "Customers are added here or while taking an order.",
+    "noMatch": "No customers match your search",
+    "noPhone": "No phone",
+    "back": "Customers",
+    "notFound": "This customer doesn't exist.",
+    "name": "Name",
+    "phone": "Phone",
+    "phoneHelp": "Optional. Any format: 012 345 678 or +855 12 345 678.",
+    "note": "Note",
+    "create": "Add customer",
+    "saved": "Customer saved.",
+    "phoneTakenBy": "{name} already has this phone number.",
+    "openExisting": "Open {name}",
+    "former": "Former customer",
+    "formerDescription": "This customer was anonymized: their name, phone and note were removed. Their orders are kept.",
+    "anonymize": "Anonymize",
+    "anonymizeConfirm": "Anonymize {name}?",
+    "anonymizeDescription": "Their name, phone and note are removed for good. Their orders are kept and show \"Former customer\". This can't be undone.",
+    "anonymizedDone": "The customer was anonymized."
   },
   "settings": {
     "nav": "Settings",

@@ -75,19 +75,20 @@ erDiagram
 
 ## `customers` (owner: `customers`)
 
-**Status:** M2.2.
+**Status:** Built (migration `0004_customers`, M2.2).
 
 | Column | Type | Notes |
 |---|---|---|
-| `id`, `shop_id` | | |
-| `name` | text | Cleared on anonymize |
-| `phone_e164` | text null | Normalized on the server (`libphonenumber-js`, region KH). Cleared on anonymize |
-| `note` | text null | |
+| `id`, `shop_id` | | `shop_id` FK → `organization.id`, restrict |
+| `name` | text | `''` once anonymized (the app shows "Former customer") |
+| `phone_e164` | text null | E.164, normalized by the contract on the server (`libphonenumber-js/min`, region KH: `012 345 678` = `+85512345678`). `null` once anonymized |
+| `note` | text null | `null` once anonymized |
 | `anonymized_at` | timestamp null | |
 | `version`, `created_at`, `updated_at` | | |
 
-- Partial UNIQUE `(shop_id, phone_e164)` where `phone_e164` is not null. A duplicate → `409`, and the UI offers the existing customer.
-- **Never deleted.** Anonymized (P11): the phone is freed for reuse.
+- Partial UNIQUE `customers_shop_phone_unique (shop_id, phone_e164)` where `phone_e164` is not null: one customer per phone in a shop, any number of customers without one. A duplicate → `409 PHONE_TAKEN`, and the UI offers the existing customer ([D23](../decisions.md#d23-customers)).
+- Index `(shop_id, updated_at)`: the list, most recently changed first.
+- **Never deleted.** Anonymized (P11): name, phone and note cleared, the phone free for reuse; hidden from the list and search, never edited again. Audited (`customer.*`, `data.fields` names fields, never values).
 
 ## `service_types`, `price_items` (owner: `pricing`)
 

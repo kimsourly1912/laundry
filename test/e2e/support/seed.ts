@@ -16,6 +16,8 @@ export const E2E_ACCOUNTS = {
   owner: { username: 'e2e_owner', password: 'e2e owner password 1', shop: 'Kampot Clean' },
   /** Sets up a price list (prices.test.ts). */
   priceOwner: { username: 'e2e_price_owner', password: 'e2e price password 1', shop: 'Siem Reap Wash' },
+  /** Adds customers (customers.test.ts). */
+  customerOwner: { username: 'e2e_customer_owner', password: 'e2e customer password 1', shop: 'Battambang Laundry' },
 } as const
 
 export type E2eAccounts = typeof E2E_ACCOUNTS
@@ -25,14 +27,15 @@ export async function seedE2e(dbFile: string) {
   const client = createClient({ url: `file:${dbFile}`, timeout: 5000 })
   const db = drizzle(client, { casing: 'snake_case' }) as unknown as Db
   try {
-    const { admin, newOwner, owner, priceOwner } = E2E_ACCOUNTS
+    const { admin, newOwner, owner, priceOwner, customerOwner } = E2E_ACCOUNTS
     const { userId } = await seedPlatformAdmin({ db, username: admin.username, passwordHash: await hashPassword(admin.password) })
     const actor = { userId, platformRole: 'superadmin' as const }
     await createShop(db, actor, { name: newOwner.shop, slug: 'fresh-start', owner: { name: 'New Owner', username: newOwner.username, password: newOwner.password } })
     const shop = await createShop(db, actor, { name: owner.shop, slug: 'kampot-clean', owner: { name: 'Owner', username: owner.username, password: owner.password } })
     const priceShop = await createShop(db, actor, { name: priceOwner.shop, slug: 'siem-reap-wash', owner: { name: 'Price Owner', username: priceOwner.username, password: priceOwner.password } })
+    const customerShop = await createShop(db, actor, { name: customerOwner.shop, slug: 'battambang-laundry', owner: { name: 'Customer Owner', username: customerOwner.username, password: customerOwner.password } })
     // Past their first sign-in already: the admin and these owners have their own passwords.
-    for (const id of [userId, shop.owner!.id, priceShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
+    for (const id of [userId, shop.owner!.id, priceShop.owner!.id, customerShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
   }
   finally {
     client.close()
