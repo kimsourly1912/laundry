@@ -11,7 +11,7 @@ import { renderOrderReceipt } from '#server/features/receipts'
 import { deliverDue, linkStatement, queueChatMessageStatement } from '#server/features/notifications'
 import type { DeliveryReport, OutboxMessage, SendOutcome } from '#server/features/notifications'
 import type { TelegramBot } from './telegram.bot'
-import { isChatGone, isTelegramApiError } from './telegram.bot'
+import { createTelegramBot, isChatGone, isTelegramApiError } from './telegram.bot'
 import { telegramOff } from './telegram.errors'
 import { BOTH, isOnlyThisOrder, receiptCaption, receiptText, statusText, textsFor } from './telegram.messages'
 import * as repo from './telegram.repository'
@@ -221,4 +221,19 @@ export function webhookSecretMatches(expected: string, given: string | undefined
   let difference = 0
   for (let i = 0; i < expected.length; i++) difference |= expected.charCodeAt(i) ^ given.charCodeAt(i)
   return difference === 0
+}
+
+/**
+ * An order's queued messages, sent right after the response (for the route's `waitUntil`), so
+ * "ready" reaches the customer at once rather than at the next minute's job. A failure stays in
+ * the outbox for the job; this never throws.
+ */
+export async function deliverOrderSoon(db: Db, options: { botToken: string, orderId: string }): Promise<void> {
+  const { botToken, orderId } = options
+  try {
+    await deliverOutbox(db, { bot: createTelegramBot(botToken), orderId })
+  }
+  catch (error) {
+    log('warn', 'Sending right away failed; the job retries', { orderId, error: String(error) })
+  }
 }

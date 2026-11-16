@@ -103,7 +103,10 @@ describe('the background', () => {
     expect(await refusal(uploadReceiptBackground(db, inShop(a), { bytes: await pngOf(400, 300), version: 7 }))).toBe('409 VERSION_CONFLICT')
     expect(await refusal(uploadReceiptBackground(db, inShop(b), { bytes: new TextEncoder().encode('<svg></svg>') }))).toBe('400 RECEIPT_IMAGE_INVALID')
     expect(await refusal(uploadReceiptBackground(db, inShop(b), { bytes: await pngOf(150, 300) }))).toBe('400 RECEIPT_IMAGE_SIZE')
-    expect(await refusal(uploadReceiptBackground(db, inShop(b), { bytes: new Uint8Array(1_000_001) }))).toBe('400 RECEIPT_IMAGE_INVALID')
+    // A real PNG header, then over 1 MB: the size alone refuses it.
+    const big = new Uint8Array(1_000_001)
+    big.set(await pngOf(400, 300))
+    expect(await refusal(uploadReceiptBackground(db, inShop(b), { bytes: big }))).toBe('400 RECEIPT_IMAGE_INVALID')
   })
 
   it('a change made meanwhile stops the replacement', async () => {
@@ -175,6 +178,11 @@ describe('an order\'s receipt', () => {
     const order = await orderIn(a)
     expect(await refusal(orderReceipt(db, b, order.id))).toBe('404 NOT_FOUND')
     expect(await refusal(renderOrderReceipt(db, b.shopId, order.id))).toBe('404 NOT_FOUND')
+  })
+
+  it('uses only its own shop\'s design: a shop without one gets none, however many others have', async () => {
+    await designFor(a)
+    expect(await renderOrderReceipt(db, b.shopId, (await orderIn(b, [{ priceItemId: otherShopShirt, quantity: 1 }])).id)).toBeNull()
   })
 })
 

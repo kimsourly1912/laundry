@@ -166,6 +166,14 @@ describe('linking (spec §8.2)', () => {
     expect(await db.$count(telegramPending)).toBe(1)
   })
 
+  it('waits 10 minutes for the phone, then asks for a new scan', async () => {
+    const order = await orderIn(a)
+    await scan(a, order.id)
+    await handleUpdate(db, message(PERSON, { contact: { phone_number: '+85512345678', user_id: PERSON } }), { bot, now: new Date(Date.now() + 11 * 60_000) })
+    expect(await liveLinks()).toEqual([])
+    expect(sent.at(-1)!.text).toMatch(/Scan the QR code/)
+  })
+
   it('a walk-in has no phone to prove: the scan links the order straight away', async () => {
     const order = await orderIn(a, '')
     await scan(a, order.id)
@@ -337,6 +345,7 @@ describe('webhookSecretMatches', () => {
     expect(webhookSecretMatches('s3cret_value', 's3cret_value')).toBe(true)
     expect(webhookSecretMatches('s3cret_value', 's3cret_valuE')).toBe(false)
     expect(webhookSecretMatches('s3cret_value', 's3cret')).toBe(false)
+    expect(webhookSecretMatches('s3cret_value', 's3cret_value_and_more')).toBe(false)
     expect(webhookSecretMatches('s3cret_value', undefined)).toBe(false)
     expect(webhookSecretMatches('', '')).toBe(false)
   })
@@ -352,5 +361,13 @@ describe('two shops, one person', () => {
     const links = await liveLinks()
     expect(links.map(link => link.shopId).sort()).toEqual([a.shopId, b.shopId].sort())
     expect(await db.$count(telegramLinks, and(eq(telegramLinks.shopId, b.shopId), isNull(telegramLinks.orderId)))).toBe(1)
+  })
+
+  it('a link can\'t pair one shop with another shop\'s customer or order (composite foreign keys)', async () => {
+    const order = await orderIn(a)
+    const row = { id: '01900000-0000-7000-8000-00000000000a', telegramUserId: '1', chatId: '1', verifiedPhone: false }
+    await expect(db.insert(telegramLinks).values({ ...row, shopId: b.shopId, customerId: order.customer.id, orderId: null })).rejects.toThrow()
+    const other = await orderIn(b)
+    await expect(db.insert(telegramLinks).values({ ...row, shopId: b.shopId, customerId: other.customer.id, orderId: order.id })).rejects.toThrow()
   })
 })

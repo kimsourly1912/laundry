@@ -115,13 +115,14 @@ export function dueMessages(db: Db, options: { now: Date, limit: number, orderId
 
 /**
  * Takes a due message for one sender: counts the attempt and hides it until `leaseUntil`. Only one
- * of two overlapping runs gets it (the other finds the attempt count moved). A sender that dies
- * mid-send leaves it to be retried when the lease ends: at least once, never lost.
+ * of two overlapping runs gets it: the first moves `next_attempt_at` past now, so the second's
+ * condition no longer holds. A sender that dies mid-send leaves it to be retried when the lease
+ * ends: at least once, never lost.
  */
-export async function claimMessage(db: Db, row: { id: string, attempts: number }, times: { now: Date, leaseUntil: Date }) {
+export async function claimMessage(db: Db, row: { id: string }, times: { now: Date, leaseUntil: Date }) {
   const [claimed] = await db.update(notifications)
     .set({ attempts: sql`${notifications.attempts} + 1`, nextAttemptAt: times.leaseUntil })
-    .where(and(eq(notifications.id, row.id), eq(notifications.status, 'pending'), eq(notifications.attempts, row.attempts), lte(notifications.nextAttemptAt, times.now)))
+    .where(and(eq(notifications.id, row.id), eq(notifications.status, 'pending'), lte(notifications.nextAttemptAt, times.now)))
     .returning({ id: notifications.id, attempts: notifications.attempts })
   return claimed
 }
