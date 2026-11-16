@@ -122,6 +122,9 @@ export default defineNuxtConfig({
     platformAdmin: { username: '', password: '' },
     public: {
       siteUrl: '',
+      // Where a shop owner asks the platform for help or a change (D26, D27): a Telegram chat
+      // link like https://t.me/<name>. No link shown while it's empty.
+      supportUrl: '',
       // "Today", reports and reminders (T14).
       shopTimeZone: 'Asia/Phnom_Penh',
     },

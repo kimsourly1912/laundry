@@ -17,13 +17,13 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M2.2 Customers | Done: `/api/shop/customers` (search by name or phone digits, pages), create, edit, anonymize; phones in E.164 (`libphonenumber-js`), one per shop by a partial unique index (migration `0004`); list and customer screens; shop route statements pinned to spec §9. D23 |
 | M2.3 Orders | Done: `/api/shop/orders` (create with `Idempotency-Key`, list with status, payment, search and customer filters, detail, edit lines and note, start / ready / rework / collect / cancel, payment with `Idempotency-Key`), `/api/shop/today`; `order_counters`, `orders`, `order_lines`, `order_events`, `idempotency_keys` (migration `0005`), the daily key purge job; new-order flow with the customer picker, order list, order page, edit page, Today, a customer's orders, the bottom bar. D24 |
 | New flow A: slip templates + shop setup | Done: `slip_templates` (migration `0006`), `/api/platform/templates`, template editor (item × service price grid), create shop from a template (a copy, in its currency), the platform keeps each shop's price list (`/api/platform/shops/:shopId/…`), owner reads prices only. D25, D26 |
-| New flow B: the owner's two pages | **Next** |
+| New flow B: the owner's two pages | Done: the paper-slip order form (phone optional, walk-ins), the orders board (Waiting / Ready / Done, one big button, paid and collected), More with contact support, shop screens at 640px; the wizard, order list and Today removed. D27 |
+| New flow C: receipt to Telegram | **Next** |
 
 ## The new flow (D25), replacing spec §18 from here
 
 The owner tested M2.3 and chose a simpler, managed flow: the platform sets each shop up from a slip template; the owner only takes orders. Plan, one PR each:
 
-- **B. The owner's two pages** (mobile first, 640px): a one-screen order form shaped like the paper slip (phone optional, steppers per item, service tabs, paid / not paid), an orders board (Waiting / Ready / Collected, one big button; "paid and collected" in one tap), "More" for the rest and a contact-support link. The wizard and Today go. Walk-in orders (no customer) and phone-only customers.
 - **C. Receipt to Telegram:** the admin designs a receipt per template / shop (the slip's artwork as background + fields bound to order data), rendered to PNG on the server (resvg; Khmer checked), a QR on the staff screen to link Telegram, and status messages. Replaces M3.1–M4.3 as planned; printed QR slips later if shops want them.
 
 ## Not built yet (on purpose)
@@ -42,6 +42,8 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 | Q8 | Rendering the receipt costs ~350 ms of CPU: is the Cloudflare account on Workers Paid (the free plan allows 10 ms)? | Owner | PR C |
 
 ## Owner notes
+
+- **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) as a Worker var on staging; until then the More page shows no support link.
 
 - **PR size:** the owner prefers one PR for several small and medium steps (one commit each) over one PR per step (2026-11-16).
 - **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.

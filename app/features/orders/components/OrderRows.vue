@@ -1,6 +1,7 @@
 <script setup lang="ts">
-/** Orders as rows that open the order (the list, Today, a customer's history). Never a sideways table. */
+/** Orders as rows that open the order (a customer's history). Never a sideways table. */
 import type { OrderSummary } from '#shared/contracts/orders'
+import { customerLabel } from '../schemas/slip-form'
 import OrderBadges from './OrderBadges.vue'
 
 defineProps<{ orders: OrderSummary[], dim?: boolean }>()
@@ -22,7 +23,7 @@ const { t, locale } = useI18n()
       >
         <div class="min-w-0 space-y-0.5">
           <p class="font-medium break-words">
-            <span class="tabular-nums">#{{ order.number }}</span> · {{ order.customer.anonymized ? t('customers.former') : order.customer.name }}
+            <span class="tabular-nums">#{{ order.number }}</span> · {{ customerLabel(order.customer, t) }}
           </p>
           <p class="text-sm text-muted tabular-nums">
             {{ formatMoney(order.total, order.currency, locale) }} · {{ formatDate(order.createdAt, locale) }}

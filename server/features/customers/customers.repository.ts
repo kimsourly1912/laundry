@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, isNotNull, isNull, ne, or, sql } from 'drizzle-orm'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireCount, updateAtVersion } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
@@ -53,6 +53,8 @@ export async function listCustomers(db: Db, shopId: string, search: Search): Pro
   const where = and(
     eq(customers.shopId, shopId),
     isNull(customers.anonymizedAt),
+    // Walk-ins (D27: no name, no phone) aren't anyone to find again; their orders stay.
+    or(ne(customers.name, ''), isNotNull(customers.phoneE164)),
     text ? or(containsText(customers.name, text), phoneDigits ? sql`instr(${customers.phoneE164}, ${phoneDigits}) > 0` : undefined) : undefined,
   )
   const [rows, [counted]] = await db.batch([

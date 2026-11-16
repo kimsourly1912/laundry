@@ -92,6 +92,8 @@ export async function orderDetail(db: Db, shopId: string, id: string, eventLimit
 
 interface ListFilter {
   status?: OrderStatus
+  /** Any of these (a board tab, D27). */
+  statuses?: readonly OrderStatus[]
   payment?: PaymentStatus
   /** A customer's name, any part. */
   text?: string
@@ -106,10 +108,11 @@ interface ListFilter {
 
 /** The shop's orders, newest first, a page at a time; a search matches the number, phone or name. */
 export async function listOrders(db: Db, shopId: string, filter: ListFilter) {
-  const { status, payment, text, phoneDigits, number, customerId, limit, offset } = filter
+  const { status, statuses, payment, text, phoneDigits, number, customerId, limit, offset } = filter
   const where = and(
     eq(orders.shopId, shopId),
     status ? eq(orders.status, status) : undefined,
+    statuses ? inArray(orders.status, [...statuses]) : undefined,
     payment ? eq(orders.paymentStatus, payment) : undefined,
     customerId ? eq(orders.customerId, customerId) : undefined,
     text

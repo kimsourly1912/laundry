@@ -35,7 +35,7 @@ describe('shop settings and the price list', () => {
       void dialog.dismiss()
     })
     await page.getByRole('button', { name: 'Open sidebar' }).click()
-    await page.getByRole('link', { name: 'Prices' }).click()
+    await page.getByRole('link', { name: 'More' }).click()
     await expect.poll(() => asked).toEqual(['Leave without saving? Your changes will be lost.'])
     expect(page.url()).toBe(`${host}/settings`)
     expect(await page.getByLabel('Phone').inputValue()).toBe('012 345 678')

@@ -42,6 +42,7 @@ Runtime values come from `NUXT_*` variables (`runtimeConfig` in `nuxt.config.ts`
 |---|---|---|
 | `NUXT_BETTER_AUTH_SECRET` | yes | M1.4 |
 | `NUXT_PUBLIC_SITE_URL` | no | M1.4 (Better Auth base URL, trusted origin) |
+| `NUXT_PUBLIC_SUPPORT_URL` | no | D27: "Contact support" on the shop's More page (a Telegram chat link like `https://t.me/<name>`); hidden when empty. Set it as a Worker var |
 | `NUXT_TELEGRAM_BOT_TOKEN` | yes | M4.1 |
 | `NUXT_TELEGRAM_BOT_USERNAME` | no | M4.1 (`t.me/<bot>?start=<token>` links) |
 | `NUXT_TELEGRAM_WEBHOOK_SECRET` | yes | M4.1 |

@@ -29,7 +29,7 @@ const signOutOthers = useMutation(() => apiFetch('/auth/revoke-other-sessions', 
     </template>
 
     <template #body>
-      <div class="mx-auto w-full max-w-xl space-y-6">
+      <div class="mx-auto w-full max-w-page space-y-6">
         <p class="text-sm text-muted">
           {{ t('account.page.signedInAs', { username: me?.user.username }) }}
         </p>

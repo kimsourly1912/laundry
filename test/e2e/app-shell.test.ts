@@ -44,7 +44,7 @@ describe('the app shell', () => {
     // Onward to the page asked for, then the shop's home.
     await page.waitForURL(`${host}/account`)
     await page.goto(`${host}/`)
-    await expect.poll(() => page.getByRole('heading', { level: 2 }).textContent()).toBe(shop)
+    await expect.poll(() => page.getByRole('heading', { level: 1 }).textContent()).toBe(shop)
     // An owner never reaches the platform's pages.
     await page.goto(`${host}/platform/shops`)
     await page.waitForURL(`${host}/`)
@@ -72,7 +72,7 @@ describe('the app shell', () => {
     await phone.goto(`${host}/sign-in`)
     await signIn(phone, username, password)
     await phone.waitForURL(`${host}/`)
-    await expect.poll(() => phone.getByRole('heading', { level: 2 }).textContent()).toContain(shop)
+    await expect.poll(() => phone.getByRole('heading', { level: 1 }).textContent()).toContain(shop)
 
     // The platform admin signs the owner out everywhere (the owner lost this phone).
     const admin = await newDevice(browser, { width: 1280, height: 800 })

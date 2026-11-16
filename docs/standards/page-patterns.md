@@ -14,7 +14,7 @@ Blueprints for the five kinds of page, and the states every page handles. Every 
 | Finding, scanning or acting on many records | [Resource index](#3-resource-index) | Orders, customers, shops, ticket batches |
 | Seeing or changing one record | [Detail / editor](#4-detail--editor) | Order detail, customer detail |
 | Changing configuration | [Settings](#5-settings) | Shop settings, price list, account, platform shop detail |
-| Seeing what needs attention now | [Dashboard](#6-dashboard) | Today |
+| Seeing what needs attention now | [Dashboard](#6-dashboard) | The orders board's counts (D27; Today was removed) |
 
 **The task flow is the primary pattern** in this product: new order and pickup are what the owner does all day.
 

@@ -330,3 +330,19 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 **Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
 
+## D27. The owner's two pages
+
+**Context.** D25: the owner should use the app like the paper slip, without learning a process. M2.3 built a three-step wizard (find or create a customer, search a dropdown for each line, review), an order list, Today, and Start / Ready / Collect as separate actions.
+
+**Decision.**
+- **New order is one screen shaped like the slip**: phone and name, both optional; a tab per service with a box per item (steppers for pieces, kilograms typed); a note; paid or not; Save. After saving, the order number is shown large ("write it on the bag") with Next order.
+- **The person at the counter** (`customer: { kind: 'counter', phone, name }`): a phone finds the shop's customer with it, or makes one in the order's batch; no phone makes a walk-in customer (no name or phone, one per order, hidden from the customers list). A name typed for a known phone is ignored. Two orders making the same new phone's customer at once: the second batch fails on the phone's unique index, resolves again and uses the winner (no duplicate). `customer: { kind: 'existing', id }` stays for picking a customer.
+- **Why a walk-in is a customer row**, not a null `orders.customer_id`: making the column nullable needs a table rebuild in SQLite, and on D1 dropping `orders` would cascade to `order_lines` (D1 keeps foreign keys on). A customer row with no name and no phone needs no migration and keeps every order's customer join.
+- **The orders board is the home**: Waiting (received, or in progress from before) / Ready / Done (collected or cancelled), with counts, a search across all, and one big button per order: Mark ready, then Collected. An unpaid order asks: **paid now and collected** (the payment with its `Idempotency-Key`, then the pickup at the version the payment left; if the pickup fails, the payment stays recorded and the order stays ready) or handed over unpaid.
+- **No Start button.** An order goes from received straight to ready; the status stays for orders that have it.
+- **More** holds customers, prices (read only, D26), settings, account and **Contact support** (`NUXT_PUBLIC_SUPPORT_URL`). Today, the order list and the wizard are removed; `/orders` goes to the board.
+
+**Alternatives.** A bottom tab bar (three destinations fit the drawer and the in-page buttons). One "collect and pay" server action (a second idempotent write path for little gain: the two calls are each safe to retry). Requiring a phone (paper slips often have none).
+
+**Consequences.** The customers list can't show walk-ins (by design). Telegram linking for a walk-in is per order (spec §8.2: no phone, order-only link). Q7 (paid orders' lines are locked) is unchanged.
+

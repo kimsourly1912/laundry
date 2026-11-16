@@ -1,13 +1,13 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
 import type { CollectOrderInput, CreateOrderInput, Order, OrderAction, OrderActionInput, OrderListQuery, OrderStatus, OrderSummary, TodayOverview, UpdateOrderInput } from '#shared/contracts/orders'
-import { ORDER_TRANSITIONS, TODAY_LIST_SIZE } from '#shared/contracts/orders'
+import { ORDER_STAGES, ORDER_TRANSITIONS, TODAY_LIST_SIZE } from '#shared/contracts/orders'
 import type { Db, Statement } from '#server/utils/batch'
-import { isStaleWrite, requireOneChange } from '#server/utils/batch'
+import { isStaleWrite, isUniqueViolation, requireOneChange } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { startOfShopDay } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
-import { getCustomer, phoneSearchDigits, requireActiveCustomerStatement } from '#server/features/customers'
+import { counterCustomer, getCustomer, phoneSearchDigits, requireActiveCustomerStatement } from '#server/features/customers'
 import { priceItemsForLines, requireActivePriceItemsStatement } from '#server/features/pricing'
 import { getSettings } from '#server/features/shops'
 import type { ShopActor } from '#server/features/identity'
@@ -71,9 +71,10 @@ function numberSearch(search: string): number | undefined {
 }
 
 export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery): Promise<Page<OrderSummary>> {
-  const { status, payment, search, customerId, page, pageSize } = query
+  const { status, stage, payment, search, customerId, page, pageSize } = query
   const { rows, total } = await repo.listOrders(db, actor.shopId, {
     status,
+    statuses: stage ? ORDER_STAGES[stage] : undefined,
     payment,
     customerId,
     text: search,
@@ -153,10 +154,21 @@ async function isActiveCustomer(db: Db, actor: ShopActor, id: string): Promise<b
   }
 }
 
+/**
+ * The order's customer and the statements that make or guard them in the order's batch: one
+ * chosen already (still the shop's and not anonymized), or the person at the counter (D27).
+ */
+async function orderCustomer(db: Db, actor: ShopActor, input: CreateOrderInput, now: Date): Promise<{ id: string, statements: Statement[] }> {
+  const { customer } = input
+  if (customer.kind === 'counter') return counterCustomer(db, actor, customer, now)
+  if (!await isActiveCustomer(db, actor, customer.id)) throw customerUnavailable()
+  return { id: customer.id, statements: [requireActiveCustomerStatement(db, actor.shopId, customer.id)] }
+}
+
 /** Why a new order's batch stopped: its customer was anonymized, or a price archived, meanwhile. */
-function explainCreate(db: Db, actor: ShopActor, input: CreateOrderInput): Explain {
+function explainCreate(db: Db, actor: ShopActor, input: CreateOrderInput, customerId: string): Explain {
   return async () => {
-    if (!await isActiveCustomer(db, actor, input.customerId)) return customerUnavailable()
+    if (!await isActiveCustomer(db, actor, customerId)) return customerUnavailable()
     const ids = [...new Set(input.lines.map(line => line.priceItemId))]
     const active = new Set((await priceItemsForLines(db, actor.shopId, ids)).filter(item => item.status === 'active').map(item => item.id))
     return priceItemUnavailable(input.lines.flatMap((line, index) => (active.has(line.priceItemId) ? [] : [`lines.${index}.priceItemId`])))
@@ -176,23 +188,34 @@ export async function createOrder(db: Db, actor: ShopActor, input: CreateOrderIn
     request: input,
     now,
     perform: async (keyStatement) => {
-      if (!await isActiveCustomer(db, actor, input.customerId)) throw customerUnavailable()
-      const priced = await priceNewLines(db, shopId, input.lines.map((line, index) => ({ ...line, path: `lines.${index}` })))
-      const lines = [...priced.values()]
-      const total = orderTotal(lines)
-      const { currency } = await getSettings(db, actor)
-      const orderId = newId()
-      await run(db, [
-        requireActiveCustomerStatement(db, shopId, input.customerId),
-        requireActivePriceItemsStatement(db, shopId, [...new Set(input.lines.map(line => line.priceItemId))]),
-        repo.nextNumberStatement(db, shopId),
-        repo.insertOrderStatement(db, { shopId, id: orderId, customerId: input.customerId, total, currency, note: input.note, paid: input.paid, createdBy: actor.userId, now }),
-        ...repo.insertLinesStatements(db, { shopId, orderId }, lines),
-        event(db, actor, orderId, 'created', now, { lines: lines.length, total, currency }),
-        ...(input.paid ? [event(db, actor, orderId, 'payment_recorded', now, { amount: total, currency })] : []),
-        keyStatement(orderId),
-      ], explainCreate(db, actor, input))
-      return orderId
+      const once = async () => {
+        const customer = await orderCustomer(db, actor, input, now)
+        const priced = await priceNewLines(db, shopId, input.lines.map((line, index) => ({ ...line, path: `lines.${index}` })))
+        const lines = [...priced.values()]
+        const total = orderTotal(lines)
+        const { currency } = await getSettings(db, actor)
+        const orderId = newId()
+        await run(db, [
+          ...customer.statements,
+          requireActivePriceItemsStatement(db, shopId, [...new Set(input.lines.map(line => line.priceItemId))]),
+          repo.nextNumberStatement(db, shopId),
+          repo.insertOrderStatement(db, { shopId, id: orderId, customerId: customer.id, total, currency, note: input.note, paid: input.paid, createdBy: actor.userId, now }),
+          ...repo.insertLinesStatements(db, { shopId, orderId }, lines),
+          event(db, actor, orderId, 'created', now, { lines: lines.length, total, currency }),
+          ...(input.paid ? [event(db, actor, orderId, 'payment_recorded', now, { amount: total, currency })] : []),
+          keyStatement(orderId),
+        ], explainCreate(db, actor, input, customer.id))
+        return orderId
+      }
+      try {
+        return await once()
+      }
+      catch (error) {
+        // Another order made this phone's customer meanwhile: it exists now, so this one uses it.
+        // (A key used twice at once fails again here, and runIdempotent answers with the winner.)
+        if (isUniqueViolation(error) && input.customer.kind === 'counter' && input.customer.phone) return once()
+        throw error
+      }
     },
   })
   return { order: await getOrder(db, actor, id), replayed }

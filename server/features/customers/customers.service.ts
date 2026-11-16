@@ -122,3 +122,25 @@ export async function anonymizeCustomer(db: Db, actor: ShopActor, id: string, in
 export function requireActiveCustomerStatement(db: Db, shopId: string, id: string): Statement {
   return repo.requireActiveCustomer(db, shopId, id)
 }
+
+/**
+ * The person at the counter (D27), for a new order's batch: with a phone, the shop's customer with
+ * that phone (anonymized ones have none), else a new customer with this phone and name; with no
+ * phone, a new walk-in customer with only the name given, which may be blank. A new customer is
+ * audited like any other. Two orders making the same new phone's customer at once: one batch fails
+ * on the phone's unique index, and its caller resolves again (the customer exists then).
+ */
+export async function counterCustomer(db: Db, actor: ShopActor, input: { phone: string | null, name: string }, now: Date): Promise<{ id: string, statements: Statement[] }> {
+  const { shopId } = actor
+  const { phone, name } = input
+  const existing = phone ? await repo.findByPhone(db, shopId, phone) : undefined
+  if (existing) return { id: existing.id, statements: [repo.requireActiveCustomer(db, shopId, existing.id)] }
+  const id = newId()
+  return {
+    id,
+    statements: [
+      repo.insertCustomerStatement(db, { shopId, id, name, phoneE164: phone, note: null, now }),
+      audit(db, actor, 'customer.create', id, now, { via: 'order' }),
+    ],
+  }
+}

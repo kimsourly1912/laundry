@@ -80,7 +80,7 @@ erDiagram
 | Column | Type | Notes |
 |---|---|---|
 | `id`, `shop_id` | | `shop_id` FK → `organization.id`, restrict |
-| `name` | text | `''` once anonymized (the app shows "Former customer") |
+| `name` | text | `''` once anonymized (the app shows "Former customer"), or when none was given at the counter (a phone-only customer, or a walk-in, [D27](../decisions.md#d27-the-owners-two-pages)) |
 | `phone_e164` | text null | E.164, normalized by the contract on the server (`libphonenumber-js/min`, region KH: `012 345 678` = `+85512345678`). `null` once anonymized |
 | `note` | text null | `null` once anonymized |
 | `anonymized_at` | timestamp null | |
@@ -89,6 +89,7 @@ erDiagram
 - Partial UNIQUE `customers_shop_phone_unique (shop_id, phone_e164)` where `phone_e164` is not null: one customer per phone in a shop, any number of customers without one. A duplicate → `409 PHONE_TAKEN`, and the UI offers the existing customer ([D23](../decisions.md#d23-customers)).
 - Index `(shop_id, updated_at)`: the list, most recently changed first.
 - UNIQUE `(shop_id, id)` (migration `0005_orders`): the target of `orders`' composite FK.
+- **Made by an order too** (D27): an order for the person at the counter finds the customer with that phone or makes one in the order's batch (audited `customer.create`, `data.via: 'order'`); no phone makes a **walk-in**, a customer with no name and no phone, one per order. Walk-ins are left out of the customers list and search (they're no one to find again); their orders keep them.
 - **Never deleted.** Anonymized (P11): name, phone and note cleared, the phone free for reuse; hidden from the list and search, never edited again. Audited (`customer.*`, `data.fields` names fields, never values).
 
 ## `service_types`, `price_items` (owner: `pricing`)

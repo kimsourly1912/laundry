@@ -7,6 +7,8 @@
    * → Khmer type). Both self-hosted by @nuxt/fonts (CSP font-src 'self').
    */
   --font-sans: 'Inter', 'Noto Sans Khmer', ui-sans-serif, system-ui, sans-serif;
+  /* The shop app's content column (D25: mobile first, 640px at most): `max-w-page`. */
+  --container-page: 40rem;
 }
 
 /*

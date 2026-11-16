@@ -71,7 +71,7 @@ async function onArchive() {
     </template>
 
     <template #body>
-      <div class="mx-auto w-full max-w-xl space-y-6">
+      <div class="mx-auto w-full max-w-page space-y-6">
         <UEmpty
           v-if="missing"
           icon="i-lucide-tags"

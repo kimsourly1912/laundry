@@ -30,7 +30,7 @@ Sign-out: `useSignOut()` from `~/features/account` (ends the session in the app 
 | `area: 'shop'` | An active shop's member, never the super admin |
 | `permission: 'shop:create'` | A granted statement |
 
-`homePath(me)`: `/platform/shops`, `/` (an active shop's Today), or `/unavailable` (suspended, or no shop). Pages also set `title` (an i18n key) and `layout`.
+`homePath(me)`: `/platform/shops`, `/` (an active shop's orders board, D27), or `/unavailable` (suspended, or no shop). Pages also set `title` (an i18n key) and `layout`.
 
 ```ts
 definePageMeta({ layout: 'platform', area: 'platform', permission: 'shop:create', title: 'platform.newShop.title' })
