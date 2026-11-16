@@ -44,13 +44,16 @@ Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboard
 |---|---|---|---|
 | Sidebar | Drawer, opened from the navbar's menu button | Drawer | Persistent, collapsible |
 | Page | Full width | Full width | Beside the sidebar |
+| Shop content | Full width | Up to 640px, centred (`max-w-page`) | Up to 640px, centred |
+
+**Shop screens are mobile first and 640px wide at most** ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)): the body's content column is `mx-auto w-full max-w-page` (a theme token, `--container-page: 40rem`), and so is the bottom bar. The platform's editors (templates, the price grid) use the full width.
 
 The public ticket page `/t/:token` has no shell: one column, mobile only, server-rendered.
 
 ## 4. Navigation
 
 - **Compact and medium:** `UDashboardNavbar` is the app bar (menu button, page title, the page's one primary action). The drawer holds the full navigation.
-- **Bottom navigation:** not by default. The shop has about 6 destinations (Today, Orders, Pickup, Customers, Prices, Settings). Whether Today / New order / Pickup become a bottom bar is decided with the first real shop (after M2.3), from how the owner actually moves. Until then: drawer only.
+- **The shop has three destinations** ([D27](../decisions.md#d27-the-owners-two-pages)): **Orders** (the board, the home), **New order**, and **More** (customers, prices, settings, account, contact support). Bottom navigation stays off: the board's navbar has New order, and the saved slip has Next order, so the daily loop needs no menu.
 - **One source for navigation:** each feature's `navigation.ts`, collected by the layout, so every width has the same destinations in the same order.
 - **Detail routes** show a Back button to their index. Back returns to the index in history when the user came from it (filters in the URL survive), otherwise to the index route.
 
@@ -68,7 +71,7 @@ UDashboardPanel
 - **Navbar primary action:** labelled at every width. Icon-only (with `aria-label`) only when the label can't fit at 320px.
 - **Toolbars never scroll sideways.** On a phone, search takes its own full line; filters wrap below. More than two filters → one **Filters** button (with the active count) opening a bottom sheet with Clear and Apply, writing the same URL query.
 - **Body order:** tabs → page-wide alerts (suspended, conflict) → content. An alert about one row sits on that row.
-- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component is `<BottomBar>` with `<BottomBarSpacer />` ([reference → app shell](../reference/app-shell.md#layouts-and-navigation)): the new-order flow, the order page's actions, the order edit page.
+- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component is `<BottomBar>` with `<BottomBarSpacer />` ([reference → app shell](../reference/app-shell.md#layouts-and-navigation)): the new-order slip (total, paid, Save), the order page's actions, the order edit page.
 
 ## 6. Sticky and fixed elements
 
