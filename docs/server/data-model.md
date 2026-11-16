@@ -11,7 +11,7 @@ Every table, its owner, its constraints and its lifecycle. This is spec §6, kep
 ## Conventions
 
 - Tables `snake_case` plural; columns `snake_case` in SQL, `camelCase` in TypeScript (Drizzle `casing: 'snake_case'`).
-- Our ids: UUID v7 (`text` primary key). Better Auth tables keep their own ids.
+- Our ids: UUID v7 (`text` primary key). Better Auth tables keep their own ids. Where a natural key is the identity, it's the key: a shop's receipt design (`shop_id`), an outbox row (its dedupe key), a QR token's hash, a Telegram account's waiting scan.
 - **Every table below except Better Auth's has `shop_id`** (FK → `organization.id`, **restrict**), and every query filters by it.
 - Money: integer minor units with a currency code beside it. Weight: integer grams. Times: UTC (`integer` timestamp_ms).
 - Enum columns: lower `snake_case` text with a `CHECK`.
@@ -41,6 +41,8 @@ erDiagram
     customers ||--o{ telegram_links : has
     orders ||--o{ telegram_links : "order-only link"
     orders ||--o{ notifications : triggers
+    orders ||--o{ telegram_invites : "QR for"
+    organization ||--o| receipt_designs : "receipt look"
     organization ||--o{ audit_events : logs
 ```
 
@@ -170,13 +172,38 @@ Rules (service, inside the batch):
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
-**Status:** M4.1 / M4.2.
+**Status:** Built (migration `0008_telegram`, [D28](../decisions.md#d28-the-receipt-on-telegram)).
 
-`telegram_links`: `id`, `shop_id`, `customer_id` (FK **cascade**), `order_id` null (order-only link), `telegram_user_id`, `chat_id`, `verified_phone` (bool), `linked_at`, `revoked_at`.
-- Partial UNIQUE `(shop_id, customer_id, telegram_user_id)` where `revoked_at` is null and `order_id` is null.
+`telegram_links`: `id`, `shop_id`, `customer_id` (composite FK to the shop's customer, **cascade**), `order_id` null (composite FK to the shop's order, **cascade**), `telegram_user_id`, `chat_id` (Telegram's ids as text: up to 52 bits, only compared), `verified_phone` (bool), `linked_at`, `revoked_at`.
+- `order_id` null: **every order of the customer**, for a person who shared their own contact with the customer's phone. Otherwise one order (`verified_phone` false; a CHECK forbids a verified order-only link).
+- Partial UNIQUE `(shop_id, customer_id, telegram_user_id)` where live and `order_id` null; partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live and `order_id` set. A second scan keeps the one link (insert or nothing).
+- **Revoked, never deleted:** every link of a customer when the customer is anonymized (in that batch), every link to a chat when Telegram says the person blocked the bot.
 
-`notifications` (the outbox): `id`, `shop_id`, `order_id`, `customer_id`, `chat_id`, `kind` (`order_ready` \| `order_collected` \| `reminder` \| `link_confirmed`), `dedupe_key` **UNIQUE**, `status` (`pending` \| `sent` \| `failed` \| `skipped`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
-- Sent and skipped rows purged after 90 days.
+`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `ready:<order>:<version>:<chat>`, `receipt:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`receipt` \| `ready` \| `collected`), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+- Queued in the batch of the change it tells about: one row per chat linked to the order (insert-select from the live links; a person linked twice gets one).
+- A sender **claims** a row before sending (`attempts` +1 at the count it read, hidden for a 5-minute lease), so overlapping runs never send the same row at once. At least once: a sender that dies mid-send leaves it to be sent again.
+- Index `(status, next_attempt_at)` for the delivery job's scan across shops.
+- Sent, skipped and failed rows purged after 90 days.
+
+## `telegram_invites`, `telegram_pending` (owner: `telegram`)
+
+**Status:** Built (migration `0008_telegram`, [D28](../decisions.md#d28-the-receipt-on-telegram)).
+
+`telegram_invites`: `token_hash` (SHA-256 of the QR's token) PK, `shop_id`, `order_id` (composite FK, **cascade**), `expires_at` (a day), `created_at`. Only the hash is stored: a database read can't make a working QR.
+
+`telegram_pending`: `telegram_user_id` PK, `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `expires_at` (10 minutes, spec §8.2). A scan waiting for the person's phone; a new scan replaces it, linking deletes it.
+
+Both are purged daily once expired (`notifications:purge`).
+
+## `receipt_designs` (owner: `receipts`)
+
+**Status:** Built (migration `0007_receipt_designs`, [D28](../decisions.md#d28-the-receipt-on-telegram)).
+
+`receipt_designs`: `shop_id` PK (FK restrict), `image` (the background, **base64 text**), `image_type` (`image/png` \| `image/jpeg`), `width`, `height` (the image's pixels, 200–2000, CHECK), `fields` (JSON array, CHECK `json_valid` and an array), `version`, timestamps.
+- One per shop, kept by the platform. The image's type and size are read from the file, never from the request.
+- Base64 text, not a BLOB: D1 returns a BLOB as an array of numbers, and the SVG wants base64 anyway. At most 1 MB of image (1.34 MB as text), under D1's 2 MB row limit. **Every query leaves `image` out** but the two that need it (render, serve the image).
+- `fields` is checked by `receiptFieldsSchema` on every write; its price item and service type ids must be the shop's own (any status). It's read whole, never queried inside.
+- Every write has an `audit_events` row in that shop's history (`receipt.background`, `receipt.update`, the admin as actor).
 
 ## `slip_templates` (owner: `templates`)
 
@@ -225,5 +252,8 @@ Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_ty
 | Slip template | Archived. Shops keep their copy |
 | Order | Never deleted. Cancelled |
 | Ticket | Never deleted. Voided if lost before binding |
-| Notifications | Sent/skipped rows purged after 90 days |
+| Receipt design | One per shop; replaced in place, never deleted |
+| Telegram link | Revoked (customer anonymized, bot blocked); never deleted |
+| Notifications | Sent, skipped and failed rows purged after 90 days |
+| Telegram invites, pending scans | Purged once expired (a day; 10 minutes) |
 | Idempotency keys | Purged after 24 h |

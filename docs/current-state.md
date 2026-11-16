@@ -18,33 +18,34 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M2.3 Orders | Done: `/api/shop/orders` (create with `Idempotency-Key`, list with status, payment, search and customer filters, detail, edit lines and note, start / ready / rework / collect / cancel, payment with `Idempotency-Key`), `/api/shop/today`; `order_counters`, `orders`, `order_lines`, `order_events`, `idempotency_keys` (migration `0005`), the daily key purge job; new-order flow with the customer picker, order list, order page, edit page, Today, a customer's orders, the bottom bar. D24 |
 | New flow A: slip templates + shop setup | Done: `slip_templates` (migration `0006`), `/api/platform/templates`, template editor (item × service price grid), create shop from a template (a copy, in its currency), the platform keeps each shop's price list (`/api/platform/shops/:shopId/…`), owner reads prices only. D25, D26 |
 | New flow B: the owner's two pages | Done: the paper-slip order form (phone optional, walk-ins), the orders board (Waiting / Ready / Done, one big button, paid and collected), More with contact support, shop screens at 640px; the wizard, order list and Today removed. D27 |
-| New flow C: receipt to Telegram | **Next** |
+| New flow C: receipt to Telegram | Done: receipt designs (`receipt_designs`, migration `0007`; designer with drag, arrow keys and the server's preview; the owner sees an order's receipt), rendering with resvg + Noto Sans Khmer one word per element; the counter's QR, the webhook with the phone check, the outbox (`telegram_links`, `notifications`, `telegram_invites`, `telegram_pending`, migration `0008`), ready / collected messages, `notifications:deliver` (every minute) and `notifications:purge` (daily). D28 |
+| Next | **Owner:** set up the bot on staging (below) and try it with a real phone. Then: reminders for uncollected orders (spec §8.5), or what the first shop asks for |
 
-## The new flow (D25), replacing spec §18 from here
+## The new flow (D25–D28), replacing spec §18
 
-The owner tested M2.3 and chose a simpler, managed flow: the platform sets each shop up from a slip template; the owner only takes orders. Plan, one PR each:
-
-- **C. Receipt to Telegram:** the admin designs a receipt per template / shop (the slip's artwork as background + fields bound to order data), rendered to PNG on the server (resvg; Khmer checked), a QR on the staff screen to link Telegram, and status messages. Replaces M3.1–M4.3 as planned; printed QR slips later if shops want them.
+The owner tested M2.3 and chose a simpler, managed flow: the platform sets each shop up from a slip template and designs its receipt; the owner only takes orders; customers get the receipt and updates on Telegram from a QR at the counter. Spec M3.1–M4.3 (printed QR slips, the ticket page, grammY) are replaced by D28; printed slips come back only if shops ask.
 
 ## Not built yet (on purpose)
 
-- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry, `runJob` (job runs recorded; the first job only logs, M4.2 brings the per-minute delivery job).
-- **Pickup** (`/pickup`: scan or search → confirm → pay → collect, spec §8.4) comes with slip scanning (M3.2); until then the order page records payment and collects.
+- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry, `runJob` (job runs recorded; the three jobs log what they did).
+- **Pickup by scanning a slip** (spec §8.4) and the public ticket page `/t/:token`: not planned while there are no printed slips (D28). The board finds orders by number, name or phone.
+- **Reminders** for uncollected orders (spec §8.5, `orders:remind-uncollected`): the outbox is ready for them; not built.
 - **Khmer on a real low-end Android phone:** checked in Chromium only so far.
 - **Production environment:** D1 `laundry-production` and the `prod` block, when the first release is near.
-- **Dependencies added in the step that uses them** (D2): grammY (M4) `uqr` (M3.1).
+- **Dependencies added in the step that uses them** (D2): `@resvg/resvg-wasm`, `uqr` (D28). grammY isn't needed (D28).
 
 ## Open questions
 
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
 | Q7 | A paid order's lines are locked (D24): is "cancel and make a new order" acceptable at the counter, or are partial payments / top-ups needed? | Owner, with a real shop | Nothing now |
-| Q8 | Rendering the receipt costs ~350 ms of CPU: is the Cloudflare account on Workers Paid (the free plan allows 10 ms)? | Owner | PR C |
 
 ## Owner notes
 
-- **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) as a Worker var on staging; until then the More page shows no support link.
-
+- **Q8 answered (2026-11-16):** the Cloudflare account is on Workers Paid; receipts render on the server.
+- **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)): create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once. Until then: no QR, nothing sent.
+- **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) on staging **as a Secret**, not a plain variable: each deploy deletes plain variables set in the dashboard.
+- **Each shop's receipt:** upload a photo or scan of its paper slip on the shop's page → Design the receipt (PNG or JPEG, up to 1 MB, 200–2000 px a side; crop it to the slip first).
 - **PR size:** the owner prefers one PR for several small and medium steps (one commit each) over one PR per step (2026-11-16).
 - **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.
 - **No pilot shop yet:** use mock data. `pnpm dev:accounts` and the staging sample data use two made-up shops with realistic prices, shaped like the paper tickets (spec §1).
