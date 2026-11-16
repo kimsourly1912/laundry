@@ -72,6 +72,9 @@ describe('the receipt', () => {
     await owner.screenshot({ path: 'test-results/receipt-saved-qr.png', fullPage: true })
     await owner.goto(`${host}/`)
     await owner.getByRole('link', { name: /#1/ }).first().click()
+    // Nobody scanned yet: the page says so, with the QR a tap away.
+    await expect.poll(() => owner.getByText('The customer isn\'t getting this order on Telegram yet.').count()).toBe(1)
+    await owner.screenshot({ path: 'test-results/order-telegram.png', fullPage: true })
     await owner.getByRole('button', { name: 'More actions' }).click()
     await owner.getByRole('menuitem', { name: 'Receipt' }).click()
     const receipt = owner.getByRole('dialog').getByRole('img', { name: 'Receipt for order 1' })
