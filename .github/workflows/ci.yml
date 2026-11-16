@@ -1,6 +1,7 @@
 # Checks on each pull request and push to main (spec §14: lint → typecheck → audit → tests). A push
 # to main (a merged pull request) then deploys to staging (docs/server/operations.md → Staging).
-# The e2e job comes with the e2e harness (M1.6). Setup follows https://pnpm.io/continuous-integration.
+# E2E runs a production build against a seeded local database in the runner's preinstalled Google
+# Chrome (test/e2e/support): no secrets. Setup follows https://pnpm.io/continuous-integration.
 # Actions are pinned by full commit id: the deploy job holds the Cloudflare token.
 name: CI
 
@@ -54,10 +55,31 @@ jobs:
       - name: Unit and server tests
         run: pnpm test:unit
 
+  e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Read the project's Node.js requirement
+        id: node
+        run: |
+          version=$(jq -er '.engines.node' package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install pnpm, Node.js and dependencies
+        uses: pnpm/setup@c9883cc79df532ad1a7b81bf9ab944ceb090d65c # v2.0.0
+        with:
+          runtime: node@${{ steps.node.outputs.version }}
+          cache: true
+
+      - name: E2E tests
+        run: pnpm test:e2e
+
   deploy-staging:
     # Only a push to main, after its checks pass; pull requests never deploy.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check]
+    needs: [check, e2e]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:

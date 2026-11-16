@@ -225,3 +225,30 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** A server-generated temporary password shown once (NUK): stronger by default, but the spec's form has the admin choose it and tell the owner. Revisit if admins pick weak ones. `shop_id` set on platform rows (NUK): mixes the platform's actions into the shop's own history.
 
 **Consequences.** `/api/platform/**` takes a shop id from the path, the one place a shop id comes from the client; it never reaches a shop route. Platform routes are pinned to the spec's statements by `server/tests/routes.test.ts`.
+
+## D20. The app shell
+
+**Context.** Spec M1.6: layouts, sign-in, change password, account, i18n, the data composables. NUK's shell serves several workspaces, server rendering and identity checks; Laundry has one SPA session.
+
+**Decision.**
+- **One session source: `/api/me`.** It carries what the UI needs and Better Auth's session doesn't (shop, status, statements, `mustChangePassword`). Loaded before the first page draws; `useSession().end()` is the one session boundary.
+- **Better Auth's endpoints through `apiFetch`**, not Better Auth's client: five JSON calls (sign in, sign out, change password, list and revoke sessions) with our error handling, generation checks and no extra client bundle or plugin setup.
+- **Route access as a pure function** (`accessRedirect`), applied by one global middleware; tested rule by rule.
+- **i18n:** `@nuxtjs/i18n` 10.6, `no_prefix` (no locale in URLs), the choice in the `laundry_locale` cookie, English default (D4), files in `app/locales/` (`restructureDir: 'app'`).
+- **E2E:** a production build on a seeded local database, Chrome through `playwright-core` (no `@nuxt/test-utils` page helpers): one build per run, every file shares it.
+
+**Alternatives.** Better Auth's Vue client (`useAuthClient`): its own error shape and state beside ours. A locale prefix (`/km/...`): URLs that change with the language for screens behind sign-in, for no gain.
+
+**Consequences.** Better Auth's error codes are mapped to text in `errors.code.*`. A 401 anywhere ends the session in the app.
+
+## D21. Contrast and fonts
+
+**Context.** `@nuxt/a11y` reported 20 contrast failures: white text on Nuxt UI's default `primary-500` (sky) is about 2.8:1. Khmer rendered with a system font that doesn't stack vowel signs (D7 asked M1.6 to measure contrast; i18n.md asked M1.6 to choose the Khmer font).
+
+**Decision.**
+- `--ui-primary` is `primary-700` in light mode and `primary-400` in dark mode (`tailwind.css`): white on sky-700 and sky-700 on white both pass AA.
+- Fonts: Inter, then Noto Sans Khmer, self-hosted by `@nuxt/fonts` at build. Noto Sans Khmer is declared in `nuxt.config.ts → fonts.families` with the `khmer` subset (`global: true`): as a fallback in the font stack, `@nuxt/fonts` doesn't fetch it by itself.
+
+**Alternatives.** A darker palette (`blue`): changes the look the owner chose (D7). A system Khmer font: missing or broken on many Android phones.
+
+**Consequences.** The build downloads fonts from Google once (CI and local); the deployed app serves them itself. No contrast warnings in the dev server after the change.

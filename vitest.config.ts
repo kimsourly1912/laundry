@@ -58,13 +58,18 @@ export default defineConfig({
         },
       },
       {
-        // Builds and serves the app against a real browser (global setup: M1.6).
+        // Builds and serves the app once, on a seeded database, for every e2e file (test/e2e/support).
         resolve: { alias },
         test: {
           name: 'e2e',
           include: ['test/e2e/**/*.test.ts'],
           environment: 'node',
-          testTimeout: 30_000,
+          globalSetup: ['test/e2e/support/global-setup.ts'],
+          // A test drives whole flows, sometimes on two devices.
+          testTimeout: 60_000,
+          hookTimeout: 60_000,
+          // A cold page (session check, then redirect) can take more than expect.poll's default 1 s.
+          expect: { poll: { timeout: 10_000 } },
         },
       },
       // Loading Nuxt for this project runs NuxtHub's module setup, which rewrites .data and can race

@@ -24,7 +24,7 @@ Commands, tests and the checks to run before a pull request.
 | `pnpm test` | Every Vitest project |
 | `pnpm test:unit` | The `unit` and `server` projects (what CI runs) |
 | `pnpm test:changed` | `unit` + `server` tests affected by changes since `origin/main` |
-| `pnpm test:e2e` | The `e2e` project (harness arrives in M1.6; fails with "no test files" until then) |
+| `pnpm test:e2e` | The `e2e` project: builds the app, seeds a database and runs the browser tests ([E2E](#e2e)) |
 | `pnpm audit --audit-level high` | Dependency audit as CI runs it |
 | `npx nuxt db generate` | A migration after a schema change ([operations → Migrations](../server/operations.md#migrations)) |
 | `npx nuxt task run identity:seed-platform-admin` | The first platform admin in the local database, with `pnpm dev` running ([operations](../server/operations.md#first-platform-admin)) |
@@ -39,12 +39,22 @@ Vitest projects (`vitest.config.ts`):
 | `unit` | `test/unit/**`, `app/features/*/tests/**`, `shared/**/*.test.ts` | Node |
 | `server` | `server/tests/**`, `server/features/*/tests/**` | Node, against SQLite built from the migrations ([test harness](../reference/test-harness.md)) |
 | `nuxt` | `test/nuxt/**`, `app/features/*/tests/**/*.nuxt.test.ts` | The Nuxt environment. The project exists only once such a test exists |
-| `e2e` | `test/e2e/**` | A built app in a real browser (M1.6) |
+| `e2e` | `test/e2e/**` | A production build in Chrome ([E2E](#e2e)) |
 
 - **Tests live next to what they test.** Feature tests in the feature's `tests/` folder; shared code in `test/` or `server/tests/`.
 - Plain-Node projects mirror Nuxt's aliases (`#server`, `#shared`, `~`, `hub:db:schema`), so feature code imports explicitly and runs without Nitro.
 - **What to test:** [feature-standard → What to test, by risk](../standards/feature-standard.md#8-what-to-test-by-risk).
 - **Guard rule:** every new guard (permission, version, idempotency, tenant filter, state rule) is checked by removing it and seeing a test fail. Say in the PR that you did.
+
+## E2E
+
+`test/e2e/support/global-setup.ts` builds the app once (`E2E_HUB_DIR=.data/e2e`: a database apart from the dev server's), seeds it through the server's own services (`seed.ts`: a platform admin, an owner on a temporary password, an owner with their own password), and serves it on a free port. Every run starts from the seeded copy (`.data/e2e/db/seeded.db`).
+
+- **Browser:** the machine's Google Chrome (`channel: 'chrome'`), or `E2E_CHROMIUM=<path to chrome>`. GitHub's runners have Chrome.
+- **Faster while writing tests:** `E2E_SKIP_BUILD=1 pnpm test:e2e` reuses the last e2e build (rebuild after changing app or server code).
+- **Leaked-password check** (Better Auth → api.pwnedpasswords.com) is answered locally by `fake-password-ranges.mjs`: the suite needs no outside service.
+- A failing test saves screenshots in `test-results/` (`screenshotOnFailure`).
+- Sign-in is rate-limited in production builds: give each test its own account, or sign in once per test.
 
 ## Before a pull request
 
@@ -60,7 +70,7 @@ PR description: what changed, which spec step, the checks run and their result, 
 
 ## Conventions
 
-- **Branches and PRs:** one spec step per PR (small consecutive steps may share one, one commit each). Stop for review after each PR.
+- **Branches and PRs:** several small and medium spec steps share one PR, one commit each (the owner's choice); a large step may be its own PR. Stop for review after each PR.
 - **Commits:** descriptive, imperative ("Add order state rules").
 - **Docs in the same PR** as the change they describe ([AGENTS.md → Verification](../../AGENTS.md#verification-and-completion)).
 - **Library APIs:** read the official docs for the installed version (`pnpm list <pkg>`) before using them.

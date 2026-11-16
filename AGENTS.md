@@ -54,4 +54,4 @@ Definition of done for every step:
 - Contracts are in `shared/contracts`; strings in `en.json` + `km.json`.
 - Docs updated: the owning standard or `reference/` page (examples must compile), `data-model.md` for schema changes, `decisions.md` for an architecture choice, `current-state.md` for status.
 
-Work one spec step per PR (small consecutive steps may share a PR, one commit each), then stop for review. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.
+Group consecutive small and medium spec steps into **one PR, one commit per step** (owner's choice, over spec §18's one PR per step); a large step may be its own PR. Stop for review after each PR. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.
