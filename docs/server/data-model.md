@@ -172,15 +172,16 @@ Rules (service, inside the batch):
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
-**Status:** Built (migration `0008_telegram`, [D28](../decisions.md#d28-the-receipt-on-telegram)).
+**Status:** Built (migrations `0008_telegram`, `0009_reminders`, [D28](../decisions.md#d28-the-receipt-on-telegram)).
 
 `telegram_links`: `id`, `shop_id`, `customer_id` (composite FK to the shop's customer, **cascade**), `order_id` null (composite FK to the shop's order, **cascade**), `telegram_user_id`, `chat_id` (Telegram's ids as text: up to 52 bits, only compared), `verified_phone` (bool), `linked_at`, `revoked_at`.
 - `order_id` null: **every order of the customer**, for a person who shared their own contact with the customer's phone. Otherwise one order (`verified_phone` false; a CHECK forbids a verified order-only link).
 - Partial UNIQUE `(shop_id, customer_id, telegram_user_id)` where live and `order_id` null; partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live and `order_id` set. A second scan keeps the one link (insert or nothing).
 - **Revoked, never deleted:** every link of a customer when the customer is anonymized (in that batch), every link to a chat when Telegram says the person blocked the bot.
 
-`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `ready:<order>:<version>:<chat>`, `receipt:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`receipt` \| `ready` \| `collected`), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `ready:<order>:<version>:<chat>`, `receipt:<order>:<chat>`, `reminder:<order>:<shop date>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`receipt` \| `ready` \| `collected` \| `reminder`), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
 - Queued in the batch of the change it tells about: one row per chat linked to the order (insert-select from the live links; a person linked twice gets one).
+- Reminders (spec §8.5): queued daily by `orders:remind-uncollected` for orders `ready` at least the shop's `reminder_after_days`, in active shops: one a day per chat (the key has the shop's date), **at most 3 per order and chat** (counted in the same insert-select).
 - A sender **claims** a row before sending (`attempts` +1 at the count it read, hidden for a 5-minute lease), so overlapping runs never send the same row at once. At least once: a sender that dies mid-send leaves it to be sent again.
 - Index `(status, next_attempt_at)` for the delivery job's scan across shops.
 - Sent, skipped and failed rows purged after 90 days.
