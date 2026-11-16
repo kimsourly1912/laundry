@@ -115,3 +115,10 @@ export async function anonymizeCustomer(db: Db, actor: ShopActor, id: string, in
   ], explain(db, shopId, id))
   return getCustomer(db, actor, id)
 }
+
+// --- For the orders feature ---
+
+/** Guards an order's customer: still the shop's and not anonymized when the batch runs. */
+export function requireActiveCustomerStatement(db: Db, shopId: string, id: string): Statement {
+  return repo.requireActiveCustomer(db, shopId, id)
+}

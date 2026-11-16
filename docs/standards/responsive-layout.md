@@ -68,7 +68,7 @@ UDashboardPanel
 - **Navbar primary action:** labelled at every width. Icon-only (with `aria-label`) only when the label can't fit at 320px.
 - **Toolbars never scroll sideways.** On a phone, search takes its own full line; filters wrap below. More than two filters → one **Filters** button (with the active count) opening a bottom sheet with Clear and Apply, writing the same URL query.
 - **Body order:** tabs → page-wide alerts (suspended, conflict) → content. An alert about one row sits on that row.
-- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component comes with the first task flow that needs it (M2.3 new order).
+- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component is `<BottomBar>` with `<BottomBarSpacer />` ([reference → app shell](../reference/app-shell.md#layouts-and-navigation)): the new-order flow, the order page's actions, the order edit page.
 
 ## 6. Sticky and fixed elements
 

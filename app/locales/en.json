@@ -11,7 +11,8 @@
       "reload": "Reload",
       "back": "Back",
       "signOut": "Sign out",
-      "clearFilters": "Clear filters"
+      "clearFilters": "Clear filters",
+      "change": "Change"
     },
     "states": {
       "loadError": "Couldn't load this. Try again.",
@@ -54,7 +55,13 @@
       "SERVICE_TYPE_UNAVAILABLE": "Choose an active service type.",
       "PRICE_LIST_FULL": "The price list is full. Archive some entries first.",
       "INVALID_STATE": "This was already changed. Reload to see it.",
-      "PHONE_TAKEN": "Another customer already has this phone number."
+      "PHONE_TAKEN": "Another customer already has this phone number.",
+      "CUSTOMER_UNAVAILABLE": "This customer can no longer be chosen. Choose another.",
+      "PRICE_ITEM_UNAVAILABLE": "This price is no longer offered. Remove the line or choose another.",
+      "ORDER_PAID": "This order is paid, so its lines can't change.",
+      "ORDER_UNPAID": "This order isn't paid yet.",
+      "ALREADY_PAID": "This order is already paid.",
+      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again."
     }
   },
   "account": {
@@ -129,7 +136,8 @@
     "anonymize": "Anonymize",
     "anonymizeConfirm": "Anonymize {name}?",
     "anonymizeDescription": "Their name, phone and note are removed for good. Their orders are kept and show \"Former customer\". This can't be undone.",
-    "anonymizedDone": "The customer was anonymized."
+    "anonymizedDone": "The customer was anonymized.",
+    "chooseExisting": "Choose {name}"
   },
   "settings": {
     "nav": "Settings",
@@ -209,8 +217,18 @@
   "today": {
     "nav": "Today",
     "title": "Today",
-    "welcome": "Welcome to {shop}",
-    "soon": "Orders, customers and prices arrive in the next steps."
+    "counts": {
+      "received": "Received",
+      "inProgress": "In progress",
+      "ready": "Ready",
+      "unpaid": "Unpaid",
+      "createdToday": "New today",
+      "collectedToday": "Collected today"
+    },
+    "readyTitle": "Ready, not collected",
+    "readyEmpty": "Nothing is waiting to be collected.",
+    "unpaidTitle": "Unpaid",
+    "unpaidEmpty": "Every order is paid."
   },
   "platform": {
     "nav": {
@@ -279,5 +297,114 @@
       "resumed": "The shop was resumed.",
       "notFound": "This shop doesn't exist."
     }
+  },
+  "orders": {
+    "nav": "Orders",
+    "listTitle": "Orders",
+    "new": "New order",
+    "back": "Orders",
+    "backToOrder": "Back to the order",
+    "search": "Search number, phone or name",
+    "empty": "No orders yet",
+    "emptyDescription": "Orders you take at the counter appear here.",
+    "noMatch": "No orders match your search",
+    "tabs": {
+      "all": "All"
+    },
+    "status": {
+      "received": "Received",
+      "in_progress": "In progress",
+      "ready": "Ready",
+      "collected": "Collected",
+      "cancelled": "Cancelled"
+    },
+    "payment": {
+      "any": "Paid or not",
+      "unpaid": "Unpaid",
+      "paid": "Paid",
+      "filter": "Payment"
+    },
+    "unit": {
+      "piece": "pcs",
+      "kg": "kg"
+    },
+    "lines": {
+      "required": "Add at least one line",
+      "invalidPieces": "Enter a whole number from 1 to 9999",
+      "invalidKg": "Enter the weight in kg, like 2.5",
+      "remove": "Remove {name}",
+      "pieces": "Pieces",
+      "kg": "Weight (kg)",
+      "add": "Add a line",
+      "search": "Search prices",
+      "noPrices": "The price list is empty.",
+      "openPrices": "Add prices"
+    },
+    "total": "Total",
+    "customer": "Customer",
+    "note": "Note",
+    "paidNow": "Paid now",
+    "paidNowHelp": "The customer pays {total} at drop-off.",
+    "create": "Create order",
+    "created": "Order #{number} created",
+    "createdDescription": "{name} · {total}",
+    "view": "View order",
+    "flow": {
+      "step": "Step {step} of {of}",
+      "customer": "Customer",
+      "lines": "Items",
+      "review": "Review",
+      "next": "Next"
+    },
+    "title": "Order #{number}",
+    "titleLoading": "Order",
+    "edit": "Edit",
+    "editTitle": "Edit order #{number}",
+    "notFound": "This order doesn't exist.",
+    "saved": "Order saved.",
+    "notEditable": "This order can no longer be edited: it's ready, collected or cancelled.",
+    "paidLocked": "This order is paid, so its lines stay as they are. You can still change the note.",
+    "history": "History",
+    "event": {
+      "created": "Created",
+      "updated": "Edited",
+      "started": "Started",
+      "ready": "Ready",
+      "rework": "Back to work",
+      "collected": "Collected",
+      "cancelled": "Cancelled",
+      "payment_recorded": "Payment recorded",
+      "ticket_bound": "Slip attached"
+    },
+    "action": {
+      "cancel": "Cancel order",
+      "rework": "Back to work",
+      "start": "Start",
+      "payment": "Record payment",
+      "ready": "Mark ready",
+      "collect": "Collected",
+      "collectUnpaid": "Hand over unpaid"
+    },
+    "confirm": {
+      "paymentTitle": "Record payment of {total}?",
+      "paymentDescription": "Record it once the customer has paid the full amount.",
+      "cancelTitle": "Cancel order #{number}?",
+      "cancelDescription": "The order stays in the list as cancelled. This can't be undone.",
+      "cancelPaidDescription": "This order is paid: give any refund outside the app. The order stays in the list as cancelled. This can't be undone.",
+      "collectUnpaidTitle": "Not paid yet",
+      "collectUnpaidDescription": "The customer hasn't paid {total}. Hand the order over anyway?"
+    },
+    "done": {
+      "received": "Order #{number} saved.",
+      "in_progress": "Order #{number} is in progress.",
+      "ready": "Order #{number} is ready.",
+      "collected": "Order #{number} collected.",
+      "cancelled": "Order #{number} cancelled."
+    },
+    "paymentRecorded": "Payment recorded.",
+    "customerHistory": "Orders",
+    "customerNone": "No orders yet.",
+    "customerMore": "And {count} more in the orders list.",
+    "more": "More actions"
   }
 }

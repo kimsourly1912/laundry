@@ -13,3 +13,13 @@ export interface AuditEntry {
   targetId: string
   data?: Record<string, unknown>
 }
+
+/** An idempotency key and what it's for: the same UUID in another shop, from another user or for another action is another key. */
+export interface IdempotencyScope {
+  shopId: string
+  actorUserId: string
+  /** `order.create`, `order.payment`. */
+  action: string
+  /** The `Idempotency-Key` header: a UUID the client makes per user action. */
+  key: string
+}

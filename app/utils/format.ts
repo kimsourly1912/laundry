@@ -13,6 +13,11 @@ export function formatDate(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE }).format(new Date(iso))
 }
 
+/** `16 Nov 2026, 14:05` (en) / Khmer month names, 24-hour time, in the shop's time zone. */
+export function formatDateTime(iso: string, locale: string): string {
+  return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TIME_ZONE }).format(new Date(iso))
+}
+
 /** Minor units per major unit: riel have no decimals, dollars have cents (spec T12). */
 const MINOR_DIGITS: Record<Currency, number> = { KHR: 0, USD: 2 }
 

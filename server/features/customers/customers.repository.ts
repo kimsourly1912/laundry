@@ -1,6 +1,6 @@
 import { and, count, desc, eq, isNull, or, sql } from 'drizzle-orm'
 import type { Db, Statement } from '#server/utils/batch'
-import { updateAtVersion } from '#server/utils/batch'
+import { requireCount, updateAtVersion } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
 import { customers } from './customers.schema'
 
@@ -89,4 +89,11 @@ export function updateCustomerStatement(db: Db, key: VersionKey, fields: Fields,
 /** Clears the name, phone and note (P11); the phone is free for another customer. */
 export function anonymizeStatement(db: Db, key: VersionKey, now: Date): Statement {
   return updateAtVersion(db, customers, key, { name: '', phoneE164: null, note: null, anonymizedAt: now, updatedAt: now }, isNull(customers.anonymizedAt))
+}
+
+// --- Guards (abort the batch) ---
+
+/** The customer is the shop's and not anonymized: still there when an order is made for them. */
+export function requireActiveCustomer(db: Db, shopId: string, id: string): Statement {
+  return requireCount(db, sql`${db.$count(customers, and(eq(customers.shopId, shopId), eq(customers.id, id), isNull(customers.anonymizedAt)))}`, 1)
 }

@@ -44,7 +44,7 @@ describe('the app shell', () => {
     // Onward to the page asked for, then the shop's home.
     await page.waitForURL(`${host}/account`)
     await page.goto(`${host}/`)
-    await expect.poll(() => page.getByRole('heading', { level: 2 }).textContent()).toContain(`Welcome to ${shop}`)
+    await expect.poll(() => page.getByRole('heading', { level: 2 }).textContent()).toBe(shop)
     // An owner never reaches the platform's pages.
     await page.goto(`${host}/platform/shops`)
     await page.waitForURL(`${host}/`)

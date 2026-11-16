@@ -179,18 +179,19 @@ D1 has no interactive transactions (spec T9). A write touching several rows is *
 ### Idempotency
 
 Order create and payment record take an **`Idempotency-Key` header** (a UUID the client makes per user action, spec T10):
-- First call: the key, a hash of the request and the response are stored **in the same batch** as the action.
-- Same key, same request: the stored response is returned (200, same body). The work doesn't run again.
+- First call: the key, a hash of the request and the id of the record it made or changed are stored **in the same batch** as the action.
+- Same key, same request: 200 with that record as it is now ([D24](../decisions.md#d24-orders)). The work doesn't run again.
 - Same key, different request: **`422 IDEMPOTENCY_MISMATCH`**.
 - Two identical requests at once: the second batch fails on the key's unique index, changes nothing, and replays the first.
 - A key is scoped to its shop, actor and action. Keys are purged after 24 hours.
-- The response must be computable before the batch runs: generate ids up front.
+- The record's id must be known before the batch runs: generate ids up front.
+- API: [reference/idempotency.md](../reference/idempotency.md).
 
 Internal effects use a deterministic key with a unique index instead (the outbox `dedupe_key`: `ready:{orderId}:{version}`, `reminder:{orderId}:{day}`).
 
 ### Audit
 
-Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.cancel`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data).
+Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.cancel`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data). An order's own history is `order_events` (every action, with its actor); of order actions, only the owner-only cancel also writes an audit row ([D24](../decisions.md#d24-orders)).
 
 ## Errors
 
