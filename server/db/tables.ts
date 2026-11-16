@@ -3,6 +3,6 @@
  * tests don't use Nitro auto-imports. Written by identity only (and Better Auth itself).
  *
  * Other features may read only these columns, in a join (docs/server/repositories.md → Other
- * features' tables): `user.id`, `user.name`; `organization.id`, `.name`, `.slug`.
+ * features' tables): `user.id`, `user.name`; `organization.id`, `.name`, `.slug`, `.createdAt`.
  */
 export { account, member, organization, rateLimit, session, user } from 'hub:db:schema'

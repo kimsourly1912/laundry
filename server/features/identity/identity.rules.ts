@@ -1,7 +1,6 @@
-/** Account rules (spec §12 → Passwords), pure. */
+/** Account rules (spec §12 → Passwords), pure. The limits are shared with the app. */
 
-export const MIN_PASSWORD_LENGTH = 10
-export const MAX_PASSWORD_LENGTH = 128
+export { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH } from '#shared/contracts/identity'
 
 /** One spelling per username: trimmed and lowercase, so `Sokha` and `sokha ` are the same account. */
 export function normalizeUsername(username: string): string {

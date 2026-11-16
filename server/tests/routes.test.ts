@@ -44,3 +44,29 @@ describe.each(SURFACES)('/api/$dir routes', ({ dir, helper }) => {
     expect(callsHelper(readFileSync(file, 'utf8'), helper)).toBe(true)
   })
 })
+
+/**
+ * The statements each platform route asks for (spec §9 → Platform). Only the super admin holds
+ * platform statements today, so a route asking for too little would pass every behavior test: this
+ * pins each route to the spec's table.
+ */
+const PLATFORM_STATEMENTS: Record<string, string> = {
+  'platform/shops/index.get.ts': `{ shop: ['read'] }`,
+  'platform/shops/index.post.ts': `{ shop: ['create'], owner: ['create'] }`,
+  'platform/shops/[shopId].get.ts': `{ shop: ['read'] }`,
+  'platform/shops/[shopId].patch.ts': `{ shop: ['update'] }`,
+  'platform/shops/[shopId]/suspend.post.ts': `{ shop: ['suspend'] }`,
+  'platform/shops/[shopId]/resume.post.ts': `{ shop: ['suspend'] }`,
+  'platform/shops/[shopId]/owner/reset-password.post.ts': `{ owner: ['reset-password'] }`,
+  'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
+}
+
+describe('platform routes ask for the spec\'s statements', () => {
+  const files = routeFiles(join(apiDir, 'platform')).map(file => file.slice(apiDir.length + 1).replaceAll('\\', '/'))
+  it('every platform route is in the table', () => {
+    expect(files.sort()).toEqual(Object.keys(PLATFORM_STATEMENTS).sort())
+  })
+  it.each(Object.entries(PLATFORM_STATEMENTS))('%s asks for %s', (file, statements) => {
+    expect(readFileSync(join(apiDir, file), 'utf8')).toContain(`requirePlatformPermission(event, ${statements})`)
+  })
+})

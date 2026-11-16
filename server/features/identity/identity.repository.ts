@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireCount } from '#server/utils/batch'
 import { firstRow } from '#server/utils/query'
@@ -19,6 +19,36 @@ export function findMembership(db: Db, userId: string): Promise<MembershipRow | 
     .from(member)
     .innerJoin(organization, eq(organization.id, member.organizationId))
     .where(eq(member.userId, userId)))
+}
+
+export interface ShopOwnerRow {
+  shopId: string
+  id: string
+  name: string
+  username: string | null
+  mustChangePassword: boolean | null
+}
+
+/**
+ * The owners of these shops (one each, spec P2). Never a super admin: they are never members, and
+ * the role check keeps it so even if a row said otherwise. Pass at most `IDS_PER_STATEMENT` ids.
+ */
+export function findShopOwners(db: Db, shopIds: string[]): Promise<ShopOwnerRow[]> {
+  return db
+    .select({ shopId: member.organizationId, id: user.id, name: user.name, username: user.username, mustChangePassword: user.mustChangePassword })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .where(and(inArray(member.organizationId, shopIds), eq(member.role, 'owner'), ne(sql`coalesce(${user.role}, '')`, 'superadmin')))
+}
+
+/** Whether an account has this (normalized) username. */
+export async function usernameExists(db: Db, username: string): Promise<boolean> {
+  return Boolean(await firstRow(db.select({ id: user.id }).from(user).where(eq(user.username, username))))
+}
+
+/** Whether a shop has this short name. */
+export async function slugExists(db: Db, slug: string): Promise<boolean> {
+  return Boolean(await firstRow(db.select({ id: organization.id }).from(organization).where(eq(organization.slug, slug))))
 }
 
 /** A super admin: we only ever set one role per user (identity.permissions.ts). */
@@ -69,5 +99,48 @@ export function insertPlatformAdminStatements(db: Db, admin: NewPlatformAdmin): 
   return [
     db.insert(user).values({ id: userId, name, email, emailVerified: true, username, displayUsername: username, role: 'superadmin', mustChangePassword: true, createdAt: now, updatedAt: now }),
     db.insert(account).values({ id: accountId, accountId: userId, providerId: 'credential', userId, password: passwordHash, createdAt: now, updatedAt: now }),
+  ]
+}
+
+export interface NewShop {
+  shopId: string
+  name: string
+  slug: string
+  now: Date
+}
+
+/** The shop's organization (spec T2: a shop is a Better Auth organization). */
+export function insertOrganizationStatement(db: Db, shop: NewShop): Statement {
+  const { shopId, name, slug, now } = shop
+  return db.insert(organization).values({ id: shopId, name, slug, createdAt: now })
+}
+
+/** Renames the shop's organization. */
+export function renameOrganizationStatement(db: Db, shopId: string, name: string): Statement {
+  return db.update(organization).set({ name }).where(eq(organization.id, shopId))
+}
+
+export interface NewOwner {
+  shopId: string
+  userId: string
+  accountId: string
+  memberId: string
+  username: string
+  name: string
+  email: string
+  passwordHash: string
+  now: Date
+}
+
+/**
+ * A shop owner: the user (platform role `user`, on a temporary password), its password account and
+ * its membership. `member_user_id_unique` keeps it to one shop.
+ */
+export function insertOwnerStatements(db: Db, owner: NewOwner): Statement[] {
+  const { shopId, userId, accountId, memberId, username, name, email, passwordHash, now } = owner
+  return [
+    db.insert(user).values({ id: userId, name, email, emailVerified: true, username, displayUsername: username, role: 'user', mustChangePassword: true, createdAt: now, updatedAt: now }),
+    db.insert(account).values({ id: accountId, accountId: userId, providerId: 'credential', userId, password: passwordHash, createdAt: now, updatedAt: now }),
+    db.insert(member).values({ id: memberId, organizationId: shopId, userId, role: 'owner', createdAt: now }),
   ]
 }

@@ -22,6 +22,7 @@ const actor = await requireShopPermission(event, { order: ['transition'] })
 
 - **`shopId` comes from the user's membership**, never from the request (spec T3).
 - **A banned user** is 401 everywhere, whatever their session.
+- **A super admin** is `403 NO_SHOP` on every shop route, even if a membership row exists ([D19](../decisions.md#d19-platform-actions-and-their-audit-rows)).
 - **An unknown statement** (`{ order: ['transit'] }`) throws an internal error: a bug in the route, never a "no".
 - `sessionUser(event)` reads Better Auth's session (via `@nuxtjs/better-auth`'s `getUserSession`); routes don't call it except `/api/me`.
 
@@ -56,7 +57,7 @@ interface MeResponse {
 
 ## Revocation statements (`#server/features/identity`)
 
-For the platform's own batch, with its audit row (M1.5):
+For the platform's own batch, with its audit row (used by `shops.service.ts`):
 
 | Function | Does |
 |---|---|
@@ -65,11 +66,21 @@ For the platform's own batch, with its audit row (M1.5):
 
 Hash a password with Better Auth's `hashPassword` from `better-auth/crypto`. The other revocation paths are Better Auth's own, configured in `identity.auth.ts`: a password change ends the user's other sessions (whatever the request asks), and `/api/auth/revoke-other-sessions` is "sign out other devices".
 
+## Shops and owners (`#server/features/identity`, for the shops feature)
+
+| Function | Does |
+|---|---|
+| `newShopStatements(db, { shopId, name, slug, owner, now })` | The organization and the owner (user on a temporary password, password account, `owner` membership); checks the names first (409 `USERNAME_TAKEN` / `SLUG_TAKEN`) |
+| `requireShopNamesAvailable(db, { username, slug })` | The same check alone: asked again after a unique violation, to name the field |
+| `renameShopStatement(db, shopId, name)` | Renames the organization, for a versioned batch |
+| `shopOwners(db, shopIds)`, `shopOwner(db, shopId)` | Each shop's owner (`ShopOwner`); never a super admin |
+| `ownerPasswordResetStatements(db, { userId, password, now })` | `resetPasswordStatements` from a password in clear (hashed here) |
+
 ## Rules (`identity.rules.ts`)
 
 | Export | Use |
 |---|---|
-| `MIN_PASSWORD_LENGTH` (10), `MAX_PASSWORD_LENGTH` (128) | Password length |
+| `MIN_PASSWORD_LENGTH` (10), `MAX_PASSWORD_LENGTH` (128), `MIN_USERNAME_LENGTH` (3), `MAX_USERNAME_LENGTH` (32) | Re-exported from `shared/contracts/identity.ts`, shared with the app ([lists](./lists.md)) |
 | `normalizeUsername(name)` | Trimmed, lowercase: one spelling per username, also at sign-in |
 | `placeholderEmail(userId)` | `<userId>@users.invalid`: the email Better Auth requires, never shown or mailed ([D15](../decisions.md#d15-accounts-username-and-a-placeholder-email)) |
 

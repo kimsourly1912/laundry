@@ -59,7 +59,7 @@ erDiagram
 
 ## `shop_settings` (owner: `shops`)
 
-**Status:** Built (migration `0000_identity`): read by the access helpers for the shop's status. Rows are written from M1.5 (created with the shop); the settings screen is M2.1.
+**Status:** Built (migration `0000_identity`). Created with the shop by the platform (M1.5, version 1, `active`); suspend, resume and the platform's rename move `version`. The owner's settings screen is M2.1.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -164,9 +164,22 @@ erDiagram
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 
-**Status:** `audit_events` with its first user, M1.5 (platform actions); `idempotency_keys` with its first user, M2.3 (order create) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
+**Status:** `audit_events` built (migration `0002_audit_events`, M1.5); `idempotency_keys` with its first user, M2.3 (order create) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
 
-`audit_events`: `id`, `shop_id` null (null = platform action), `actor_user_id`, `action`, `target_type`, `target_id`, `data`, `created_at`.
+`audit_events` (append-only; written only through `auditStatement`, in the batch of the change):
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text PK | UUID v7 |
+| `shop_id` | text null | FK → `organization.id`, restrict. The shop the action happened **in**; `null` for a platform action, whose shop is the target ([D19](../decisions.md#d19-platform-actions-and-their-audit-rows)) |
+| `actor_user_id` | text | Plain text, no FK: the trail outlives account changes |
+| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `owner.reset-password`, `owner.revoke-sessions` |
+| `target_type`, `target_id` | text | `shop` + the shop's id |
+| `data` | json null | Which fields changed, ids; never passwords or personal values |
+| `request_id` | text null | Leads to the request's log lines (not in the spec's list; added for support) |
+| `created_at` | ms timestamp | |
+
+Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_type, target_id, created_at)` one record's history.
 
 `idempotency_keys`: `key`, `shop_id`, `actor_user_id`, `action`, `request_hash`, `response` (json), `created_at`. Unique on the scope + key. Purged after 24 h.
 
