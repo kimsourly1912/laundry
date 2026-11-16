@@ -252,3 +252,33 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** A darker palette (`blue`): changes the look the owner chose (D7). A system Khmer font: missing or broken on many Android phones.
 
 **Consequences.** The build downloads fonts from Google once (CI and local); the deployed app serves them itself. No contrast warnings in the dev server after the change.
+
+## D22. The price list
+
+**Context.** Spec M2.1: shop settings and the price list (service types, price items, archive). Prices are integers in the shop's currency (T12), and the spec leaves open how edits look on a phone and how big a list may be.
+
+**Decision.**
+- **The currency changes only while the shop has no price item, archived included.** A price is an amount in that currency: switching KHR → USD would turn 13,500៛ into $135.00. Checked inside the settings save's batch (`requireEmptyPriceListStatement` from pricing), so a price added meanwhile can't slip through. `GET /api/shop/settings` says `currencyLocked`.
+- **An item's service type is its own shop's, by the database:** a composite foreign key `(shop_id, service_type_id)` → `service_types (shop_id, id)`. The service checks "active" inside the batch.
+- **Caps: 50 active service types, 300 active items per shop**, checked inside the batch. Lists are then answered whole (`{ items }`): the price list is reference data for pickers (orders, M2.3), not a growing list.
+- **Edits are pages** (`/prices/items/:id`), not modals: Back works without our own history handling, and the unsaved-changes guard is a route guard. The overlay wrappers stay deferred until an overlay holds input.
+- **Archived, never restored (yet).** An archived entry is visible on its tab; restoring it is added when an owner asks.
+- Owner writes are audited in the shop's own history (`shop_id` set): settings, service types, price items.
+
+**Alternatives.** Converting prices on a currency change (rates the spec rules out, P7). Paginating the price list (a picker would page). Modal editors (Back closes the page under them without the overlay wrappers).
+
+**Consequences.** A shop that wants another currency archives nothing: it needs an empty list, so in practice the currency is chosen before the first price. A shop with more than 300 active prices is refused with `409 PRICE_LIST_FULL`; raise the cap if a real shop needs it.
+
+## D23. Customers
+
+**Context.** Spec M2.2: search, create, edit, anonymize, phone normalization, one customer per phone in a shop (spec §6, §16). The spec says phones are normalized "on the server" and that a duplicate phone offers the existing customer.
+
+**Decision.**
+- **Normalization lives in the shared contract** (`shared/contracts/phone.ts`, `libphonenumber-js/min`, region KH). The server runs it on every request, so the stored value is always E.164; the app runs the same code for its messages and to show `012 345 678`.
+- **The database decides duplicates**: a partial unique index on `(shop_id, phone_e164)`. A violation is `409 PHONE_TAKEN` with a field error; the app then finds that customer by searching the phone and offers "Open …". The error body stays the flat `{ code, message, fieldErrors }` (D9).
+- **Search** matches the name (literal, any case) or, for 3+ digits, digits anywhere in the E.164 number after dropping Cambodia's leading `0` (`012 345` finds `+85512345…`). A scan of the shop's rows, like every text search on D1 (`containsText`).
+- **Anonymize** sets the name to `''`, the phone and note to `null`, and `anonymized_at`; the customer leaves the list and can't be edited again. Telegram links are revoked in the same batch once they exist (M4).
+
+**Alternatives.** Normalizing in the service only (the app would duplicate the rule for its messages). A `PHONE_TAKEN` body carrying the other customer (a second error shape). A full-text index (D1 has FTS5, but a shop's customers number in the hundreds).
+
+**Consequences.** A phone search by name-like text never matches digits, and a search under 3 digits is a name search. `libphonenumber-js/min` adds its phone metadata to the app bundle and the Worker (the smallest of its metadata sets).

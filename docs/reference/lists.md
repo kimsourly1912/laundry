@@ -36,5 +36,12 @@ return toPage(items, query, total)
 | `nameSchema(max, label)` | Required, trimmed text; the empty message names the field ("Shop name is required") |
 | `usernameSchema` | Trimmed, lowercase, 3–32 of `a-z 0-9 _ .` (D15) |
 | `passwordSchema` | 10–128 characters, never trimmed |
+| `optionalTextSchema(max)` | Trimmed text; blank becomes `null`, so clearing a field clears the stored value |
+| `idSchema` | A UUID |
+| `deleteVersionQuerySchema` | `?version=` for a `DELETE` (Workers forward no body on DELETE) |
+| `optionalPhoneSchema` (`phone.ts`) | Blank → `null`; otherwise a valid number, output as E.164 (region KH) |
+| `toE164(text)`, `formatPhone(e164)` (`phone.ts`) | Typed number → E.164 or `null`; E.164 → `012 345 678` (Cambodian) or international |
 
 Bodies use `v.strictObject`: an unknown field (a shop id, a role) is `400 VALIDATION_FAILED`, never ignored.
+
+**Whole lists.** A list with a per-shop cap (the price list, D22) is answered whole, as `{ items }`, without pages.

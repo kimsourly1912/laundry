@@ -61,12 +61,37 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
 }
 
-describe('platform routes ask for the spec\'s statements', () => {
-  const files = routeFiles(join(apiDir, 'platform')).map(file => file.slice(apiDir.length + 1).replaceAll('\\', '/'))
-  it('every platform route is in the table', () => {
-    expect(files.sort()).toEqual(Object.keys(PLATFORM_STATEMENTS).sort())
+/**
+ * The same for the shop's routes (spec §9 → Shop): the owner holds every shop statement, so only
+ * this table tells `customer: ['anonymize']` from `customer: ['write']` until staff exist (P3).
+ */
+const SHOP_STATEMENTS: Record<string, string> = {
+  'shop/settings.get.ts': `{ shop: ['read'] }`,
+  'shop/settings.patch.ts': `{ shop: ['update'] }`,
+  'shop/service-types/index.get.ts': `{ price: ['read'] }`,
+  'shop/service-types/index.post.ts': `{ price: ['write'] }`,
+  'shop/service-types/[id].patch.ts': `{ price: ['write'] }`,
+  'shop/service-types/[id].delete.ts': `{ price: ['write'] }`,
+  'shop/price-items/index.get.ts': `{ price: ['read'] }`,
+  'shop/price-items/index.post.ts': `{ price: ['write'] }`,
+  'shop/price-items/[id].patch.ts': `{ price: ['write'] }`,
+  'shop/price-items/[id].delete.ts': `{ price: ['write'] }`,
+  'shop/customers/index.get.ts': `{ customer: ['read'] }`,
+  'shop/customers/index.post.ts': `{ customer: ['write'] }`,
+  'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
+  'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,
+  'shop/customers/[id]/anonymize.post.ts': `{ customer: ['anonymize'] }`,
+}
+
+describe.each([
+  { surface: 'platform', helper: 'requirePlatformPermission', table: PLATFORM_STATEMENTS },
+  { surface: 'shop', helper: 'requireShopPermission', table: SHOP_STATEMENTS },
+])('$surface routes ask for the spec\'s statements', ({ surface, helper, table }) => {
+  const files = routeFiles(join(apiDir, surface)).map(file => file.slice(apiDir.length + 1).replaceAll('\\', '/'))
+  it('every route is in the table', () => {
+    expect(files.sort()).toEqual(Object.keys(table).sort())
   })
-  it.each(Object.entries(PLATFORM_STATEMENTS))('%s asks for %s', (file, statements) => {
-    expect(readFileSync(join(apiDir, file), 'utf8')).toContain(`requirePlatformPermission(event, ${statements})`)
+  it.each(Object.entries(table))('%s asks for %s', (file, statements) => {
+    expect(readFileSync(join(apiDir, file), 'utf8')).toContain(`${helper}(event, ${statements})`)
   })
 })

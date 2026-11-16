@@ -63,8 +63,23 @@ useFormErrorRecheck(form)
 | `useFormErrorRecheck(form)` | Errors leave as soon as they're fixed: fields showing a schema error are checked again after every change (from NUK) |
 | `focusFirstError` | `@error`: the first invalid field in page order takes focus |
 | `formErrors(fieldErrors)` | A server's `fieldErrors` as `form.setErrors` takes them |
+| `useUnsavedChanges(() => dirty && !saving)` | Leaving the page (link, Back) or the site asks first ([forms §6](../standards/forms.md#6-unsaved-changes)) |
 
 Form schemas are built with the user's language (`signInFormSchema(t)`, `newShopFormSchema(t)`) and never accept what the request contract rejects (tested against it).
+
+**An edit form** keeps a baseline (`JSON.stringify` of its state when it opened, and after each save) for `dirty`, sends the version it opened with, and on `409 VERSION_CONFLICT` offers Reload in its top alert (`useMutation(…).reset()` clears it). See `SettingsPage.vue`.
+
+## Display formatters (`app/utils/format.ts`)
+
+| Export | Does |
+|---|---|
+| `formatMoney(minor, currency, locale)` | `13,500៛`, `$12.50` ([i18n → Money](../standards/i18n.md#money-spec-t12)) |
+| `parseMoney(text, currency)` | What a person typed → minor units, or `null` (`'12.5'` USD → `1250`; riel refuse decimals) |
+| `moneyInput(minor, currency)` | Minor units → the plain text a form shows (`'12.50'`) |
+| `formatDate(iso, locale)` | `16 Nov 2026`, in Phnom Penh time |
+| `localName({ nameEn, nameKm }, locale)` | Khmer when chosen and present, else English |
+
+The only place in `app/` that may call `Intl` (ESLint).
 
 ## Tests
 

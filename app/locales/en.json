@@ -18,7 +18,10 @@
       "notFound": "This page doesn't exist."
     },
     "language": "Language",
-    "pagination": "{from}–{to} of {total}"
+    "pagination": "{from}–{to} of {total}",
+    "unsaved": {
+      "leave": "Leave without saving? Your changes will be lost."
+    }
   },
   "errors": {
     "kind": {
@@ -45,7 +48,13 @@
       "SHOP_SUSPENDED": "This shop is suspended. Contact the platform team.",
       "NO_SHOP": "This account doesn't belong to a shop.",
       "PASSWORD_CHANGE_REQUIRED": "Change your temporary password to continue.",
-      "FORBIDDEN": "You don't have permission to do this."
+      "FORBIDDEN": "You don't have permission to do this.",
+      "CURRENCY_LOCKED": "The currency can't change once the price list has items.",
+      "SERVICE_TYPE_IN_USE": "Archive this service type's price items first.",
+      "SERVICE_TYPE_UNAVAILABLE": "Choose an active service type.",
+      "PRICE_LIST_FULL": "The price list is full. Archive some entries first.",
+      "INVALID_STATE": "This was already changed. Reload to see it.",
+      "PHONE_TAKEN": "Another customer already has this phone number."
     }
   },
   "account": {
@@ -87,7 +96,115 @@
     "minLength": "At least {min} characters",
     "maxLength": "At most {max} characters",
     "username": "Use letters, numbers, _ and . only",
-    "slug": "Use lowercase letters, numbers and single dashes"
+    "slug": "Use lowercase letters, numbers and single dashes",
+    "phone": "Use digits, spaces, + and - only",
+    "wholeNumber": "Must be a whole number",
+    "between": "Between {min} and {max}",
+    "moneyKhr": "Type a whole number of riel, like 13500",
+    "moneyUsd": "Type dollars with up to 2 decimals, like 12.50",
+    "tooHigh": "Too high",
+    "phoneNumber": "Not a valid phone number"
+  },
+  "customers": {
+    "nav": "Customers",
+    "title": "Customers",
+    "new": "New customer",
+    "search": "Search name or phone",
+    "empty": "No customers yet",
+    "emptyDescription": "Customers are added here or while taking an order.",
+    "noMatch": "No customers match your search",
+    "noPhone": "No phone",
+    "back": "Customers",
+    "notFound": "This customer doesn't exist.",
+    "name": "Name",
+    "phone": "Phone",
+    "phoneHelp": "Optional. Any format: 012 345 678 or +855 12 345 678.",
+    "note": "Note",
+    "create": "Add customer",
+    "saved": "Customer saved.",
+    "phoneTakenBy": "{name} already has this phone number.",
+    "openExisting": "Open {name}",
+    "former": "Former customer",
+    "formerDescription": "This customer was anonymized: their name, phone and note were removed. Their orders are kept.",
+    "anonymize": "Anonymize",
+    "anonymizeConfirm": "Anonymize {name}?",
+    "anonymizeDescription": "Their name, phone and note are removed for good. Their orders are kept and show \"Former customer\". This can't be undone.",
+    "anonymizedDone": "The customer was anonymized."
+  },
+  "settings": {
+    "nav": "Settings",
+    "title": "Shop settings",
+    "saved": "Settings saved.",
+    "shopSection": "Shop",
+    "name": "Shop name",
+    "phone": "Phone",
+    "phoneHelp": "Shown to customers on their ticket page.",
+    "address": "Address",
+    "pricesSection": "Prices",
+    "currency": "Currency",
+    "currencyHelp": "Every price and total is in this currency.",
+    "currencyLocked": "Can't change once the price list has items.",
+    "currencies": {
+      "KHR": "Riel (៛)",
+      "USD": "US dollar ($)"
+    },
+    "customersSection": "Customers",
+    "language": "Customers' language",
+    "languageHelp": "For Telegram messages and the ticket page.",
+    "languages": {
+      "en": "English",
+      "km": "Khmer"
+    },
+    "reminderAfterDays": "Reminder after (days)",
+    "reminderHelp": "Remind customers this many days after their order is ready ({min}–{max}).",
+    "policyTextKm": "Shop policy (Khmer)",
+    "policyTextEn": "Shop policy (English)",
+    "policyHelp": "Shown on the ticket page. At most {max} characters."
+  },
+  "pricing": {
+    "nav": "Prices",
+    "title": "Price list",
+    "tabs": {
+      "active": "Active",
+      "archived": "Archived"
+    },
+    "newItem": "New price",
+    "editItem": "Edit price",
+    "newServiceType": "New service type",
+    "editServiceType": "Edit",
+    "editServiceTypeNamed": "Edit {name}",
+    "empty": "No prices yet",
+    "emptyDescription": "Start with a service type, like \"Wash & iron\", then add its prices.",
+    "emptyArchived": "Nothing archived",
+    "archived": "Archived",
+    "noItems": "No prices in this service type yet.",
+    "units": {
+      "piece": "piece",
+      "kg": "kg"
+    },
+    "unitChoices": {
+      "piece": "Per piece",
+      "kg": "Per kg"
+    },
+    "back": "Price list",
+    "notFound": "This isn't in the price list.",
+    "nameEn": "Name (English)",
+    "nameKm": "Name (Khmer)",
+    "create": "Add",
+    "archive": "Archive",
+    "saved": "Price list saved.",
+    "archivedDone": "Archived.",
+    "archiveServiceTypeConfirm": "Archive {name}?",
+    "archiveServiceTypeDescription": "It won't be offered for new orders. Archive its prices first.",
+    "archiveItemConfirm": "Archive {name}?",
+    "archiveItemDescription": "It won't be offered for new orders. Past orders keep their prices.",
+    "serviceType": "Service type",
+    "chooseServiceType": "Choose a service type",
+    "unit": "Priced",
+    "pricePerPiece": "Price per piece, in {currency}",
+    "pricePerKg": "Price per kg, in {currency}",
+    "priceChangeHelp": "A new price applies to new orders only.",
+    "needServiceType": "Add a service type first"
   },
   "today": {
     "nav": "Today",

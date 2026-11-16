@@ -13,18 +13,20 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M1.4 Identity | Done: Better Auth (username, admin, organization, access control), permission map, access helpers, endpoint lockdown, `mustChangePassword`, session lifetimes and revocation, first-admin seed (task + SQL script), `/api/me`, `shop_settings`, migrations `0000`–`0001`. §17 items settled in D13–D18 |
 | M1.5 Platform | Done: `/api/platform/shops` (list, create shop + owner in one batch, detail, rename, suspend, resume, owner reset-password, owner revoke-sessions), `audit_events` (migration `0002`), shared list and validation building blocks. D19 |
 | M1.6 App shell | Done: data layer (`apiFetch`, `ApiError`, `useApiQuery`, `useMutation`, `usePaginatedQuery`), session and route access, auth/platform/shop layouts, sign-in, change password, account, English + Khmer (`@nuxtjs/i18n`, Noto Sans Khmer), platform screens (shops list, new shop, shop detail), e2e harness + CI job. D20, D21 |
-| M2.1 Shop settings + pricing | **Next** |
+| M2.1 Shop settings + pricing | Done: `/api/shop/settings` (currency locked once prices exist), service types and price items with archive (migration `0003`, composite FK, caps), settings and price list screens, money formatter + lint rule, unsaved-changes guard, the super admin's 403 over HTTP (e2e). D22 |
+| M2.2 Customers | Done: `/api/shop/customers` (search by name or phone digits, pages), create, edit, anonymize; phones in E.164 (`libphonenumber-js`), one per shop by a partial unique index (migration `0004`); list and customer screens; shop route statements pinned to spec §9. D23 |
+| M2.3 Orders | **Next** |
 
-## Next step: M2.1 Shop settings + pricing
+## Next step: M2.3 Orders
 
-Shop settings (`/api/shop/settings`, the settings screen), service types and price items with archive (spec §6, §9). The first `/api/shop/**` routes: two-shop isolation tests, the super admin's 403 over HTTP. Brings the overlay wrappers and the unsaved-changes guard (first edit forms).
+Create (task flow, with `Idempotency-Key`), list, detail, lines, state actions, payment, today view (spec §7, §8.1, §9). Brings `idempotency_keys` (D12), the bottom bar, the customer picker and row-error helpers. **Show a real shop after M2.3** (spec §18).
 
 ## Not built yet (on purpose)
 
-- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (M2.1), the unsaved-changes guard (M2.1), the bottom bar (M2.3), the viewport composable, the money formatter and its lint rule (M2.1), axe checks in the e2e suite (M2).
+- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the bottom bar (M2.3), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry.
 - **Khmer on a real low-end Android phone:** checked in Chromium only so far.
 - **Production environment:** D1 `laundry-production` and the `prod` block, when the first release is near.
-- **Dependencies added in the step that uses them** (D2): grammY (M4), `libphonenumber-js` (M2.2), `uqr` (M3.1).
+- **Dependencies added in the step that uses them** (D2): grammY (M4) `uqr` (M3.1).
 
 ## Open questions
 

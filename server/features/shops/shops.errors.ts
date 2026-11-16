@@ -17,6 +17,11 @@ export function alreadySuspended() {
   return apiError(409, ErrorCodes.INVALID_STATE, 'This shop is already suspended.')
 }
 
+/** The currency changes only while the price list is empty (D22). */
+export function currencyLocked() {
+  return apiError(409, 'CURRENCY_LOCKED', 'The currency can\'t change once the price list has items.', { fieldErrors: { currency: ['Can\'t change once the price list has items'] } })
+}
+
 export function notSuspended() {
   return apiError(409, ErrorCodes.INVALID_STATE, 'This shop is not suspended.')
 }

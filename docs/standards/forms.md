@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Visual rules: [ui.md](./ui.md) · Patterns: [page-patterns.md](./page-patterns.md) · Server validation: [architecture → Validation](../server/architecture.md#validation)
 
-How every form validates, submits, shows errors and protects unsaved input. Built so far: `useFormErrorRecheck`, `focusFirstError`, `formErrors` ([app-shell → Forms](../reference/app-shell.md#forms)); the unsaved-changes guard and row-error helpers come with their first forms (M2.1, M2.3). Until a helper exists, follow the rule by hand.
+How every form validates, submits, shows errors and protects unsaved input. Built so far: `useFormErrorRecheck`, `focusFirstError`, `formErrors` ([app-shell → Forms](../reference/app-shell.md#forms)); `useUnsavedChanges` (M2.1, [app-shell → Forms](../reference/app-shell.md#forms)); row-error helpers come with the first row list (M2.3). Until a helper exists, follow the rule by hand.
 
 ---
 
@@ -64,7 +64,8 @@ Warn before input the user hasn't saved is lost. A form is **unsaved** when its 
 - **Where:** a modal form, a page form, a settings page, and **a whole task flow** (one guard over all steps of new order or pickup, not one per step).
 - **Not guarded:** search and filters (they're in the URL), the sign-in form, instant toggles.
 - **Never keep secrets** (passwords) in any stored draft.
-- The guard composables and their edge-case table come with the first edit form that can lose input (M2.1, `reference/` page then). Their tests must cover: close mid-save, a failed save keeps input, two forms open at once, Back past the page, successful save then redirect (no dialog).
+- **Built (M2.1):** `useUnsavedChanges(() => dirty && !saving)` guards a page form: a route change (link, Back) asks with the browser's own confirm dialog (`common.unsaved.leave`), reload or closing the tab with "Leave site?". Every edit form so far is a page, so the modal row doesn't apply yet; the sign-out row and a "Keep editing / Discard" dialog of our own come with the overlay wrappers.
+- Covered: a link and Back between app pages ask, and staying keeps the input (`test/e2e/prices.test.ts`); a successful save moves the baseline, so its redirect doesn't ask. **Known gap:** Back onto the sign-in page while signed in leaves without asking (its redirect runs first).
 
 ## 7. Values: absent, `null`, empty
 

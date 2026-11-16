@@ -1,5 +1,6 @@
 import { and, count, desc, eq, or, sql } from 'drizzle-orm'
 import type { ShopListQuery, ShopStatus } from '#shared/contracts/platform-shops'
+import type { Currency, ShopLanguage } from '#shared/contracts/shop-settings'
 import type { Db, Statement } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
 import { organization } from '#server/db/tables'
@@ -67,20 +68,52 @@ export function insertSettingsStatement(db: Db, settings: NewSettings): Statemen
   return db.insert(shopSettings).values({ shopId, status: 'active', version: 1, createdAt: now, updatedAt: now })
 }
 
+/** The settings an owner edits (spec §3 → Shop settings); the name is the organization's. */
+export interface SettingsFields {
+  phone: string | null
+  address: string | null
+  currency: Currency
+  policyTextKm: string | null
+  policyTextEn: string | null
+  reminderAfterDays: number
+  language: ShopLanguage
+}
+
 interface SettingsChange {
   shopId: string
   version: number
   now: Date
   status?: ShopStatus
+  fields?: SettingsFields
 }
 
 /**
- * Moves the shop to the next version (and status) only while it's still at `version`: every change
- * moves the version, so the status the service checked holds too. Follow it with `requireOneChange`.
+ * Moves the shop to the next version (and status, or settings) only while it's still at `version`:
+ * every change moves the version, so the status the service checked holds too. Follow it with
+ * `requireOneChange`.
  */
 export function updateSettingsAtVersion(db: Db, change: SettingsChange): Statement {
-  const { shopId, version, now, status } = change
+  const { shopId, version, now, status, fields } = change
   return db.update(shopSettings)
-    .set({ ...(status ? { status } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
+    .set({ ...fields, ...(status ? { status } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
     .where(and(eq(shopSettings.shopId, shopId), eq(shopSettings.version, version)))
+}
+
+const settingsColumns = {
+  name: organization.name,
+  phone: shopSettings.phone,
+  address: shopSettings.address,
+  currency: shopSettings.currency,
+  policyTextKm: shopSettings.policyTextKm,
+  policyTextEn: shopSettings.policyTextEn,
+  reminderAfterDays: shopSettings.reminderAfterDays,
+  language: shopSettings.language,
+  version: shopSettings.version,
+}
+
+export type SettingsRow = SettingsFields & { name: string, version: number }
+
+/** The shop's settings, with its name. */
+export function findSettings(db: Db, shopId: string): Promise<SettingsRow | undefined> {
+  return firstRow(db.select(settingsColumns).from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
 }
