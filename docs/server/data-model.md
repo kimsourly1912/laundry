@@ -163,7 +163,7 @@ erDiagram
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 
-**Status:** M1.3 / M1.5.
+**Status:** `audit_events` with its first user, M1.5 (platform actions); `idempotency_keys` with its first user, M2.3 (order create) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
 
 `audit_events`: `id`, `shop_id` null (null = platform action), `actor_user_id`, `action`, `target_type`, `target_id`, `data`, `created_at`.
 

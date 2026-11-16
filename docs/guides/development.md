@@ -33,7 +33,7 @@ Vitest projects (`vitest.config.ts`):
 | Project | Files | Runs in |
 |---|---|---|
 | `unit` | `test/unit/**`, `app/features/*/tests/**`, `shared/**/*.test.ts` | Node |
-| `server` | `server/tests/**`, `server/features/*/tests/**` | Node, against SQLite built from the migrations (harness: M1.3) |
+| `server` | `server/tests/**`, `server/features/*/tests/**` | Node, against SQLite built from the migrations ([test harness](../reference/test-harness.md)) |
 | `nuxt` | `test/nuxt/**`, `app/features/*/tests/**/*.nuxt.test.ts` | The Nuxt environment. The project exists only once such a test exists |
 | `e2e` | `test/e2e/**` | A built app in a real browser (M1.6) |
 

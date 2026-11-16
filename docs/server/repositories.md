@@ -90,7 +90,7 @@ export function linesOf(db: Db, shopId: string, orderIds: string[]): Promise<Ord
 }
 ```
 
-(Shape example; `readInChunks` and the tables come with M1.3 and M2.3.)
+(Shape example: the tables come with M2.3; `readInChunks` is in [reference/batch.md](../reference/batch.md).)
 
 - **Select named columns.** One column list and one row type per aggregate.
 - **Let the return type check the row.** Never cast a query's result (`as Promise<…>`): ESLint refuses it. Fix the column type instead.
@@ -136,7 +136,7 @@ The one exception: a scheduled job or delivery run may execute **one conditional
 ## D1 limits
 
 - **At most 100 bound parameters per statement.** A list that can grow never goes into one statement: split it (`chunk(ids)`), one statement per piece. The test harness enforces the same limit.
-- **`LIKE` / `GLOB` patterns over 50 bytes are refused.** Search with `instr` (a shared `containsText(column, search)` helper, M1.3), never a `like` pattern built from user input.
+- **`LIKE` / `GLOB` patterns over 50 bytes are refused.** Search with `containsText(column, search)` ([reference/batch.md](../reference/batch.md#queries-queryts)), never a `like` pattern built from user input.
 - **Batch reads need unique column names** across joined tables: alias duplicates.
 - No interactive transactions: batches and guards only.
 

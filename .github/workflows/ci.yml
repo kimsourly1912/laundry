@@ -1,6 +1,7 @@
-# Checks on each pull request and push to main (spec §14: lint → typecheck → audit → tests).
-# The e2e job comes with the e2e harness (M1.6); the staging deploy with the staging D1 database.
-# Setup follows https://pnpm.io/continuous-integration. Actions are pinned by full commit id.
+# Checks on each pull request and push to main (spec §14: lint → typecheck → audit → tests). A push
+# to main (a merged pull request) then deploys to staging (docs/server/operations.md → Staging).
+# The e2e job comes with the e2e harness (M1.6). Setup follows https://pnpm.io/continuous-integration.
+# Actions are pinned by full commit id: the deploy job holds the Cloudflare token.
 name: CI
 
 on:
@@ -13,7 +14,8 @@ on:
 permissions:
   contents: read
 
-# A newer push to a pull request cancels its older run.
+# A newer push to a pull request cancels its older run. On main, never: a cancel between the
+# migrations and the Worker would leave staging half done.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -51,3 +53,69 @@ jobs:
 
       - name: Unit and server tests
         run: pnpm test:unit
+
+  deploy-staging:
+    # Only a push to main, after its checks pass; pull requests never deploy.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [check]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: staging
+      url: https://laundry-staging.angder.app
+    # One deploy at a time, and a newer push never cancels one halfway (migrations, then Worker).
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      STAGING_URL: https://laundry-staging.angder.app
+    steps:
+      - name: Check the Cloudflare secrets are set
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets (docs/server/operations.md → Staging)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Read the project's Node.js requirement
+        id: node
+        run: |
+          version=$(jq -er '.engines.node' package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Install pnpm, Node.js and dependencies
+        uses: pnpm/setup@c9883cc79df532ad1a7b81bf9ab944ceb090d65c # v2.0.0
+        with:
+          runtime: node@${{ steps.node.outputs.version }}
+          cache: true
+
+      - name: Build the staging Worker
+        run: pnpm build:staging
+
+      # Before the new Worker: migrations are backwards compatible (expand, then contract), so the
+      # old Worker keeps working against the migrated database for the moment in between.
+      - name: Apply database migrations
+        run: |
+          if compgen -G ".output/server/db/migrations/sqlite/*.sql" > /dev/null; then
+            pnpm db:migrate:staging
+          else
+            echo "No migrations yet."
+          fi
+
+      - name: Deploy the Worker
+        run: pnpm exec wrangler deploy --config .output/server/wrangler.json
+
+      - name: Smoke check
+        run: |
+          set -eu
+          # The Worker answers and reaches its database (a new custom domain can take a minute).
+          curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "$STAGING_URL/api/health" | grep -q '"ok"'
+          # An unknown API path is our JSON 404, not the app's HTML.
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$STAGING_URL/api/does-not-exist")" = 404
+          # The app shell loads with the security headers.
+          curl --fail --silent --show-error --head "$STAGING_URL/" | grep -qi '^content-security-policy:'
+          echo "Staging is up: $STAGING_URL"

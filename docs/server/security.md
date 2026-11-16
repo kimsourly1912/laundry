@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Layers: [architecture.md](./architecture.md) · Queries: [repositories.md](./repositories.md)
 
-Identity, roles and statements, access helpers, sessions, passwords, request protection, secrets, logging, and the checklist every route passes. Built in M1.3–M1.5 unless marked; items the spec lists as **needs verification** (§17) are settled in M1.4 and recorded in `decisions.md`.
+Identity, roles and statements, access helpers, sessions, passwords, request protection, secrets, logging, and the checklist every route passes. Request protection is built ([reference/request-protection.md](../reference/request-protection.md)); identity and access come in M1.4–M1.5; items the spec lists as **needs verification** (§17) are settled in M1.4 and recorded in `decisions.md`.
 
 ---
 
@@ -123,14 +123,14 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 
 | Protection | Rule |
 |---|---|
-| **CSRF / origin** | Every non-GET request to `/api/**` except `/api/auth/**` (Better Auth checks its own) and `/api/webhooks/**` must carry an `Origin` (or `Referer`) from the trusted origins, else `403`. `GET` never changes state. (M1.3, `10.origin-check`) |
+| **CSRF / origin** | Every non-GET request to `/api/**` except `/api/auth/**` (Better Auth checks its own) and `/api/webhooks/**` must carry an `Origin` (or `Referer`) from the trusted origins, else `403`. `GET` never changes state. A sibling subdomain of `angder.app` is not trusted. |
 | **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body (401 otherwise). No session, no origin check. It can only link a chat after the phone check and record contacts (spec §8.2). |
-| **Rate limits** | Sign-in (per IP and username), the public ticket lookup and the webhook. `429 RATE_LIMITED`. Mechanism settled in M1.3. |
+| **Rate limits** | Workers rate-limit bindings per client address ([D10](../decisions.md#d10-rate-limits)): `/api/public/**` 300/min, `/api/webhooks/**` 600/min; `429 RATE_LIMITED` with `Retry-After: 60`. Nothing limited where no binding exists (dev, tests). Sign-in per IP and username: Better Auth's own limits (M1.4). `/api/health` is never limited. |
 | **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. **Slip scanning (M3.2) needs `camera=(self)`** on the shop pages that scan; loosen only there. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **Ticket page** | `/t/**`: `Cache-Control: no-store, no-transform`, no analytics. Its URL carries a bearer token; `strict-origin` keeps it out of referrers. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |
 | **Case-sensitive paths** | `router.options.sensitive`: one spelling per page, so checks on paths can't be skipped by case. |
-| **Body size** | JSON bodies are limited (size set in M1.3). |
+| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. |
 | **Enumeration** | Other shops' records are `404`. Sign-in errors don't say whether the username exists. |
 
 ## Ticket tokens

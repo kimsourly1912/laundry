@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Queries: [repositories.md](./repositories.md) · Access: [security.md](./security.md) · Tables: [data-model.md](./data-model.md)
 
-Layers, routes, conventions, how data is written, errors, validation, side effects and tests. Helpers named here are built in M1.3 unless marked otherwise; each gets a `reference/` page in the same PR.
+Layers, routes, conventions, how data is written, errors, validation, side effects and tests. The shared helpers are documented in [`reference/`](../reference/README.md); a helper marked with a later step doesn't exist yet.
 
 ---
 
@@ -194,15 +194,15 @@ Every privileged write adds an `audit_events` row **in the same batch**: actor, 
 
 ## Errors
 
-Response shape (spec §9): HTTP status = the kind, `code` = the reason.
+Response shape (spec §9, [D9](../decisions.md#d9-flat-error-body)): HTTP status = the kind, `code` = the reason. API: [reference/errors.md](../reference/errors.md).
 
 ```json
 HTTP 409
-{ "code": "VERSION_CONFLICT", "message": "This order was changed on another device. Reload and try again." }
+{ "code": "VERSION_CONFLICT", "message": "This order was changed on another device. Reload and try again.", "requestId": "…" }
 ```
 
 - With field problems: `"fieldErrors": { "lines.0.quantity": ["Must be more than 0"] }`.
-- Thrown with an `apiError(status, code, message, { fieldErrors })` factory from the feature's `*.errors.ts` (shared codes in `server/utils/errors.ts`). How the flat shape is produced with Nitro's error handler is settled in M1.3.
+- Thrown with an `apiError(status, code, message, { fieldErrors })` factory from the feature's `*.errors.ts` (shared codes in `server/utils/errors.ts`).
 - **4xx messages are for the user** and shown as they are. **5xx never carry details:** the handler replaces the message and logs the cause with the request id.
 - Codes are `UPPER_SNAKE`.
 

@@ -28,7 +28,7 @@ Environments, configuration and secrets, migrations, deploys, scheduled jobs and
 | D1 | `laundry-staging`, id `8e47c3e9-12e5-42ff-aee3-cfd41edc6439`, primary location APAC |
 | Build | `pnpm build:staging` (writes `.output/server/wrangler.json`) |
 | Migrations | `pnpm db:migrate:staging` (after a staging build) |
-| Deploy | CI on merge to `main` (job added in M1.3, with `/api/health` for its smoke check). `pnpm deploy:staging` also applies remote migrations and deploys: never use it for a build-only check |
+| Deploy | CI job `deploy-staging` on every push to `main`, after the checks pass: build, migrations (when any exist), `wrangler deploy`, smoke check (`/api/health`, the JSON 404, the CSP header). `pnpm deploy:staging` does the same from a laptop: never use it for a build-only check |
 
 Before the first deploy, the owner adds two **GitHub Actions secrets** (repository → Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token limited to this account with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* and *Zone: DNS: Edit* on `angder.app`) and `CLOUDFLARE_ACCOUNT_ID`. Then the Worker secrets, once the code needs them: `wrangler secret put NUXT_BETTER_AUTH_SECRET --name laundry-staging` (M1.4), Telegram (M4).
 
@@ -56,17 +56,17 @@ Local development: `pnpm dev:accounts` (M1.5/M2) creates 1 super admin and 2 sho
 ## Migrations
 
 - Each feature's tables are in `server/features/<f>/<f>.schema.ts`, registered with NuxtHub by the `hub:db:schema:extend` hook.
-- **Generate** with drizzle-kit into `server/db/migrations` (exact command recorded in [development](../guides/development.md) with the first migration, M1.3/M1.4).
+- **Generate** with drizzle-kit into `server/db/migrations` (exact command recorded in [development](../guides/development.md) with the first migration, M1.4).
 - **Locally**, NuxtHub applies pending migrations when the dev server starts.
 - **Deployed**, apply with `wrangler d1 migrations apply DB --remote` **before** deploying the Worker (NUK's `db:migrate:*` scripts).
 - **Migrations are backwards compatible** (expand, then contract): the old Worker keeps working against the migrated database for the moment between the migration and the new Worker. A column removal is a second migration in a later deploy.
 - A migration never deletes business data (orders, customers, tickets).
-- The server tests build their SQLite database from the same migrations (M1.3), so a broken migration fails CI.
+- The server tests build their SQLite database from the same migrations ([reference/test-harness.md](../reference/test-harness.md)), so a broken migration fails CI.
 
 ## Deploys
 
 - **CI** (`.github/workflows/ci.yml`): lint → typecheck → audit (high) → unit + server tests on every pull request and push to `main`. The e2e job comes with M1.6.
-- **Staging:** on merge to `main`, build the staging Worker, apply migrations, deploy, smoke-check `/api/health` (added when staging exists).
+- **Staging:** on a push to `main`, after the checks: build the staging Worker, apply migrations, deploy, smoke-check ([Staging](#staging)). It fails with a clear message until the GitHub secrets exist.
 - **Production:** manual, from a `main` revision that passed every check and was checked on staging. Record the D1 Time Travel bookmark before applying migrations.
 - Actions in deploy jobs are pinned to full commit ids (`test/unit/ci-workflows.test.ts`); the workflow token is read-only.
 
@@ -102,4 +102,4 @@ The linking flow, phone check and delivery rules: spec §8.2–§8.3 and [archit
 
 ## Monitoring
 
-Workers Logs for structured logs (request id on every line). `/api/health` (M1.3) answers without details and is not rate-limited, so an outside check can use it.
+Workers Logs for structured logs (request id on every line). `/api/health` ([reference/request-protection.md](../reference/request-protection.md#get-apihealth)) answers without details and is not rate-limited, so an outside check can use it.

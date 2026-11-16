@@ -98,3 +98,49 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** `staging.laundry.angder.app`: a second-level subdomain, which Cloudflare's free Universal SSL certificate (`*.angder.app`) doesn't cover; it would need an advanced certificate. `laundry-staging` stays one level deep.
 
 **Consequences.** `NUXT_PUBLIC_SITE_URL` per environment is set in its `$env` block as a public var. Laundry shares the account with NUK: every laundry resource is named `laundry-*`, and the CI token should be scoped to what laundry deploys.
+
+## D9. Flat error body
+
+**Context.** Spec §9 says errors are `{ code, message, fieldErrors? }`. NUK sends h3's shape (`{ statusCode, message, data: { code, … } }`). Spec §12 asks for the request id in logs; a user's screenshot should lead to them.
+
+**Decision.**
+- `/api/**` errors answer with the flat body `{ code, message, fieldErrors?, requestId }`, written by our Nitro error handler (`server/error-handler.ts`), registered before Nuxt's.
+- 5xx bodies are fixed (`INTERNAL`); a library's own 4xx text is replaced by a generic message.
+- **Messages are English.** The app shows its own translated text for each `code` (km/en) and falls back to the server's message. The server never translates.
+
+**Alternatives.** h3's nested shape: what `createError` gives for free, but not the spec's contract, and every client reads `data.code`. Server-side translation: the server would need each request's language, and the app already owns its strings.
+
+**Consequences.** `ofetch` exposes the body as `error.data`, so the app reads `error.data.code` either way. Field errors from server validation are English fallbacks; forms validate on the client first, in the user's language.
+
+## D10. Rate limits
+
+**Context.** Spec §12 asks for rate limits on sign-in, the public ticket lookup and the webhook. NUK uses Cloudflare's Workers rate-limit bindings: no extra service, counted per address at the edge.
+
+**Decision.**
+- Workers rate-limit bindings, keyed on `cf-connecting-ip`: `RATE_LIMIT_PUBLIC` (`/api/public/**`, 300/min) and `RATE_LIMIT_WEBHOOK` (`/api/webhooks/**`, 600/min). Namespace ids `3001`/`3002` on staging (`4001`… for production), apart from NUK's in the same account.
+- Generous numbers: Cambodian mobile carriers put many customers behind one address. The ticket token's 128 bits, not the limit, stop guessing.
+- Sign-in is limited by Better Auth's own rate limiter (M1.4). `/api/health` is never limited.
+
+**Alternatives.** A counter table in D1: a write per request. Cloudflare WAF rules: zone configuration outside the repo, coarser.
+
+**Consequences.** Nothing is limited in dev, tests or the Node build (no binding). Cloudflare counts per location and lets a few requests past: a bound on abuse, not a quota.
+
+## D11. Worker body cap
+
+**Context.** Nitro 2's Cloudflare entry reads the whole request body into memory before any route runs, so `readValidBody`'s 64 KB limit comes too late to protect the Worker's memory. NUK found this and wraps the entry.
+
+**Decision.** `server/cloudflare-entry.ts` wraps Nitro's Cloudflare entry (wired in `nuxt.config.ts` → `nitro:init`, Cloudflare builds only). It counts `/api/**` body bytes as they arrive and answers `413` past 64 KB; otherwise it passes the already-read body on. Routes still check again.
+
+**Alternatives.** Trust `Content-Length`: a chunked body has none. No cap: a large body costs memory on every request that sends one.
+
+**Consequences.** One cap for every API route today; a future upload route adds its own limit in `workerBodyLimit`. Checked under workerd (`wrangler dev`) with and without `Content-Length`.
+
+## D12. Tables arrive with their first user
+
+**Context.** The spec places `audit_events` and `idempotency_keys` in the `platform` feature. M1.3 builds the server core, which has no write yet that needs them.
+
+**Decision.** `audit_events` lands with the first privileged write (M1.5, platform creates a shop); `idempotency_keys` with the first idempotent action (M2.3, order create). Each comes with its helpers, tests and `reference/` page then.
+
+**Alternatives.** Create both now: tables and helpers without a caller, documented before they're used.
+
+**Consequences.** The first migration comes with Better Auth in M1.4.

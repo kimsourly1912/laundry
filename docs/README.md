@@ -35,7 +35,7 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) โ
 | [`server/data-model.md`](server/data-model.md) | Every table and its lifecycle (spec ยง6, kept current) |
 | [`server/operations.md`](server/operations.md) | Environments, secrets, migrations, deploys, scheduled jobs, Telegram setup |
 | [`guides/development.md`](guides/development.md) | Commands, tests, checks before a PR |
-| `reference/` | One page per shared helper (API, types, examples). Created in the **same PR** as the helper; examples must compile. Empty until M1.3 |
+| `reference/` | One page per shared helper (API, types, examples). Created in the **same PR** as the helper; examples must compile. [Index](reference/README.md) |
 
 ## Maintenance
 

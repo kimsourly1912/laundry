@@ -43,11 +43,15 @@ export default defineConfig({
         },
       },
       {
-        // Server services against SQLite built from the real migrations (harness: M1.3).
+        // Server services against SQLite built from the real migrations (server/tests/support/db.ts).
         resolve: { alias },
         test: {
           name: 'server',
           include: ['server/tests/**/*.test.ts', 'server/features/*/tests/**/*.test.ts'],
+          // Runs the migrations once; each test database replays the result.
+          globalSetup: ['server/tests/support/global-setup.ts'],
+          // Closes every test database: libsql crashes the worker when the GC frees an open one.
+          setupFiles: ['server/tests/support/setup.ts'],
           environment: 'node',
         },
       },

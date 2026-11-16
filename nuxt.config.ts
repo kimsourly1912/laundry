@@ -54,6 +54,16 @@ const STAGING = {
   d1DatabaseId: '8e47c3e9-12e5-42ff-aee3-cfd41edc6439',
 }
 
+/**
+ * Per-address limits (server/utils/rate-limit.ts, D10): Cloudflare's Workers rate-limit bindings.
+ * Cloudflare counts per 10 or 60 seconds only. A namespace id must be unique in the Cloudflare
+ * account, which also holds NUK's (1001–2004): laundry staging uses 3001…, production will use 4001….
+ */
+const RATE_LIMITS = [
+  { name: 'RATE_LIMIT_PUBLIC', namespace_id: '3001', simple: { limit: 300, period: 60 as const } },
+  { name: 'RATE_LIMIT_WEBHOOK', namespace_id: '3002', simple: { limit: 600, period: 60 as const } },
+]
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxt/a11y'],
@@ -77,6 +87,8 @@ export default defineNuxtConfig({
             vars: { NUXT_PUBLIC_SITE_URL: STAGING.siteUrl },
             // Cloudflare calls the Worker on these; Nitro runs the matching tasks.
             triggers: { crons: Object.keys(SCHEDULED_TASKS) },
+            // Nitro's Wrangler type predates rate-limit bindings; Wrangler 4 reads them.
+            ...({ ratelimits: RATE_LIMITS } as Record<string, unknown>),
           },
         },
       },
@@ -142,6 +154,24 @@ export default defineNuxtConfig({
     optimizeDeps: { include: ['valibot'] },
   },
   hooks: {
+    // Through nitro:init, not `nitro.hooks`: a `compiled` key there would replace the Cloudflare
+    // preset's own hook, which writes wrangler.json.
+    'nitro:init'(nitro) {
+      if (nitro.options.preset.replaceAll('_', '-') === 'cloudflare-module') {
+        // Nitro 2 buffers the whole request in its entry, before any route's size check: wrap that
+        // entry, keeping its other handlers (server/cloudflare-entry.ts).
+        nitro.options.alias['#nitro-cloudflare-entry'] = nitro.options.entry
+        nitro.options.entry = fileURLToPath(new URL('./server/cloudflare-entry.ts', import.meta.url))
+      }
+    },
+    // Our handler answers /api/** in the API's error format; Nuxt's own (set before this hook runs)
+    // stays next in line for pages. Nitro tries handlers in order.
+    'nitro:config'(nitroConfig) {
+      const nuxtHandlers = [nitroConfig.errorHandler ?? []].flat()
+      // Forward slashes: Nitro writes this path into a generated import.
+      const apiHandler = fileURLToPath(new URL('./server/error-handler.ts', import.meta.url)).replaceAll('\\', '/')
+      nitroConfig.errorHandler = [apiHandler, ...nuxtHandlers]
+    },
     // Each server feature owns its tables in server/features/<feature>/<feature>.schema.ts (spec §10).
     'hub:db:schema:extend'({ paths }) {
       const featuresDir = fileURLToPath(new URL('./server/features', import.meta.url))
