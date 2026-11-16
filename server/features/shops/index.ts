@@ -6,6 +6,12 @@ import { findShopProfile, findShopStatus } from './shops.repository'
 export { createShop, getShop, listShops, platformShopActor, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from './shops.service'
 export { getSettings, updateSettings } from './shops.settings.service'
 
+/**
+ * For a read-only join (docs/server/repositories.md → Other features' tables): the reminder job
+ * reads each shop's `reminderAfterDays` and `status`. Others never write it.
+ */
+export { shopSettings as shopSettingsTable } from './shops.schema'
+
 /** The shop's status for access checks (spec §5): `undefined` when the shop has no settings row. */
 export async function shopStatus(db: Db, shopId: string): Promise<'active' | 'suspended' | undefined> {
   return (await findShopStatus(db, shopId))?.status

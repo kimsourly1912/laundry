@@ -6,8 +6,33 @@ import { newId } from '#server/utils/ids'
 import { containsText, firstRow } from '#server/utils/query'
 import { user } from '#server/db/tables'
 import { customersTable as customers } from '#server/features/customers'
+import { shopSettingsTable as shopSettings } from '#server/features/shops'
 import { orderCounters, orderEvents, orderLines, orders } from './orders.schema'
 import type { LineSnapshot } from './orders.rules'
+
+// --- Across shops (the reminder job) ---
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Ready orders waiting for at least their shop's `reminder_after_days`, in active shops (spec
+ * §8.5). The one read across shops besides the outbox's: each row names its shop, and every
+ * statement built from it is scoped to that shop. Oldest first, `limit` at a time.
+ */
+export function ordersToRemind(db: Db, options: { now: Date, limit: number, afterId?: string }) {
+  const { now, limit, afterId } = options
+  return db.select({ shopId: orders.shopId, id: orders.id, customerId: orders.customerId })
+    .from(orders)
+    .innerJoin(shopSettings, eq(shopSettings.shopId, orders.shopId))
+    .where(and(
+      eq(orders.status, 'ready'),
+      eq(shopSettings.status, 'active'),
+      sql`${orders.readyAt} <= ${sql.param(now, orders.readyAt)} - ${shopSettings.reminderAfterDays} * ${DAY_MS}`,
+      afterId ? sql`${orders.id} > ${afterId}` : undefined,
+    ))
+    .orderBy(asc(orders.id))
+    .limit(limit)
+}
 
 // --- Reads (every one scoped to the shop) ---
 

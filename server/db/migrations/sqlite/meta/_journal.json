@@ -64,6 +64,13 @@
       "when": 1794836704940,
       "tag": "0008_telegram",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1794843893411,
+      "tag": "0009_reminders",
+      "breakpoints": true
     }
   ]
 }

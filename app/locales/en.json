@@ -481,7 +481,22 @@
       "qr": "QR code for updates on Telegram",
       "open": "Telegram QR",
       "modalTitle": "Order {number} on Telegram",
-      "off": "Telegram isn't set up yet. Ask support."
+      "off": "Telegram isn't set up yet. Ask support.",
+      "statusTitle": "Telegram",
+      "notLinked": "The customer isn't getting this order on Telegram yet.",
+      "linked": "{count} chat gets updates about this order. | {count} chats get updates about this order.",
+      "kind": {
+        "receipt": "Receipt",
+        "ready": "Ready",
+        "collected": "Collected",
+        "reminder": "Reminder"
+      },
+      "state": {
+        "pending": "Sending",
+        "sent": "Sent",
+        "skipped": "Not sent",
+        "failed": "Failed"
+      }
     }
   },
   "more": {
