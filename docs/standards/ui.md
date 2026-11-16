@@ -116,7 +116,7 @@ From the page outwards:
 3. **Card** (`UCard` outline): one record in a collection, or one group of settings. **No card inside a card.** Rows inside a card use `divide-y`.
 4. **Overlays:** modals, slideovers, drawers, menus, popovers. The only surfaces with shadows (Nuxt UI's own).
 
-- **Drawers and bottom sheets don't drag.** A sheet that moves under a finger closes by accident. Use `UDrawer` with its handle and dragging off; it closes with X, a tap outside, Escape or Back. One shared wrapper owns this (M1.6), and ESLint then forbids `UDrawer` elsewhere.
+- **Drawers and bottom sheets don't drag.** A sheet that moves under a finger closes by accident. Use `UDrawer` with its handle and dragging off; it closes with X, a tap outside, Escape or Back. One shared wrapper owns this, built with the first drawer (none yet); ESLint then forbids `UDrawer` elsewhere.
 - **Alerts** (`UAlert`, `variant="subtle"`) are for states that need action or explain a blocked action (conflict, shop suspended, load error). A page's standing explanation is a muted sentence, not an alert.
 
 ## 9. Action hierarchy
@@ -159,7 +159,7 @@ How controls behave, so every screen behaves the same.
 
 ### Overlays
 
-- **Back closes the overlay on top and stays on the page.** A phone's Back is a history back, so each open modal, slideover and drawer gets its own history entry. Back works like Escape on the top overlay only: unsaved input asks first. The next Back leaves the page. Closing another way (X, Save) leaves no entry behind. Shared overlay wrappers own this (M1.6); after that, `UModal`, `USlideover` and `UDrawer` are lint errors outside the wrappers.
+- **Back closes the overlay on top and stays on the page.** A phone's Back is a history back, so each open modal, slideover and drawer gets its own history entry. Back works like Escape on the top overlay only: unsaved input asks first. The next Back leaves the page. Closing another way (X, Save) leaves no entry behind. Shared overlay wrappers own this, built with the first overlay that holds input (M2.1); after that, `UModal`, `USlideover` and `UDrawer` are lint errors outside the wrappers. Until then a confirm dialog (no input) uses `UModal` directly.
 - **The backdrop is dark** behind every modal, slideover and drawer, set once in `app.config.ts`.
 - **Only an overlay's body scrolls**, between a header and footer that stay in view. A page adds borders or a footer's layout, never spacing.
 - **Errors inside an overlay show inside it**, not only as a toast (a toast behind a modal can't be reached).
@@ -198,7 +198,7 @@ A switch that saves at once (a shop setting toggle) **never blocks the others**:
 - **Input:** everything works by keyboard; nothing is hover-only; gestures have button alternatives.
 - **Reflow and zoom:** works at 320 CSS px wide and 200% text zoom without two-dimensional scrolling.
 - **Language:** `<html lang>` follows the active locale (`en` or `km`), so screen readers pronounce text correctly.
-- **Checked while building:** the `@nuxt/a11y` module runs axe-core in the dev server against WCAG 2.0–2.2 A/AA rules, logs violations to the browser console and lists them in its Nuxt DevTools tab (D5). Fix what it reports before a PR. It's a dev aid, not proof: the e2e accessibility checks (M1.6) and the [review checklist](./ui-review-checklist.md) still apply.
+- **Checked while building:** the `@nuxt/a11y` module runs axe-core in the dev server against WCAG 2.0–2.2 A/AA rules, logs violations to the browser console and lists them in its Nuxt DevTools tab (D5). Fix what it reports before a PR. It's a dev aid, not proof: the e2e accessibility checks (axe in the e2e suite, with the first feature screens in M2) and the [review checklist](./ui-review-checklist.md) still apply.
 
 ## 13. Motion
 

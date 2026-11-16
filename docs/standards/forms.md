@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Visual rules: [ui.md](./ui.md) · Patterns: [page-patterns.md](./page-patterns.md) · Server validation: [architecture → Validation](../server/architecture.md#validation)
 
-How every form validates, submits, shows errors and protects unsaved input. The shared helpers named here are built in M1.6 and M2; each gets its `reference/` page then. Until a helper exists, follow the rule by hand.
+How every form validates, submits, shows errors and protects unsaved input. Built so far: `useFormErrorRecheck`, `focusFirstError`, `formErrors` ([app-shell → Forms](../reference/app-shell.md#forms)); the unsaved-changes guard and row-error helpers come with their first forms (M2.1, M2.3). Until a helper exists, follow the rule by hand.
 
 ---
 
@@ -35,9 +35,9 @@ Every `UForm` sets `:validate-on="['input', 'change']"`.
 ## 4. Errors
 
 - **An error appears** when the value changes or the form is submitted, never because a field was left.
-- **An error leaves as soon as it's fixed**, also a rule across fields (fixing either field clears it). The form re-checks fields that show a schema error after each change (a shared composable, M1.6).
+- **An error leaves as soon as it's fixed**, also a rule across fields (fixing either field clears it). The form re-checks fields that show a schema error after each change (`useFormErrorRecheck(form)`: the form's ref).
 - **A server's field error** (`fieldErrors` in the response, e.g. a phone already used by another customer) is set on its field and stays until that field is edited or the form is sent again.
-- **A failed submit goes to the first error:** the first invalid field in page order scrolls into view and takes focus (`@error` handler on every `UForm`, a shared helper in M1.6).
+- **A failed submit goes to the first error:** the first invalid field in page order scrolls into view and takes focus (`@error="focusFirstError"` on every `UForm`).
 - **Rows with their own errors** (order lines) name errors by position (`lines.2.quantity`). Removing or moving a row must move its errors with it, so the next row doesn't inherit an error (a shared composable when the first row list is built, M2.3).
 - **A control inside a group's field gets its own `UFormField`**, or it borrows the group's id and error color.
 - **A whole-form error** (not tied to a field: `409`, network failure) shows at the top of the form, inside the surface, with the action that helps (Reload, Try again).
@@ -64,7 +64,7 @@ Warn before input the user hasn't saved is lost. A form is **unsaved** when its 
 - **Where:** a modal form, a page form, a settings page, and **a whole task flow** (one guard over all steps of new order or pickup, not one per step).
 - **Not guarded:** search and filters (they're in the URL), the sign-in form, instant toggles.
 - **Never keep secrets** (passwords) in any stored draft.
-- The guard composables and their edge-case table come with M1.6 (`reference/` page then). Their tests must cover: close mid-save, a failed save keeps input, two forms open at once, Back past the page, successful save then redirect (no dialog).
+- The guard composables and their edge-case table come with the first edit form that can lose input (M2.1, `reference/` page then). Their tests must cover: close mid-save, a failed save keeps input, two forms open at once, Back past the page, successful save then redirect (no dialog).
 
 ## 7. Values: absent, `null`, empty
 

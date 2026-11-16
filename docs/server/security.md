@@ -104,7 +104,7 @@ Better Auth's `expiresIn` is global, so a super admin's `expiresAt` is clamped b
 
 Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 days. The cookie is HttpOnly, and the revocation paths cover a lost phone.
 
-**In the app:** on any `401` (signed out, password changed elsewhere, session revoked), clear identity-bound queries, drafts and UI, then go to sign-in (spec §10, M1.6).
+**In the app:** on any `401` (signed out, password changed elsewhere, session revoked), clear identity-bound queries, drafts and UI, then go to sign-in (spec §10): `plugins/api.client.ts` → `useSession().end()` ([app-shell](../reference/app-shell.md#the-session)).
 
 ## Passwords
 

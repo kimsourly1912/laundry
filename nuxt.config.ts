@@ -66,7 +66,7 @@ const RATE_LIMITS = [
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxtjs/better-auth', '@nuxt/a11y'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxtjs/better-auth', '@nuxt/a11y', '@nuxtjs/i18n'],
   $env: {
     // `--envName staging` replaces `$production` (one environment block applies), so the security
     // headers are repeated here. The production block is named `prod`, never `production`: without
@@ -148,6 +148,8 @@ export default defineNuxtConfig({
       // D1 (staging, production) ignores it.
       connection: { timeout: 5000 },
     },
+    // The e2e build keeps its database apart from the dev server's (test/e2e/support/global-setup.ts).
+    ...(process.env.E2E_HUB_DIR ? { dir: process.env.E2E_HUB_DIR } : {}),
   },
   vite: {
     // Shared contracts reach the app through auto-imports, which Vite's start-up scan can't see.
@@ -197,6 +199,26 @@ export default defineNuxtConfig({
       stylistic: true,
       formatters: true,
     },
+  },
+  fonts: {
+    // Self-hosted at build (CSP font-src 'self'). Khmer needs its own subset: the default subsets
+    // are Latin only, which left Khmer to a system font that doesn't stack vowel signs.
+    defaults: { weights: [400, 500, 600, 700], subsets: ['latin', 'latin-ext'] },
+    families: [{ name: 'Noto Sans Khmer', provider: 'google', subsets: ['khmer'], weights: [400, 500, 600, 700], global: true }],
+  },
+  i18n: {
+    // English by default, Khmer second (D4). No locale in the URL: app pages are screens behind
+    // sign-in; the choice is kept in a cookie (docs/standards/i18n.md, D20).
+    strategy: 'no_prefix',
+    defaultLocale: 'en',
+    // Files at app/locales/<code>.json (AGENTS.md): `langDir` resolves from `restructureDir`.
+    restructureDir: 'app',
+    langDir: 'locales',
+    locales: [
+      { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
+      { code: 'km', language: 'km-KH', name: 'ខ្មែរ', file: 'km.json' },
+    ],
+    detectBrowserLanguage: { useCookie: true, cookieKey: 'laundry_locale', fallbackLocale: 'en', alwaysRedirect: true },
   },
   icon: {
     // With ssr: false, @nuxt/icon would fetch icons from api.iconify.design at runtime.

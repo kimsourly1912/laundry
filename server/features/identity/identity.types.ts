@@ -32,13 +32,4 @@ export interface PlatformActor {
   requestId?: string
 }
 
-/** `GET /api/me`: who is signed in, their shop (if any) and what they may do. */
-export interface MeResponse {
-  user: { id: string, name: string, username: string | null }
-  mustChangePassword: boolean
-  /** `superadmin` for the platform team, else `null`. */
-  platformRole: 'superadmin' | null
-  shop: { id: string, name: string, status: 'active' | 'suspended' } | null
-  /** Granted `resource:action` statements: the shop's, or the platform's for a super admin. */
-  statements: string[]
-}
+export type { MeResponse } from '#shared/contracts/identity'

@@ -29,3 +29,14 @@ export const passwordSchema = v.pipe(
   v.minLength(MIN_PASSWORD_LENGTH, `At least ${MIN_PASSWORD_LENGTH} characters`),
   v.maxLength(MAX_PASSWORD_LENGTH, `At most ${MAX_PASSWORD_LENGTH} characters`),
 )
+
+/** `GET /api/me`: who is signed in, their shop (if any) and what they may do. */
+export interface MeResponse {
+  user: { id: string, name: string, username: string | null }
+  mustChangePassword: boolean
+  /** `superadmin` for the platform team, else `null`. */
+  platformRole: 'superadmin' | null
+  shop: { id: string, name: string, status: 'active' | 'suspended' } | null
+  /** Granted `resource:action` statements: the shop's (none while suspended), or the platform's. */
+  statements: string[]
+}

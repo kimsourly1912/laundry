@@ -12,17 +12,19 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M1.3 Server core | Done: errors + `/api` error handler, validation and body limits, batch helpers, ids, log, request id, origin check, rate limits, Worker body cap, `/api/health`, API 404, SQLite test harness, CI staging deploy job. `reference/` pages for each |
 | M1.4 Identity | Done: Better Auth (username, admin, organization, access control), permission map, access helpers, endpoint lockdown, `mustChangePassword`, session lifetimes and revocation, first-admin seed (task + SQL script), `/api/me`, `shop_settings`, migrations `0000`–`0001`. §17 items settled in D13–D18 |
 | M1.5 Platform | Done: `/api/platform/shops` (list, create shop + owner in one batch, detail, rename, suspend, resume, owner reset-password, owner revoke-sessions), `audit_events` (migration `0002`), shared list and validation building blocks. D19 |
-| M1.6 App shell | **Next** |
+| M1.6 App shell | Done: data layer (`apiFetch`, `ApiError`, `useApiQuery`, `useMutation`, `usePaginatedQuery`), session and route access, auth/platform/shop layouts, sign-in, change password, account, English + Khmer (`@nuxtjs/i18n`, Noto Sans Khmer), platform screens (shops list, new shop, shop detail), e2e harness + CI job. D20, D21 |
+| M2.1 Shop settings + pricing | **Next** |
 
-## Next step: M1.6 App shell
+## Next step: M2.1 Shop settings + pricing
 
-Layouts (auth, platform, shop), sign-in, change password, account page, i18n km/en (`@nuxtjs/i18n`), `useApiQuery`, `useMutation`, `usePaginatedQuery`, `apiFetch`, errors, and their `reference/` docs. E2E: sign in → forced change → shop home; platform admin → shops list; revoked session → sign-in. Adds the CI e2e job.
+Shop settings (`/api/shop/settings`, the settings screen), service types and price items with archive (spec §6, §9). The first `/api/shop/**` routes: two-shop isolation tests, the super admin's 403 over HTTP. Brings the overlay wrappers and the unsaved-changes guard (first edit forms).
 
 ## Not built yet (on purpose)
 
-- **CI e2e job** (M1.6, with the e2e harness).
+- **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (M2.1), the unsaved-changes guard (M2.1), the bottom bar (M2.3), the viewport composable, the money formatter and its lint rule (M2.1), axe checks in the e2e suite (M2).
+- **Khmer on a real low-end Android phone:** checked in Chromium only so far.
 - **Production environment:** D1 `laundry-production` and the `prod` block, when the first release is near.
-- **Dependencies added in the step that uses them** (D2): grammY (M4), `libphonenumber-js` (M2.2), `uqr` (M3.1), `@nuxtjs/i18n` (M1.6).
+- **Dependencies added in the step that uses them** (D2): grammY (M4), `libphonenumber-js` (M2.2), `uqr` (M3.1).
 
 ## Open questions
 
@@ -31,6 +33,7 @@ Layouts (auth, platform, shop), sign-in, change password, account page, i18n km/
 
 ## Owner notes
 
+- **PR size:** the owner prefers one PR for several small and medium steps (one commit each) over one PR per step (2026-11-16).
 - **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.
 - **No pilot shop yet:** use mock data. `pnpm dev:accounts` and the staging sample data use two made-up shops with realistic prices, shaped like the paper tickets (spec §1).
 

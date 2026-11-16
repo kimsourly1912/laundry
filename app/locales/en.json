@@ -1,0 +1,166 @@
+{
+  "app": {
+    "name": "Laundry",
+    "menu": "Menu"
+  },
+  "common": {
+    "actions": {
+      "cancel": "Cancel",
+      "save": "Save changes",
+      "retry": "Try again",
+      "reload": "Reload",
+      "back": "Back",
+      "signOut": "Sign out",
+      "clearFilters": "Clear filters"
+    },
+    "states": {
+      "loadError": "Couldn't load this. Try again.",
+      "notFound": "This page doesn't exist."
+    },
+    "language": "Language",
+    "pagination": "{from}–{to} of {total}"
+  },
+  "errors": {
+    "kind": {
+      "network": "Can't reach the server. Check your connection and try again.",
+      "timeout": "The server took too long to answer. Try again.",
+      "aborted": "The request was cancelled.",
+      "unauthorized": "Your session has ended. Sign in again.",
+      "forbidden": "You don't have permission to do this.",
+      "not_found": "This was not found.",
+      "validation": "Some of the information is not valid.",
+      "conflict": "This conflicts with a recent change. Reload and try again.",
+      "rate_limited": "Too many attempts. Wait a few minutes and try again.",
+      "server": "Something went wrong on our side. Try again.",
+      "unknown": "Something went wrong. Try again."
+    },
+    "code": {
+      "INVALID_USERNAME_OR_PASSWORD": "Wrong username or password.",
+      "INVALID_PASSWORD": "The current password is wrong.",
+      "PASSWORD_COMPROMISED": "This password appears in a list of leaked passwords. Choose another one.",
+      "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
+      "VERSION_CONFLICT": "Someone else changed this meanwhile. Reload to see the change, then try again.",
+      "USERNAME_TAKEN": "This username is already used by another account.",
+      "SLUG_TAKEN": "Another shop already uses this short name.",
+      "SHOP_SUSPENDED": "This shop is suspended. Contact the platform team.",
+      "NO_SHOP": "This account doesn't belong to a shop.",
+      "PASSWORD_CHANGE_REQUIRED": "Change your temporary password to continue.",
+      "FORBIDDEN": "You don't have permission to do this."
+    }
+  },
+  "account": {
+    "signIn": {
+      "title": "Sign in",
+      "description": "Sign in with the username and password you were given.",
+      "username": "Username",
+      "password": "Password",
+      "submit": "Sign in"
+    },
+    "changePassword": {
+      "title": "Change password",
+      "forced": "You signed in with a temporary password. Choose your own password to continue.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "New password again",
+      "hint": "At least {min} characters.",
+      "mismatch": "The two passwords are different",
+      "submit": "Change password",
+      "done": "Password changed. Your other devices were signed out."
+    },
+    "page": {
+      "title": "Account",
+      "signedInAs": "Signed in as {username}",
+      "devices": "Signed-in devices",
+      "devicesCount": "No other device is signed in | One other device is signed in | {count} other devices are signed in",
+      "signOutOthers": "Sign out other devices",
+      "signedOutOthers": "Your other devices were signed out."
+    },
+    "unavailable": {
+      "suspendedTitle": "This shop is suspended",
+      "suspended": "{shop} can't be used right now. Contact the platform team to resume it.",
+      "noShopTitle": "No shop yet",
+      "noShop": "This account doesn't belong to a shop. Contact the platform team."
+    }
+  },
+  "validation": {
+    "required": "Required",
+    "minLength": "At least {min} characters",
+    "maxLength": "At most {max} characters",
+    "username": "Use letters, numbers, _ and . only",
+    "slug": "Use lowercase letters, numbers and single dashes"
+  },
+  "today": {
+    "nav": "Today",
+    "title": "Today",
+    "welcome": "Welcome to {shop}",
+    "soon": "Orders, customers and prices arrive in the next steps."
+  },
+  "platform": {
+    "nav": {
+      "shops": "Shops"
+    },
+    "shops": {
+      "title": "Shops",
+      "new": "New shop",
+      "search": "Search name or short name",
+      "tabs": {
+        "all": "All",
+        "active": "Active",
+        "suspended": "Suspended"
+      },
+      "empty": "No shops yet",
+      "emptyDescription": "Create the first shop and its owner.",
+      "noMatch": "No shops match your search",
+      "owner": "Owner: {username}",
+      "noOwner": "No owner",
+      "created": "Created {date}"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "newShop": {
+      "title": "New shop",
+      "description": "The shop and its owner's account are created together. Give the owner the username and temporary password; they choose their own password at the first sign-in.",
+      "shopSection": "Shop",
+      "ownerSection": "Owner",
+      "name": "Shop name",
+      "slug": "Short name",
+      "slugHint": "Lowercase letters, numbers and dashes, like sokha-laundry. Can't be changed later.",
+      "ownerName": "Owner's name",
+      "username": "Username",
+      "password": "Temporary password",
+      "submit": "Create shop",
+      "created": "{shop} was created."
+    },
+    "shop": {
+      "title": "Shop",
+      "back": "Shops",
+      "profile": "Profile",
+      "rename": "Rename",
+      "renamed": "The shop was renamed.",
+      "slug": "Short name",
+      "createdAt": "Created",
+      "owner": "Owner",
+      "ownerName": "Name",
+      "username": "Username",
+      "temporaryPassword": "On a temporary password",
+      "resetPassword": "Reset password",
+      "resetPasswordDescription": "Give the owner a new temporary password. They are signed out on every device and choose their own password at the next sign-in.",
+      "passwordReset": "The password was reset and the owner was signed out everywhere.",
+      "revokeSessions": "Sign owner out everywhere",
+      "revokeSessionsDescription": "Use this when the owner's phone is lost. The password doesn't change.",
+      "revokeSessionsConfirm": "Sign the owner out on every device?",
+      "sessionsRevoked": "The owner was signed out everywhere.",
+      "status": "Status",
+      "suspend": "Suspend shop",
+      "suspendDescription": "The owner can still sign in but can't use the shop. Its ticket pages show \"unavailable\". Nothing is deleted.",
+      "suspendConfirm": "Suspend {shop}?",
+      "suspended": "The shop was suspended.",
+      "resume": "Resume shop",
+      "resumeDescription": "The owner can use the shop again.",
+      "resumed": "The shop was resumed.",
+      "notFound": "This shop doesn't exist."
+    }
+  }
+}

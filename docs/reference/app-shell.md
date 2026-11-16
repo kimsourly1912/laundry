@@ -1,0 +1,71 @@
+# App shell
+
+← [Reference](./README.md) · Rules: [responsive-layout](../standards/responsive-layout.md), [i18n](../standards/i18n.md), [forms](../standards/forms.md)
+
+Source: `app/composables/useSession.ts`, `app/utils/route-access.ts`, `app/middleware/auth.global.ts`, `app/layouts/`, `app/components/AppShell.vue`, `app/features/account/`, `app/utils/form.ts`, `app/composables/useFormErrorRecheck.ts`.
+
+## The session
+
+`useSession()` holds `/api/me` ([access → GET /api/me](./access.md#get-apime)): who is signed in, their shop, the granted statements.
+
+| | |
+|---|---|
+| `me` | The `MeResponse`, or `null` signed out (read-only) |
+| `load()` | Reads `/api/me` (a 401 is "signed out", anything else throws) |
+| `end()` | **The session boundary**: moves the generation (in-flight responses are dropped), clears `me` and every query's data. After sign-out, a 401, and before a sign-in |
+| `can('shop:create')` | For showing actions; the server checks again |
+
+Sign-out: `useSignOut()` from `~/features/account` (ends the session in the app even if the request fails).
+
+## Which page a session sees
+
+`accessRedirect(me, to)` (pure, `app/utils/route-access.ts`), applied by `middleware/auth.global.ts` once `/api/me` is loaded:
+
+| Page meta | Rule |
+|---|---|
+| `public: true` (sign-in) | Signed out only; a session goes to the `?redirect=` page (this site only, `safeRedirect`) or its home |
+| (any page) | Signed out → sign-in, remembering the page |
+| (any page) | Temporary password → `/change-password` only |
+| `area: 'platform'` | The super admin only |
+| `area: 'shop'` | An active shop's member, never the super admin |
+| `permission: 'shop:create'` | A granted statement |
+
+`homePath(me)`: `/platform/shops`, `/` (an active shop's Today), or `/unavailable` (suspended, or no shop). Pages also set `title` (an i18n key) and `layout`.
+
+```ts
+definePageMeta({ layout: 'platform', area: 'platform', permission: 'shop:create', title: 'platform.newShop.title' })
+```
+
+The server refuses on its own; these rules only keep people on pages that work for them.
+
+## Layouts and navigation
+
+`auth` (one card, the language), `platform` and `shop` (both `AppShell`: sidebar, drawer below `lg`, account menu). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
+
+## Language
+
+`@nuxtjs/i18n` ([D20](../decisions.md#d20-the-app-shell)): `useI18n()` → `t`, `locale`, `setLocale`. `<LanguageSelect />` switches without a reload; `<html lang>` and Nuxt UI's own texts follow. Dates: `formatDate(iso, locale)` in Phnom Penh time.
+
+## Forms
+
+```vue
+<script setup lang="ts">
+const form = useTemplateRef('form')
+useFormErrorRecheck(form)
+</script>
+
+<template>
+  <UForm ref="form" :schema="schema" :state="state" :validate-on="['input', 'change']" @submit="onSubmit" @error="focusFirstError">
+```
+
+| Helper | Does |
+|---|---|
+| `useFormErrorRecheck(form)` | Errors leave as soon as they're fixed: fields showing a schema error are checked again after every change (from NUK) |
+| `focusFirstError` | `@error`: the first invalid field in page order takes focus |
+| `formErrors(fieldErrors)` | A server's `fieldErrors` as `form.setErrors` takes them |
+
+Form schemas are built with the user's language (`signInFormSchema(t)`, `newShopFormSchema(t)`) and never accept what the request contract rejects (tested against it).
+
+## Tests
+
+`test/unit/route-access.test.ts` (every rule, `safeRedirect`), `test/unit/locales.test.ts`, feature form tests, and `test/e2e/app-shell.test.ts`: sign in → forced change → shop home; platform admin → shops list; a session revoked on another device → sign-in.

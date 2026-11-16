@@ -14,4 +14,6 @@ One page per shared helper: what it does, its API, and examples that compile. A 
 | [access.md](./access.md) | Access helpers, statements, `/api/me`, session lifetimes, revocation, the first platform admin, Better Auth's open endpoints | `server/utils/access.ts`, `server/features/identity/*`, `server/api/me.get.ts` |
 | [audit.md](./audit.md) | `auditStatement` | `server/features/platform/*` |
 | [lists.md](./lists.md) | `pageQuerySchema`, `Page`, `toPage`, `optionalParam`, `intParam`, `nameSchema`, `versionSchema`, the account schemas | `shared/contracts/common.ts`, `shared/contracts/identity.ts` |
+| [api-client.md](./api-client.md) | `apiFetch`, `ApiError`, `errorText`, `useApiQuery`, `useMutation`, `usePaginatedQuery`, `invalidate` | `app/utils/api*.ts`, `app/composables/use*Query.ts`, `useMutation.ts` |
+| [app-shell.md](./app-shell.md) | `useSession`, `accessRedirect`, `homePath`, layouts, navigation, language, form helpers | `app/composables/useSession.ts`, `app/utils/route-access.ts`, `app/layouts/`, `app/utils/form.ts` |
 | [test-harness.md](./test-harness.md) | `createTestDb` and the server test project | `server/tests/support/*` |

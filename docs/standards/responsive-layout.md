@@ -23,7 +23,7 @@ How screens adapt to width. **Compact first:** the main device is a phone at the
 
 A slideover or a narrow column is narrower than the viewport. Its **contents** follow the surface's width: put `@container` on the surface's body, write the content mobile first, and add wider layouts with Tailwind's default container variants (`@md:`, `@lg:`). No arbitrary `@[500px]:` values.
 
-A choice made in JavaScript (a dropdown vs a bottom sheet, `fullscreen` on a modal) comes from the viewport through **one shared composable** (M1.6). Components never call `useMediaQuery` themselves or measure their own width.
+A choice made in JavaScript (a dropdown vs a bottom sheet, `fullscreen` on a modal) comes from the viewport through **one shared composable**, built with the first screen that needs one (no screen does yet). Components never call `useMediaQuery` themselves or measure their own width.
 
 ## 2. Compact is designed, not shrunk
 
@@ -38,7 +38,7 @@ Counter realities to design for: one hand busy (holding clothes or cash), a cust
 
 ## 3. Application shell
 
-Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboardPanel` per page. Three layouts (M1.6): **auth** (sign-in, change password), **shop**, **platform**.
+Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboardPanel` per page. Three layouts: **auth** (sign-in, change password, the "unavailable" notice), **shop**, **platform**, the last two around `components/AppShell.vue` ([app-shell](../reference/app-shell.md)).
 
 | | Compact | Medium | Expanded |
 |---|---|---|---|
@@ -68,7 +68,7 @@ UDashboardPanel
 - **Navbar primary action:** labelled at every width. Icon-only (with `aria-label`) only when the label can't fit at 320px.
 - **Toolbars never scroll sideways.** On a phone, search takes its own full line; filters wrap below. More than two filters → one **Filters** button (with the active count) opening a bottom sheet with Clear and Apply, writing the same URL query.
 - **Body order:** tabs → page-wide alerts (suspended, conflict) → content. An alert about one row sits on that row.
-- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component comes with M1.6.
+- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component comes with the first task flow that needs it (M2.3 new order).
 
 ## 6. Sticky and fixed elements
 

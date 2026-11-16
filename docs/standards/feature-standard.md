@@ -76,7 +76,7 @@ server/features/<f>/               app/features/<f>/
 
 ## 4. Lists
 
-- Reads use `useApiQuery` / `usePaginatedQuery` (M1.6), never hand-made loading or error state. Query keys are namespaced (`orders:list`).
+- Reads use `useApiQuery` / `usePaginatedQuery` ([api-client](../reference/api-client.md)), never hand-made loading or error state. Query keys are namespaced (`orders:list`).
 - Search, filters, status tab and page are in the URL.
 - Server-side pagination: `{ items, page, pageSize, total }`. The default sort is stated in the plan.
 - All [states](./page-patterns.md#7-states) that apply: loading, empty, filtered empty, error with Retry.
@@ -84,7 +84,7 @@ server/features/<f>/               app/features/<f>/
 ## 5. Forms and mutations
 
 - Forms follow [forms.md](./forms.md): contract, pure mapping, validation timing, submit button, errors, version.
-- Writes use `useMutation` (M1.6) with `invalidate: ['<own feature>', '<features that show this data>']`. No hand-made toast or error state.
+- Writes use `useMutation` ([api-client](../reference/api-client.md)) with `invalidate: ['<own feature>', '<features that show this data>']`. No hand-made toast or error state.
 - State actions (start, ready, collect) are mutations too, each its own `POST`.
 
 ## 6. Pickers

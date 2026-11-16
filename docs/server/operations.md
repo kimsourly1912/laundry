@@ -77,7 +77,7 @@ Local development: `pnpm dev:accounts` (M1.5/M2) creates 1 super admin and 2 sho
 
 ## Deploys
 
-- **CI** (`.github/workflows/ci.yml`): lint → typecheck → audit (high) → unit + server tests on every pull request and push to `main`. The e2e job comes with M1.6.
+- **CI** (`.github/workflows/ci.yml`): lint → typecheck → audit (high) → unit + server tests on every pull request and push to `main`; the **e2e** job (a production build in the runner's Chrome, [development → E2E](../guides/development.md#e2e)) on both too. A push to `main` deploys to staging only after both pass.
 - **Staging:** on a push to `main`, after the checks: build the staging Worker, apply migrations, deploy, smoke-check ([Staging](#staging)). It fails with a clear message until the GitHub secrets exist.
 - **Production:** manual, from a `main` revision that passed every check and was checked on staging. Record the D1 Time Travel bookmark before applying migrations.
 - Actions in deploy jobs are pinned to full commit ids (`test/unit/ci-workflows.test.ts`); the workflow token is read-only.
