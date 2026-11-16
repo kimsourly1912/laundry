@@ -1,5 +1,7 @@
-# Checks on each pull request and push to main (spec §14: lint → typecheck → audit → tests). A push
-# to main (a merged pull request) then deploys to staging (docs/server/operations.md → Staging).
+# Checks run on each pull request (spec §14: lint → typecheck → audit → tests, then e2e). A push to
+# main (a merged pull request) only deploys to staging: GitHub tested the pull request merged into
+# main, and main's branch rules require those checks to pass, and the branch to be up to date, before
+# a merge (docs/server/operations.md → Staging). `workflow_dispatch` runs the checks on demand.
 # E2E runs a production build against a seeded local database in the runner's preinstalled Google
 # Chrome (test/e2e/support): no secrets. Setup follows https://pnpm.io/continuous-integration.
 # Actions are pinned by full commit id: the deploy job holds the Cloudflare token.
@@ -23,6 +25,7 @@ concurrency:
 
 jobs:
   check:
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -56,6 +59,7 @@ jobs:
         run: pnpm test:unit
 
   e2e:
+    if: github.event_name != 'push'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -77,9 +81,9 @@ jobs:
         run: pnpm test:e2e
 
   deploy-staging:
-    # Only a push to main, after its checks pass; pull requests never deploy.
+    # Only a push to main; pull requests never deploy. The build and the smoke check still stop a
+    # broken deploy.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, e2e]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment:

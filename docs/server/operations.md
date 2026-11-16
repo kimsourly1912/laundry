@@ -28,7 +28,9 @@ Environments, configuration and secrets, migrations, deploys, scheduled jobs and
 | D1 | `laundry-staging`, id `8e47c3e9-12e5-42ff-aee3-cfd41edc6439`, primary location APAC |
 | Build | `pnpm build:staging` (writes `.output/server/wrangler.json`) |
 | Migrations | `pnpm db:migrate:staging` (after a staging build) |
-| Deploy | CI job `deploy-staging` on every push to `main`, after the checks pass: build, migrations (when any exist), `wrangler deploy`, smoke check (`/api/health`, the JSON 404, the CSP header). `pnpm deploy:staging` does the same from a laptop: never use it for a build-only check |
+| Deploy | CI job `deploy-staging` on every push to `main` (a merged pull request; the checks ran on the pull request, not again here): build, migrations (when any exist), `wrangler deploy`, smoke check (`/api/health`, the JSON 404, the CSP header). `pnpm deploy:staging` does the same from a laptop: never use it for a build-only check |
+
+**Branch rules for `main`** (repository → Settings → Rules, or Branches): require a pull request, require the status checks `check` and `e2e`, and require the branch to be up to date before merging. The deploy trusts these: without them, a merge could deploy code no check ran on.
 
 Before the first deploy, the owner adds two **GitHub Actions secrets** (repository → Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token limited to this account with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* and *Zone: DNS: Edit* on `angder.app`) and `CLOUDFLARE_ACCOUNT_ID`. Then the Worker secrets, set once per environment from a laptop (`pnpm exec wrangler login` first): `pnpm exec wrangler secret put NUXT_BETTER_AUTH_SECRET --name laundry-staging` (a new random value of at least 32 characters, e.g. `openssl rand -base64 48`), Telegram (M4). The smoke check's `/api/me` → 401 fails until the auth secret is set.
 
