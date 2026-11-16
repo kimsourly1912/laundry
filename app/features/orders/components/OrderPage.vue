@@ -10,6 +10,7 @@ import { formatPhone } from '#shared/contracts/phone'
 import { formatQuantity } from '../schemas/order-lines'
 import { customerLabel } from '../schemas/slip-form'
 import OrderBadges from './OrderBadges.vue'
+import OrderTelegram from './OrderTelegram.vue'
 import TelegramQr from './TelegramQr.vue'
 
 const props = defineProps<{ id: string }>()
@@ -206,6 +207,11 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
           >
             <span class="text-muted">{{ t('orders.note') }}:</span> {{ record.note }}
           </p>
+
+          <OrderTelegram
+            :order-id="id"
+            @show-qr="showQr = true"
+          />
 
           <section class="space-y-2">
             <h2 class="text-sm font-semibold">

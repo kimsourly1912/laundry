@@ -19,7 +19,8 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | New flow A: slip templates + shop setup | Done: `slip_templates` (migration `0006`), `/api/platform/templates`, template editor (item × service price grid), create shop from a template (a copy, in its currency), the platform keeps each shop's price list (`/api/platform/shops/:shopId/…`), owner reads prices only. D25, D26 |
 | New flow B: the owner's two pages | Done: the paper-slip order form (phone optional, walk-ins), the orders board (Waiting / Ready / Done, one big button, paid and collected), More with contact support, shop screens at 640px; the wizard, order list and Today removed. D27 |
 | New flow C: receipt to Telegram | Done: receipt designs (`receipt_designs`, migration `0007`; designer with drag, arrow keys and the server's preview; the owner sees an order's receipt), rendering with resvg + Noto Sans Khmer one word per element; the counter's QR, the webhook with the phone check, the outbox (`telegram_links`, `notifications`, `telegram_invites`, `telegram_pending`, migration `0008`), ready / collected messages, `notifications:deliver` (every minute) and `notifications:purge` (daily). D28 |
-| Next | **Owner:** set up the bot on staging (below) and try it with a real phone. Then: reminders for uncollected orders (spec §8.5), or what the first shop asks for |
+| Reminders + Telegram on the order page | Done: `orders:remind-uncollected` at 09:00 Phnom Penh (spec §8.5: after the shop's days, once a day, 3 per chat), kind `reminder` (migration `0009`); the order page says whether the customer is on Telegram and what was sent. Spec M4.3 |
+| Next | **Owner:** set up the bot on staging (below) and try it with a real phone. Then what the first shop asks for |
 
 ## The new flow (D25–D28), replacing spec §18
 
@@ -29,7 +30,6 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 
 - **With their first user** (docs promise them; nothing needs them yet): overlay wrappers with Back-closes-overlay and the drawer wrapper (the first overlay holding input; edits are pages so far, D22), the viewport composable, axe checks in the e2e suite (M2), restoring an archived price entry, `runJob` (job runs recorded; the three jobs log what they did).
 - **Pickup by scanning a slip** (spec §8.4) and the public ticket page `/t/:token`: not planned while there are no printed slips (D28). The board finds orders by number, name or phone.
-- **Reminders** for uncollected orders (spec §8.5, `orders:remind-uncollected`): the outbox is ready for them; not built.
 - **Khmer on a real low-end Android phone:** checked in Chromium only so far.
 - **Production environment:** D1 `laundry-production` and the `prod` block, when the first release is near.
 - **Dependencies added in the step that uses them** (D2): `@resvg/resvg-wasm`, `uqr` (D28). grammY isn't needed (D28).

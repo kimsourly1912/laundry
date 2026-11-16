@@ -10,3 +10,8 @@ export function startOfShopDay(now: Date): Date {
   const local = now.getTime() + PHNOM_PENH_OFFSET_MS
   return new Date(local - (local % DAY_MS) - PHNOM_PENH_OFFSET_MS)
 }
+
+/** The shop's date at `now`, as `2026-11-16`: one reminder per order per such day (spec §8.5). */
+export function shopDate(now: Date): string {
+  return new Date(now.getTime() + PHNOM_PENH_OFFSET_MS).toISOString().slice(0, 10)
+}

@@ -5,12 +5,12 @@ import { ORDER_STAGES, ORDER_TRANSITIONS, TODAY_LIST_SIZE } from '#shared/contra
 import type { Db, Statement } from '#server/utils/batch'
 import { isStaleWrite, isUniqueViolation, requireOneChange } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
-import { startOfShopDay } from '#server/utils/time'
+import { shopDate, startOfShopDay } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
 import { counterCustomer, getCustomer, phoneSearchDigits, requireActiveCustomerStatement } from '#server/features/customers'
 import { priceItemsForLines, requireActivePriceItemsStatement } from '#server/features/pricing'
 import { getSettings } from '#server/features/shops'
-import { queueOrderMessagesStatement } from '#server/features/notifications'
+import { queueOrderMessagesStatement, queueReminderStatement } from '#server/features/notifications'
 import type { ShopActor } from '#server/features/identity'
 import { alreadyPaid, cancelledNoPayment, customerUnavailable, invalidLines, invalidTransition, orderChanged, orderNotEditable, orderNotFound, orderPaid, orderUnpaid, priceItemUnavailable } from './orders.errors'
 import * as repo from './orders.repository'
@@ -376,4 +376,28 @@ export async function recordPayment(db: Db, actor: ShopActor, id: string, input:
     },
   })
   return { order: await getOrder(db, actor, result.id), replayed: result.replayed }
+}
+
+// --- Reminders (spec §8.5) ---
+
+/** Orders read and queued per round: one batch each. */
+const REMINDER_ROUND = 50
+
+/**
+ * Queues today's reminder for every order ready for at least its shop's `reminderAfterDays`, to
+ * the chats linked to it: once a day, three in all per chat (the outbox's keys and cap). Safe to
+ * run twice a day or to overlap. Returns how many orders were looked at.
+ */
+export async function queueReminders(db: Db, now = new Date()): Promise<number> {
+  const day = shopDate(now)
+  let afterId: string | undefined
+  let seen = 0
+  while (true) {
+    const rows = await repo.ordersToRemind(db, { now, limit: REMINDER_ROUND, afterId })
+    if (!rows.length) return seen
+    const statements = rows.map(row => queueReminderStatement(db, { shopId: row.shopId, orderId: row.id, customerId: row.customerId, day }, now))
+    await db.batch(statements as [Statement, ...Statement[]])
+    seen += rows.length
+    afterId = rows.at(-1)!.id
+  }
 }

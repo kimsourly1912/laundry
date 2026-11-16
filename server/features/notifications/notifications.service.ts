@@ -3,7 +3,7 @@ import { newId } from '#server/utils/ids'
 import { log } from '#server/utils/log'
 import * as repo from './notifications.repository'
 import type { NotificationKind } from './notifications.types'
-import { MAX_ATTEMPTS } from './notifications.types'
+import { MAX_ATTEMPTS, MAX_REMINDERS } from './notifications.types'
 
 /**
  * Who hears about a shop's orders, and the outbox of what to tell them (D28, spec §8.2–§8.3). A
@@ -38,6 +38,11 @@ export function countOrderListeners(db: Db, order: { shopId: string, orderId: st
   return repo.countLinksTo(db, order)
 }
 
+/** What the order's chats were sent (the order page), newest first, without the chats. */
+export async function orderMessages(db: Db, order: { shopId: string, orderId: string }) {
+  return repo.orderMessages(db, order)
+}
+
 // --- Queueing (in the batch of the change) ---
 
 /**
@@ -46,6 +51,15 @@ export function countOrderListeners(db: Db, order: { shopId: string, orderId: st
  */
 export function queueOrderMessagesStatement(db: Db, message: { shopId: string, orderId: string, customerId: string, kind: NotificationKind, key: string }, now: Date): Statement {
   return repo.queueOrderMessagesStatement(db, { ...message, now })
+}
+
+/**
+ * Today's reminder that the order is still waiting (spec §8.5), to each chat linked to it: once a
+ * day (`day` is the shop's date), and at most `MAX_REMINDERS` to a chat in all.
+ */
+export function queueReminderStatement(db: Db, order: { shopId: string, orderId: string, customerId: string, day: string }, now: Date): Statement {
+  const { day, ...rest } = order
+  return repo.queueOrderMessagesStatement(db, { ...rest, kind: 'reminder', key: day, now, maxOfKind: MAX_REMINDERS })
 }
 
 /** One message to one chat: the receipt for someone who just linked. Once per order and chat. */

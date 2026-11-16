@@ -10,3 +10,20 @@ export interface TelegramInvite {
   /** ISO 8601. */
   expiresAt: string
 }
+
+/**
+ * `GET /api/shop/orders/:id/telegram`: whether the order's customer hears about it on Telegram,
+ * and what was sent (D28). Never a chat id or a Telegram account: only counts and statuses.
+ */
+export interface OrderTelegramStatus {
+  /** Chats linked to the order: the customer's own links and this order's. */
+  chats: number
+  /** Newest first. */
+  messages: {
+    kind: 'receipt' | 'ready' | 'collected' | 'reminder'
+    status: 'pending' | 'sent' | 'skipped' | 'failed'
+    /** ISO 8601: when it was queued, and when it went. */
+    createdAt: string
+    sentAt: string | null
+  }[]
+}

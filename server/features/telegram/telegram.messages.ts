@@ -1,6 +1,6 @@
 import type { Order } from '#shared/contracts/orders'
 import type { ShopLanguage } from '#shared/contracts/shop-settings'
-import { formatMoney, formatQuantity } from '#shared/format'
+import { formatDateTime, formatMoney, formatQuantity } from '#shared/format'
 
 /**
  * What the bot says (D28), in the shop's customer-facing language (D6). Every message names the
@@ -14,10 +14,13 @@ interface OrderFacts {
   number: number
   total: string
   paid: boolean
+  /** When it became ready, without the time: `16 Nov 2026`. */
+  readySince: string
 }
 
 function facts(order: Order, shop: string, language: ShopLanguage): OrderFacts {
-  return { shop, number: order.number, total: formatMoney(order.total, order.currency, language), paid: order.paymentStatus === 'paid' }
+  const readySince = order.readyAt ? formatDateTime(order.readyAt, language).replace(/,?\s*\d{1,2}:\d{2}$/, '') : ''
+  return { shop, number: order.number, total: formatMoney(order.total, order.currency, language), paid: order.paymentStatus === 'paid', readySince }
 }
 
 const TEXT = {
@@ -31,6 +34,7 @@ const TEXT = {
     receipt: ({ shop, number, total, paid }: OrderFacts) => `${shop} · order #${number}\nTotal ${total} · ${paid ? 'paid' : 'not paid yet'}\nWe'll message you here when it's ready.`,
     ready: ({ shop, number, total, paid }: OrderFacts) => `${shop}: your order #${number} is ready to collect.${paid ? '' : ` To pay: ${total}.`}`,
     collected: ({ shop, number }: OrderFacts) => `${shop}: order #${number} was collected. Thank you!`,
+    reminder: ({ shop, number, total, paid, readySince }: OrderFacts) => `${shop}: a reminder that your order #${number} has been ready since ${readySince}. Please come and collect it.${paid ? '' : ` To pay: ${total}.`}`,
     kg: 'kg',
   },
   km: {
@@ -43,6 +47,7 @@ const TEXT = {
     receipt: ({ shop, number, total, paid }: OrderFacts) => `${shop} · ការបញ្ជាទិញ #${number}\nសរុប ${total} · ${paid ? 'បានបង់' : 'មិនទាន់បង់'}\nយើងនឹងផ្ញើសារមកអ្នកនៅទីនេះ ពេលរួចរាល់។`,
     ready: ({ shop, number, total, paid }: OrderFacts) => `${shop}៖ ការបញ្ជាទិញ #${number} របស់អ្នករួចរាល់ហើយ អាចមកយកបាន។${paid ? '' : ` ត្រូវបង់៖ ${total}។`}`,
     collected: ({ shop, number }: OrderFacts) => `${shop}៖ ការបញ្ជាទិញ #${number} ត្រូវបានយករួចហើយ។ សូមអរគុណ!`,
+    reminder: ({ shop, number, total, paid, readySince }: OrderFacts) => `${shop}៖ សូមរំលឹកថា ការបញ្ជាទិញ #${number} របស់អ្នករួចរាល់តាំងពី ${readySince}។ សូមអញ្ជើញមកយក។${paid ? '' : ` ត្រូវបង់៖ ${total}។`}`,
     kg: 'គ.ក',
   },
 } satisfies Record<ShopLanguage, unknown>
@@ -79,6 +84,6 @@ export function receiptCaption(order: Order, shop: string, language: ShopLanguag
   return TEXT[language].receipt(facts(order, shop, language))
 }
 
-export function statusText(kind: 'ready' | 'collected', order: Order, shop: string, language: ShopLanguage): string {
+export function statusText(kind: 'ready' | 'collected' | 'reminder', order: Order, shop: string, language: ShopLanguage): string {
   return TEXT[language][kind](facts(order, shop, language))
 }

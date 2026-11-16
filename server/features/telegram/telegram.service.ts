@@ -1,4 +1,4 @@
-import type { TelegramInvite } from '#shared/contracts/telegram'
+import type { OrderTelegramStatus, TelegramInvite } from '#shared/contracts/telegram'
 import type { Order } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import type { Db } from '#server/utils/batch'
@@ -8,7 +8,7 @@ import { orderInShop } from '#server/features/orders'
 import { shopProfile } from '#server/features/shops'
 import type { ShopProfile } from '#server/features/shops'
 import { renderOrderReceipt } from '#server/features/receipts'
-import { deliverDue, linkStatement, queueChatMessageStatement } from '#server/features/notifications'
+import { countOrderListeners, deliverDue, linkStatement, orderMessages, queueChatMessageStatement } from '#server/features/notifications'
 import type { DeliveryReport, OutboxMessage, SendOutcome } from '#server/features/notifications'
 import type { TelegramBot } from './telegram.bot'
 import { createTelegramBot, isChatGone, isTelegramApiError } from './telegram.bot'
@@ -51,6 +51,17 @@ export async function createInvite(db: Db, actor: ShopActor, orderId: string, op
   const expiresAt = new Date(now.getTime() + INVITE_TTL_MS)
   await repo.insertInviteStatement(db, { tokenHash: await sha256Hex(token), shopId: actor.shopId, orderId, expiresAt, now })
   return { url: `https://t.me/${botUsername}?start=${token}`, expiresAt: expiresAt.toISOString() }
+}
+
+/** Whether the order's customer hears about it, and what was sent (the order page). 404 for another shop's. */
+export async function orderTelegramStatus(db: Db, actor: ShopActor, orderId: string): Promise<OrderTelegramStatus> {
+  const order = await orderInShop(db, actor.shopId, orderId)
+  const key = { shopId: actor.shopId, orderId }
+  const [chats, messages] = await Promise.all([countOrderListeners(db, { ...key, customerId: order.customer.id }), orderMessages(db, key)])
+  return {
+    chats,
+    messages: messages.map(row => ({ kind: row.kind, status: row.status, createdAt: row.createdAt.toISOString(), sentAt: row.sentAt?.toISOString() ?? null })),
+  }
 }
 
 // --- The webhook ---

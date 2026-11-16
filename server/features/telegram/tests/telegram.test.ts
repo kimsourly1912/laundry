@@ -6,15 +6,16 @@ import { authorizeShop } from '#server/features/identity'
 import type { ShopActor } from '#server/features/identity'
 import { anonymizeCustomer } from '#server/features/customers'
 import { createPriceItem, createServiceType } from '#server/features/pricing'
-import { collectOrder, createOrder, transitionOrder } from '#server/features/orders'
+import { collectOrder, createOrder, queueReminders, transitionOrder } from '#server/features/orders'
 import { suspendShop } from '#server/features/shops'
 import { uploadReceiptBackground } from '#server/features/receipts'
 import { pngOf } from '#server/features/receipts/tests/images'
-import { createInvite, deliverOutbox, handleUpdate, sendOutboxMessage, webhookSecretMatches } from '#server/features/telegram'
+import { createInvite, deliverOutbox, handleUpdate, orderTelegramStatus, sendOutboxMessage, webhookSecretMatches } from '#server/features/telegram'
 import type { TelegramBot } from '#server/features/telegram'
 import type { ReplyMarkup } from '#server/features/telegram/telegram.bot'
 import { telegramInvites, telegramPending } from '#server/features/telegram/telegram.schema'
 import { notifications, telegramLinks } from '#server/features/notifications/notifications.schema'
+import { shopSettings } from '#server/features/shops/shops.schema'
 import type { Db } from '#server/utils/batch'
 import { createTestDb } from '#server/tests/support/db'
 import { createOwner, createTestUser } from '#server/tests/support/auth'
@@ -369,5 +370,88 @@ describe('two shops, one person', () => {
     await expect(db.insert(telegramLinks).values({ ...row, shopId: b.shopId, customerId: order.customer.id, orderId: null })).rejects.toThrow()
     const other = await orderIn(b)
     await expect(db.insert(telegramLinks).values({ ...row, shopId: b.shopId, customerId: other.customer.id, orderId: order.id })).rejects.toThrow()
+  })
+})
+
+describe('reminders (spec §8.5)', () => {
+  const DAY = 24 * 60 * 60 * 1000
+  // 09:00 in Phnom Penh, when the job runs.
+  const start = new Date('2026-11-20T02:00:00Z')
+  const on = (days: number) => new Date(start.getTime() + days * DAY)
+
+  async function readyLinkedOrder(actor: ShopActor, from = PERSON) {
+    const order = await orderIn(actor)
+    await scan(actor, order.id, from)
+    await share(from, '+85512345678')
+    await transitionOrder(db, actor, order.id, { action: 'ready', input: { version: 1 }, now: start })
+    await deliverOutbox(db, { bot, now: start })
+    sent = []
+    return order
+  }
+  async function runDay(days: number) {
+    await queueReminders(db, on(days))
+    await deliverOutbox(db, { bot, now: on(days) })
+  }
+  const reminders = () => sent.filter(entry => /a reminder/.test(entry.text))
+
+  it('after the shop\'s days (3 by default), once a day, three in all', async () => {
+    const order = await readyLinkedOrder(a)
+    await runDay(2)
+    expect(reminders()).toEqual([])
+    await runDay(3)
+    // The job again later the same day: still one.
+    await queueReminders(db, new Date(on(3).getTime() + 5 * 60 * 60 * 1000))
+    await deliverOutbox(db, { bot, now: new Date(on(3).getTime() + 5 * 60 * 60 * 1000) })
+    expect(reminders()).toEqual([{ chatId: String(PERSON), text: expect.stringMatching(/order #1 has been ready since 20 Nov 2026\. Please come and collect it\. To pay: 6,000៛\./), keyboard: undefined }])
+    for (const day of [4, 5, 6, 7]) await runDay(day)
+    expect(reminders()).toHaveLength(3)
+    expect(await db.$count(notifications, and(eq(notifications.orderId, order.id), eq(notifications.kind, 'reminder')))).toBe(3)
+  })
+
+  it('count per chat: someone who links later still gets theirs', async () => {
+    const order = await readyLinkedOrder(a)
+    for (const day of [3, 4, 5]) await runDay(day)
+    // A second person links to this order only, after the first had all three.
+    const { url } = await createInvite(db, a, order.id, { botUsername: 'laundry_bot', now: on(5) })
+    await handleUpdate(db, message(STRANGER, { text: `/start ${tokenOf(url)}` }), { bot, now: on(5) })
+    await handleUpdate(db, message(STRANGER, { text: 'Only this order' }), { bot, now: on(5) })
+    await runDay(6)
+    expect(reminders().map(entry => entry.chatId)).toEqual([String(PERSON), String(PERSON), String(PERSON), String(STRANGER)])
+  })
+
+  it('stop once the order is collected, and never come from a suspended shop', async () => {
+    const order = await readyLinkedOrder(a)
+    await collectOrder(db, a, order.id, { version: 2, allowUnpaid: true }, on(1))
+    sent = []
+    await runDay(4)
+    expect(reminders()).toEqual([])
+
+    const other = await readyLinkedOrder(b, STRANGER)
+    const admin = await createTestUser(db, { role: 'superadmin' })
+    await suspendShop(db, { userId: admin.userId, platformRole: 'superadmin' }, b.shopId, { version: 1 })
+    await runDay(4)
+    expect(reminders()).toEqual([])
+    expect(await db.$count(notifications, and(eq(notifications.orderId, other.id), eq(notifications.kind, 'reminder')))).toBe(0)
+  })
+
+  it('follow each shop\'s own days, to each shop\'s own chats', async () => {
+    await db.update(shopSettings).set({ reminderAfterDays: 1 }).where(eq(shopSettings.shopId, b.shopId))
+    await readyLinkedOrder(a)
+    await readyLinkedOrder(b, STRANGER)
+    await runDay(1)
+    expect(reminders().map(entry => entry.chatId)).toEqual([String(STRANGER)])
+  })
+})
+
+describe('the order\'s Telegram status', () => {
+  it('counts the chats and lists what was sent, never who; 404 for another shop\'s order', async () => {
+    const order = await orderIn(a)
+    expect(await orderTelegramStatus(db, a, order.id)).toEqual({ chats: 0, messages: [] })
+    await scan(a, order.id)
+    await share(PERSON, '+85512345678')
+    const status = await orderTelegramStatus(db, a, order.id)
+    expect(status).toEqual({ chats: 1, messages: [{ kind: 'receipt', status: 'sent', createdAt: expect.any(String), sentAt: expect.any(String) }] })
+    expect(JSON.stringify(status)).not.toContain(String(PERSON))
+    expect(await refusal(orderTelegramStatus(db, b, order.id))).toBe('404 NOT_FOUND')
   })
 })

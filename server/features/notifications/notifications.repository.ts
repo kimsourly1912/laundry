@@ -1,4 +1,5 @@
-import { and, asc, eq, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, isNull, lt, lte, or, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/sqlite-core'
 import type { Db, Statement } from '#server/utils/batch'
 import { notifications, telegramLinks } from './notifications.schema'
 import type { NotificationKind } from './notifications.types'
@@ -65,9 +66,14 @@ interface QueueOrder {
  * many links lead there; nothing for a chat that already has this message (the id is the dedupe
  * key).
  */
-export function queueOrderMessagesStatement(db: Db, message: QueueOrder): Statement {
-  const { shopId, orderId, customerId, kind, key, now } = message
+export function queueOrderMessagesStatement(db: Db, message: QueueOrder & { maxOfKind?: number }): Statement {
+  const { shopId, orderId, customerId, kind, key, now, maxOfKind } = message
   const at = sql.param(now, notifications.nextAttemptAt)
+  // A cap per chat: how many of this kind the order already sent there (spec §8.5: 3 reminders).
+  const earlier = alias(notifications, 'earlier')
+  const underCap = maxOfKind === undefined
+    ? undefined
+    : sql`(${db.select({ n: count() }).from(earlier).where(and(eq(earlier.orderId, orderId), eq(earlier.kind, kind), eq(earlier.chatId, telegramLinks.chatId)))}) < ${maxOfKind}`
   return db.insert(notifications).select(
     db.selectDistinct({
       id: sql<string>`${`${kind}:${orderId}:${key}:`} || ${telegramLinks.chatId}`.as('id'),
@@ -81,7 +87,7 @@ export function queueOrderMessagesStatement(db: Db, message: QueueOrder): Statem
       nextAttemptAt: sql<Date>`${at}`.as('next_attempt_at'),
       createdAt: sql<Date>`${at}`.as('created_at'),
       sentAt: sql<null>`null`.as('sent_at'),
-    }).from(telegramLinks).where(linksTo({ shopId, orderId, customerId })),
+    }).from(telegramLinks).where(and(linksTo({ shopId, orderId, customerId }), underCap)),
   ).onConflictDoNothing()
 }
 
@@ -136,6 +142,15 @@ export function settleMessage(db: Db, id: string, outcome: { status: 'sent' | 's
     ...(status === 'sent' ? { sentAt: now } : {}),
     ...(retryAt ? { nextAttemptAt: retryAt } : {}),
   }).where(eq(notifications.id, id))
+}
+
+/** An order's messages, newest first, without their chats. Bounded: a few per chat. */
+export function orderMessages(db: Db, order: { shopId: string, orderId: string }) {
+  return db.select({ kind: notifications.kind, status: notifications.status, createdAt: notifications.createdAt, sentAt: notifications.sentAt })
+    .from(notifications)
+    .where(and(eq(notifications.shopId, order.shopId), eq(notifications.orderId, order.orderId)))
+    .orderBy(desc(notifications.createdAt), desc(notifications.id))
+    .limit(50)
 }
 
 /** Rows that will never be sent again, older than `before`. */
