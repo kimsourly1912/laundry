@@ -67,6 +67,9 @@ describe('the receipt', () => {
     await owner.getByRole('button', { name: 'One more Shirt' }).click()
     await owner.getByRole('button', { name: 'Save order' }).click()
     await expect.poll(() => owner.getByRole('status').textContent()).toMatch(/#1/)
+    // The counter shows the QR that links the customer's Telegram to this order.
+    await expect.poll(() => owner.getByRole('img', { name: 'QR code for updates on Telegram' }).count()).toBe(1)
+    await owner.screenshot({ path: 'test-results/receipt-saved-qr.png', fullPage: true })
     await owner.goto(`${host}/`)
     await owner.getByRole('link', { name: /#1/ }).first().click()
     await owner.getByRole('button', { name: 'More actions' }).click()

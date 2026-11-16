@@ -108,6 +108,8 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/orders/[id]/cancel.post.ts': `{ order: ['cancel'] }`,
   'shop/orders/[id]/payment.post.ts': `{ payment: ['record'] }`,
   'shop/orders/[id]/receipt.get.ts': `{ order: ['read'] }`,
+  // A QR for this order only (D28): what the person sees of the order, nothing more without the customer's phone.
+  'shop/orders/[id]/telegram-invite.post.ts': `{ order: ['read'] }`,
   'shop/today.get.ts': `{ order: ['read'] }`,
   'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
   'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,

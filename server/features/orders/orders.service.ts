@@ -10,6 +10,7 @@ import { auditStatement, runIdempotent } from '#server/features/platform'
 import { counterCustomer, getCustomer, phoneSearchDigits, requireActiveCustomerStatement } from '#server/features/customers'
 import { priceItemsForLines, requireActivePriceItemsStatement } from '#server/features/pricing'
 import { getSettings } from '#server/features/shops'
+import { queueOrderMessagesStatement } from '#server/features/notifications'
 import type { ShopActor } from '#server/features/identity'
 import { alreadyPaid, cancelledNoPayment, customerUnavailable, invalidLines, invalidTransition, orderChanged, orderNotEditable, orderNotFound, orderPaid, orderUnpaid, priceItemUnavailable } from './orders.errors'
 import * as repo from './orders.repository'
@@ -314,6 +315,8 @@ export async function transitionOrder(db: Db, actor: ShopActor, id: string, opti
     repo.updateOrderStatement(db, { shopId, id, version: input.version }, { set, from, now }),
     requireOneChange(db),
     event(db, actor, id, EVENT_OF[action], now, data),
+    // Ready: the customer's linked chats hear it (D28). A ready after a rework is a new message.
+    ...(action === 'ready' ? [queueOrderMessagesStatement(db, { shopId, orderId: id, customerId: order.customerId, kind: 'ready', key: String(input.version + 1) }, now)] : []),
     ...(action === 'cancel' ? [auditStatement(db, { userId: actor.userId, shopId, requestId: actor.requestId }, { action: 'order.cancel', targetType: 'order', targetId: id, data }, now)] : []),
   ], explainOrder(db, shopId, id, input.version, current => (canTransition(current.status, action) ? undefined : invalidTransition(action))))
   return getOrder(db, actor, id)
@@ -330,6 +333,7 @@ export async function collectOrder(db: Db, actor: ShopActor, id: string, input: 
     repo.updateOrderStatement(db, { shopId, id, version: input.version }, { set: { status: to, collectedAt: now }, from, now }),
     requireOneChange(db),
     event(db, actor, id, 'collected', now, { from: order.status, unpaid: order.paymentStatus !== 'paid' }),
+    queueOrderMessagesStatement(db, { shopId, orderId: id, customerId: order.customerId, kind: 'collected', key: String(input.version + 1) }, now),
   ], explainOrder(db, shopId, id, input.version, (current) => {
     if (!canTransition(current.status, 'collect')) return invalidTransition('collect')
     return current.paymentStatus !== 'paid' && !input.allowUnpaid ? orderUnpaid() : undefined

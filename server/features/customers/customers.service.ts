@@ -9,6 +9,7 @@ import type { ShopActor } from '#server/features/identity'
 import { customerAnonymized, customerChanged, customerNotFound, phoneTaken } from './customers.errors'
 import * as repo from './customers.repository'
 import type { CustomerRow } from './customers.repository'
+import { revokeCustomerLinksStatement } from '#server/features/notifications'
 
 /**
  * A shop's customers (spec §9 → Shop, step M2.2). Every query is the actor's shop's. Phones arrive
@@ -111,6 +112,8 @@ export async function anonymizeCustomer(db: Db, actor: ShopActor, id: string, in
   await run(db, [
     repo.anonymizeStatement(db, { shopId, id, version: input.version }, now),
     requireOneChange(db),
+    // Their Telegram chats hear nothing more (D28).
+    revokeCustomerLinksStatement(db, { shopId, customerId: id }, now),
     audit(db, actor, 'customer.anonymize', id, now),
   ], explain(db, shopId, id))
   return getCustomer(db, actor, id)

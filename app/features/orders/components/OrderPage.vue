@@ -10,6 +10,7 @@ import { formatPhone } from '#shared/contracts/phone'
 import { formatQuantity } from '../schemas/order-lines'
 import { customerLabel } from '../schemas/slip-form'
 import OrderBadges from './OrderBadges.vue'
+import TelegramQr from './TelegramQr.vue'
 
 const props = defineProps<{ id: string }>()
 const { t, te, locale } = useI18n()
@@ -74,10 +75,12 @@ const mayEdit = computed(() => Boolean(record.value) && isEditable(record.value!
 // No Start button (D27): an order goes from received straight to ready; "in progress" stays for older orders.
 const menu = computed(() => [
   { label: t('orders.receipt.open'), icon: 'i-lucide-receipt-text', onSelect: () => { showReceipt.value = true } },
+  { label: t('orders.telegram.open'), icon: 'i-lucide-qr-code', onSelect: () => { showQr.value = true } },
   ...(may('cancel') ? [{ label: t('orders.action.cancel'), icon: 'i-lucide-x', color: 'error' as const, onSelect: () => { confirming.value = 'cancel' } }] : []),
 ])
 // The receipt as the customer gets it on Telegram (D28); the image fails while the shop has no design.
 const showReceipt = ref(false)
+const showQr = ref(false)
 const receiptMissing = ref(false)
 const receiptUrl = computed(() => `/api/shop/orders/${props.id}/receipt?v=${record.value?.version ?? 0}`)
 watch(receiptUrl, () => {
@@ -258,6 +261,19 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
           <BottomBarSpacer v-if="hasActions" />
         </template>
       </div>
+
+      <UModal
+        :open="showQr"
+        :title="t('orders.telegram.modalTitle', { number: record?.number })"
+        @update:open="open => { showQr = open }"
+      >
+        <template #body>
+          <TelegramQr
+            v-if="showQr"
+            :order-id="id"
+          />
+        </template>
+      </UModal>
 
       <UModal
         :open="showReceipt"

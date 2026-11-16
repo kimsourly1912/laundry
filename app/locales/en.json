@@ -67,7 +67,8 @@
       "TEMPLATE_UNAVAILABLE": "This template is archived. Choose another.",
       "TEMPLATE_LIST_FULL": "Too many active templates. Archive some first.",
       "RECEIPT_IMAGE_INVALID": "Upload a PNG or JPEG image of at most 1 MB.",
-      "RECEIPT_IMAGE_SIZE": "The image must be between 200 and 2000 pixels on each side."
+      "RECEIPT_IMAGE_SIZE": "The image must be between 200 and 2000 pixels on each side.",
+      "TELEGRAM_OFF": "Telegram isn't set up yet. Ask support."
     }
   },
   "account": {
@@ -473,6 +474,14 @@
       "description": "What the customer gets on Telegram.",
       "alt": "Receipt for order {number}",
       "missing": "Your shop's receipt isn't designed yet. Ask support to set it up."
+    },
+    "telegram": {
+      "title": "Updates on Telegram",
+      "help": "Ask the customer to scan this with their phone's camera. They get the receipt now, and a message when the order is ready.",
+      "qr": "QR code for updates on Telegram",
+      "open": "Telegram QR",
+      "modalTitle": "Order {number} on Telegram",
+      "off": "Telegram isn't set up yet. Ask support."
     }
   },
   "more": {
