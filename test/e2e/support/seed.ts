@@ -21,6 +21,8 @@ export const E2E_ACCOUNTS = {
   customerOwner: { username: 'e2e_customer_owner', password: 'e2e customer password 1', shop: 'Battambang Laundry' },
   /** Takes an order through to collection (orders.test.ts), on a ready price list. */
   orderOwner: { username: 'e2e_order_owner', password: 'e2e order password 1', shop: 'Phnom Penh Fresh' },
+  /** Gets a receipt designed by the platform and sees an order's receipt (receipts.test.ts). */
+  receiptOwner: { username: 'e2e_receipt_owner', password: 'e2e receipt password 1', shop: 'Kep Laundry' },
 } as const
 
 export type E2eAccounts = typeof E2E_ACCOUNTS
@@ -30,7 +32,7 @@ export async function seedE2e(dbFile: string) {
   const client = createClient({ url: `file:${dbFile}`, timeout: 5000 })
   const db = drizzle(client, { casing: 'snake_case' }) as unknown as Db
   try {
-    const { admin, newOwner, owner, priceOwner, customerOwner, orderOwner } = E2E_ACCOUNTS
+    const { admin, newOwner, owner, priceOwner, customerOwner, orderOwner, receiptOwner } = E2E_ACCOUNTS
     const { userId } = await seedPlatformAdmin({ db, username: admin.username, passwordHash: await hashPassword(admin.password) })
     const actor = { userId, platformRole: 'superadmin' as const }
     await createShop(db, actor, { name: newOwner.shop, slug: 'fresh-start', owner: { name: 'New Owner', username: newOwner.username, password: newOwner.password } })
@@ -43,8 +45,12 @@ export async function seedE2e(dbFile: string) {
     const wash = await createServiceType(db, orderActor, { nameEn: 'Wash & iron', nameKm: 'បោក និងអ៊ុត' })
     await createPriceItem(db, orderActor, { serviceTypeId: wash.id, nameEn: 'Shirt', nameKm: 'អាវ', unit: 'piece', price: 2000 })
     await createPriceItem(db, orderActor, { serviceTypeId: wash.id, nameEn: 'Mixed clothes', nameKm: 'ខោអាវចម្រុះ', unit: 'kg', price: 3000 })
+    const receiptShop = await createShop(db, actor, { name: receiptOwner.shop, slug: 'kep-laundry', owner: { name: 'Receipt Owner', username: receiptOwner.username, password: receiptOwner.password } })
+    const receiptActor = await platformShopActor(db, actor, receiptShop.id)
+    const receiptWash = await createServiceType(db, receiptActor, { nameEn: 'Wash & iron', nameKm: 'បោក និងអ៊ុត' })
+    await createPriceItem(db, receiptActor, { serviceTypeId: receiptWash.id, nameEn: 'Shirt', nameKm: 'អាវ', unit: 'piece', price: 2000 })
     // Past their first sign-in already: the admin and these owners have their own passwords.
-    for (const id of [userId, shop.owner!.id, priceShop.owner!.id, customerShop.owner!.id, orderShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
+    for (const id of [userId, shop.owner!.id, priceShop.owner!.id, customerShop.owner!.id, orderShop.owner!.id, receiptShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
   }
   finally {
     client.close()

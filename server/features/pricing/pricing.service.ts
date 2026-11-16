@@ -3,7 +3,7 @@ import { MAX_ACTIVE_PRICE_ITEMS, MAX_ACTIVE_SERVICE_TYPES } from '#shared/contra
 import type { TemplateDefinition } from '#shared/contracts/templates'
 import { templatePriceRows } from '#shared/contracts/templates'
 import type { Db, Statement } from '#server/utils/batch'
-import { isForeignKeyError, isStaleWrite, requireOneChange } from '#server/utils/batch'
+import { isForeignKeyError, isStaleWrite, readInChunks, requireOneChange } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { auditStatement } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
@@ -201,4 +201,18 @@ export function newPriceListStatements(db: Db, options: { shopId: string, defini
     id: newId(), shopId, serviceTypeId: typeIds.get(row.serviceKey)!, nameEn: row.nameEn, nameKm: row.nameKm, unit: row.unit, price: row.price, sort: index + 1, createdAt: now, updatedAt: now,
   }))
   return repo.insertPriceListStatements(db, { types, items })
+}
+
+// --- For the receipts feature ---
+
+/**
+ * Which of the ids are the shop's own price items and service types (any status): a receipt
+ * design's fields may name only these (D28). In D1-sized pieces.
+ */
+export async function shopPriceIds(db: Db, shopId: string, ids: { priceItemIds: readonly string[], serviceTypeIds: readonly string[] }): Promise<{ priceItemIds: Set<string>, serviceTypeIds: Set<string> }> {
+  const [items, types] = await Promise.all([
+    readInChunks(ids.priceItemIds, piece => repo.priceItemIdsIn(db, shopId, piece)),
+    readInChunks(ids.serviceTypeIds, piece => repo.serviceTypeIdsIn(db, shopId, piece)),
+  ])
+  return { priceItemIds: new Set(items.map(row => row.id)), serviceTypeIds: new Set(types.map(row => row.id)) }
 }

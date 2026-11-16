@@ -1,4 +1,8 @@
 import type { Currency } from '#shared/contracts/shop-settings'
+import { MINOR_DIGITS } from '#shared/format'
+
+// Shared with the server (receipts, Telegram messages).
+export { formatDateTime, formatMoney } from '#shared/format'
 
 /**
  * Display formatters (docs/standards/i18n.md → Money, numbers and dates): the only place the app
@@ -11,25 +15,6 @@ const intlLocale = (locale: string) => (locale === 'km' ? 'km-KH' : 'en-GB')
 /** `16 Nov 2026` (en) / `16 វិច្ឆិកា 2026` (km). */
 export function formatDate(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE }).format(new Date(iso))
-}
-
-/** `16 Nov 2026, 14:05` (en) / Khmer month names, 24-hour time, in the shop's time zone. */
-export function formatDateTime(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: TIME_ZONE }).format(new Date(iso))
-}
-
-/** Minor units per major unit: riel have no decimals, dollars have cents (spec T12). */
-const MINOR_DIGITS: Record<Currency, number> = { KHR: 0, USD: 2 }
-
-/**
- * An amount in minor units, shown in its currency: `13,500៛`, `$12.50`, in both languages, with
- * Latin digits (i18n.md → Digits). `Intl` only groups the digits: browsers' currency symbols differ
- * (Chromium shows `KHR 13,500` in Khmer, Node `13,500៛`), and the paper tickets write `13,500៛`.
- */
-export function formatMoney(minor: number, currency: Currency, _locale: string): string {
-  const digits = MINOR_DIGITS[currency]
-  const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(minor / 10 ** digits)
-  return currency === 'KHR' ? `${amount}៛` : `$${amount}`
 }
 
 /** Minor units as the plain number a person types: `13500`, `12.50`. */

@@ -1,6 +1,10 @@
 import type { OrderLine, UpdateLineInput } from '#shared/contracts/orders'
 import { lineTotal, MAX_GRAMS, MAX_PIECES } from '#shared/contracts/orders'
 import type { PriceItem, PriceUnit, ServiceType } from '#shared/contracts/pricing'
+import { formatQuantity } from '#shared/format'
+
+// Shared with the server's receipts.
+export { formatQuantity }
 
 /**
  * An order's lines while they're edited (the new-order flow and the edit page): what the person
@@ -63,14 +67,6 @@ export function parseQuantity(unit: PriceUnit, text: string): number | null {
   if (!match) return null
   const grams = Number(match[1]) * 1000 + Number((match[2] ?? '').padEnd(3, '0'))
   return grams >= 1 && grams <= MAX_GRAMS ? grams : null
-}
-
-/** Pieces as `3`; grams as kilograms, `2500` → `2.5`. */
-export function formatQuantity(unit: PriceUnit, quantity: number): string {
-  if (unit === 'piece') return String(quantity)
-  const whole = Math.floor(quantity / 1000)
-  const fraction = String(quantity % 1000).padStart(3, '0').replace(/0+$/, '')
-  return fraction ? `${whole}.${fraction}` : String(whole)
 }
 
 /** The line's total as the server will compute it, or `null` while the quantity isn't valid. */

@@ -67,6 +67,7 @@ export async function hasPriceItems(db: Db, shopId: string): Promise<boolean> {
 export function priceItemsForLines(db: Db, shopId: string, ids: readonly string[]) {
   return db.select({
     id: priceItems.id,
+    serviceTypeId: priceItems.serviceTypeId,
     nameEn: priceItems.nameEn,
     nameKm: priceItems.nameKm,
     serviceNameEn: serviceTypes.nameEn,
@@ -77,6 +78,16 @@ export function priceItemsForLines(db: Db, shopId: string, ids: readonly string[
   }).from(priceItems)
     .innerJoin(serviceTypes, and(eq(serviceTypes.shopId, priceItems.shopId), eq(serviceTypes.id, priceItems.serviceTypeId)))
     .where(and(eq(priceItems.shopId, shopId), inArray(priceItems.id, [...ids])))
+}
+
+/** Which of `ids` are the shop's service types (any status). */
+export function serviceTypeIdsIn(db: Db, shopId: string, ids: readonly string[]) {
+  return db.select({ id: serviceTypes.id }).from(serviceTypes).where(and(eq(serviceTypes.shopId, shopId), inArray(serviceTypes.id, [...ids])))
+}
+
+/** Which of `ids` are the shop's price items (any status). */
+export function priceItemIdsIn(db: Db, shopId: string, ids: readonly string[]) {
+  return db.select({ id: priceItems.id }).from(priceItems).where(and(eq(priceItems.shopId, shopId), inArray(priceItems.id, [...ids])))
 }
 
 // --- Guards (abort the batch) ---

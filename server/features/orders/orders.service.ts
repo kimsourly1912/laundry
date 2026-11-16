@@ -58,8 +58,16 @@ function toOrder(row: OrderRow, lines: LineRow[], events: EventRow[]): Order {
 
 // --- Reads ---
 
-export async function getOrder(db: Db, actor: ShopActor, id: string): Promise<Order> {
-  const { shopId } = actor
+export function getOrder(db: Db, actor: ShopActor, id: string): Promise<Order> {
+  return orderInShop(db, actor.shopId, id)
+}
+
+/**
+ * The shop's order, for work that runs without a signed-in user (the receipt sent on Telegram,
+ * D28): the caller holds the shop's id from a trusted place (a link, a queued message), never
+ * from a request. Another shop's order is 404, as in `getOrder`.
+ */
+export async function orderInShop(db: Db, shopId: string, id: string): Promise<Order> {
   const { order, lines, events } = await repo.orderDetail(db, shopId, id, EVENTS_SHOWN)
   if (!order) throw orderNotFound()
   return toOrder(order, lines, events)

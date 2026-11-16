@@ -68,6 +68,8 @@ export const platformStatements = {
   template: ['read', 'write'],
   // A shop's price list, kept by the platform (D26), through /api/platform/shops/:shopId/…
   price: ['read', 'write'],
+  // A shop's receipt design (D28), through /api/platform/shops/:shopId/receipt
+  receipt: ['read', 'write'],
 } as const
 
 export const platformAc = createAccessControl(platformStatements)
@@ -80,6 +82,7 @@ export const platformRoles = {
     ticketBatch: ['create', 'read', 'void'],
     template: ['read', 'write'],
     price: ['read', 'write'],
+    receipt: ['read', 'write'],
   }),
 }
 

@@ -72,6 +72,17 @@ const may = (action: OrderAction) => Boolean(record.value) && canTransition(reco
 const mayPay = computed(() => Boolean(record.value) && canRecordPayment(record.value!.status, record.value!.paymentStatus) && can('payment:record'))
 const mayEdit = computed(() => Boolean(record.value) && isEditable(record.value!.status) && can('order:update'))
 // No Start button (D27): an order goes from received straight to ready; "in progress" stays for older orders.
+const menu = computed(() => [
+  { label: t('orders.receipt.open'), icon: 'i-lucide-receipt-text', onSelect: () => { showReceipt.value = true } },
+  ...(may('cancel') ? [{ label: t('orders.action.cancel'), icon: 'i-lucide-x', color: 'error' as const, onSelect: () => { confirming.value = 'cancel' } }] : []),
+])
+// The receipt as the customer gets it on Telegram (D28); the image fails while the shop has no design.
+const showReceipt = ref(false)
+const receiptMissing = ref(false)
+const receiptUrl = computed(() => `/api/shop/orders/${props.id}/receipt?v=${record.value?.version ?? 0}`)
+watch(receiptUrl, () => {
+  receiptMissing.value = false
+})
 const hasActions = computed(() => mayPay.value || (['ready', 'rework', 'collect'] as const).some(may))
 const lineName = (names: { nameEn: string, nameKm: string | null }) => localName(names, locale.value)
 const money = (minor: number) => formatMoney(minor, record.value!.currency, locale.value)
@@ -100,8 +111,8 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
             :to="`/orders/${id}/edit`"
           />
           <UDropdownMenu
-            v-if="may('cancel')"
-            :items="[{ label: t('orders.action.cancel'), icon: 'i-lucide-x', color: 'error', onSelect: () => { confirming = 'cancel' } }]"
+            v-if="record"
+            :items="menu"
           >
             <UButton
               icon="i-lucide-ellipsis-vertical"
@@ -247,6 +258,30 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
           <BottomBarSpacer v-if="hasActions" />
         </template>
       </div>
+
+      <UModal
+        :open="showReceipt"
+        :title="t('orders.receipt.title', { number: record?.number })"
+        :description="t('orders.receipt.description')"
+        @update:open="open => { showReceipt = open }"
+      >
+        <template #body>
+          <UAlert
+            v-if="receiptMissing"
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-info"
+            :title="t('orders.receipt.missing')"
+          />
+          <img
+            v-else-if="showReceipt"
+            :src="receiptUrl"
+            :alt="t('orders.receipt.alt', { number: record?.number })"
+            class="h-auto w-full rounded-md"
+            @error="receiptMissing = true"
+          >
+        </template>
+      </UModal>
 
       <UModal
         :open="confirming !== undefined"

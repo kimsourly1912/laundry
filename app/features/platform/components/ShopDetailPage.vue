@@ -195,6 +195,23 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
           </UPageCard>
 
           <UPageCard
+            v-if="can('receipt:read')"
+            :title="t('platform.shop.receipt')"
+            :description="t('platform.shop.receiptDescription')"
+            variant="subtle"
+          >
+            <div>
+              <UButton
+                :label="t('platform.shop.openReceipt')"
+                icon="i-lucide-receipt-text"
+                color="neutral"
+                variant="outline"
+                :to="`/platform/shops/${current.id}/receipt`"
+              />
+            </div>
+          </UPageCard>
+
+          <UPageCard
             :title="t('platform.shop.owner')"
             variant="subtle"
           >

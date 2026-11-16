@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_RECEIPT_IMAGE_BYTES } from '#shared/contracts/receipts'
 import { MAX_JSON_BYTES } from '#server/utils/validation'
 import { boundedWorkerRequest, workerBodyLimit } from '#server/utils/worker-body'
 
@@ -26,6 +27,13 @@ describe('workerBodyLimit', () => {
   it('caps API paths at the JSON limit and leaves pages alone', () => {
     expect(workerBodyLimit('/api/shop/orders')).toBe(MAX_JSON_BYTES)
     expect(workerBodyLimit('/orders/new')).toBeUndefined()
+  })
+
+  it('allows the receipt background upload its 1 MB, on that path only', () => {
+    expect(workerBodyLimit('/api/platform/shops/01900000-0000-7000-8000-000000000000/receipt/background')).toBe(MAX_RECEIPT_IMAGE_BYTES)
+    expect(workerBodyLimit('/api/platform/shops/x/receipt')).toBe(MAX_JSON_BYTES)
+    expect(workerBodyLimit('/api/platform/shops/x/receipt/background/more')).toBe(MAX_JSON_BYTES)
+    expect(workerBodyLimit('/api/shop/receipt/background')).toBe(MAX_JSON_BYTES)
   })
 })
 
