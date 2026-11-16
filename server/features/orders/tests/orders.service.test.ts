@@ -5,10 +5,11 @@ import type { CreateOrderInput, UpdateOrderInput } from '#shared/contracts/order
 import { createOrderSchema, updateOrderSchema } from '#shared/contracts/orders'
 import { authorizeShop } from '#server/features/identity'
 import type { ShopActor } from '#server/features/identity'
-import { anonymizeCustomer, createCustomer } from '#server/features/customers'
+import { anonymizeCustomer, createCustomer, listCustomers } from '#server/features/customers'
 import { archivePriceItem, createPriceItem, createServiceType, updatePriceItem } from '#server/features/pricing'
 import { collectOrder, createOrder, getOrder, getToday, listOrders, recordPayment, transitionOrder, updateOrder } from '#server/features/orders'
 import { orderEvents, orderLines, orders } from '#server/features/orders/orders.schema'
+import { customers } from '#server/features/customers/customers.schema'
 import { auditEvents, idempotencyKeys } from '#server/features/platform/platform.schema'
 import { expireIdempotencyKeys } from '#server/features/platform'
 import type { Db } from '#server/utils/batch'
@@ -67,11 +68,17 @@ function beforeNextBatch(meanwhile: () => Promise<unknown>) {
 let keyCounter = 0
 const newKey = () => `0190${String(++keyCounter).padStart(4, '0')}-0000-7000-8000-000000000000`
 
+/** A request's raw body; `customerId` is short for an existing customer. */
+type RawCreate = Partial<Omit<CreateOrderInput, 'customer'>> & { customerId?: string, customer?: unknown }
+
 /** As the route receives it: through the contract. */
-const createInput = (raw: Partial<CreateOrderInput> = {}): CreateOrderInput => v.parse(createOrderSchema, { customerId: sokha, lines: [{ priceItemId: shirt, quantity: 3 }, { priceItemId: kg, quantity: 2500 }], note: '', paid: false, ...raw })
+function createInput(raw: RawCreate = {}): CreateOrderInput {
+  const { customerId = sokha, customer, ...rest } = raw
+  return v.parse(createOrderSchema, { customer: customer ?? { kind: 'existing', id: customerId }, lines: [{ priceItemId: shirt, quantity: 3 }, { priceItemId: kg, quantity: 2500 }], note: '', paid: false, ...rest })
+}
 const updateInput = (raw: Omit<UpdateOrderInput, 'note'> & { note?: string }): UpdateOrderInput => v.parse(updateOrderSchema, { note: '', ...raw })
 
-async function newOrder(actor = a, raw: Partial<CreateOrderInput> = {}) {
+async function newOrder(actor = a, raw: RawCreate = {}) {
   return (await createOrder(db, actor, createInput(raw), newKey())).order
 }
 
@@ -438,5 +445,76 @@ describe('today', () => {
     expect(today.unpaid.map(o => o.id)).toEqual([old.id])
     await collectOrder(db, a, old.id, { version: ready.version, allowUnpaid: true }, now)
     expect((await getToday(db, a, now)).counts).toMatchObject({ ready: 0, collectedToday: 1, unpaid: 1 })
+  })
+})
+
+describe('the person at the counter (D27)', () => {
+  const counter = (phone: string, name = '') => ({ customer: { kind: 'counter', phone, name } })
+  const customersOf = (actor: ShopActor) => db.select({ id: customers.id, name: customers.name, phone: customers.phoneE164 }).from(customers).where(eq(customers.shopId, actor.shopId))
+
+  it('a new phone makes the customer with the order, audited; the same phone, typed any way, finds them again', async () => {
+    const first = await newOrder(a, counter('097 111 2222', 'Dara'))
+    expect(first.customer).toMatchObject({ name: 'Dara', phone: '+855971112222', anonymized: false })
+    const [audit] = await db.select().from(auditEvents).where(eq(auditEvents.targetId, first.customer.id))
+    expect(audit).toMatchObject({ action: 'customer.create', shopId: a.shopId, data: { via: 'order' } })
+    // A name typed for a known phone is ignored: the customer keeps theirs.
+    const again = await newOrder(a, counter('+855 97 111 2222', 'Someone else'))
+    expect(again.customer).toMatchObject({ id: first.customer.id, name: 'Dara' })
+    // An existing customer's phone (Sokha's) finds Sokha.
+    expect((await newOrder(a, counter('012 345 678'))).customer.id).toBe(sokha)
+    expect(await customersOf(a)).toHaveLength(2)
+  })
+
+  it('a phone known in another shop is a new customer here', async () => {
+    const order = await newOrder(b, { ...counter('012 345 678'), lines: [{ priceItemId: otherShopShirt, quantity: 1 }] })
+    expect(order.customer.id).not.toBe(sokha)
+    expect(await customersOf(b)).toEqual([{ id: order.customer.id, name: '', phone: '+85512345678' }])
+  })
+
+  it('no phone: a walk-in, a customer of their own each time, not in the customers list', async () => {
+    const one = await newOrder(a, { customer: { kind: 'counter', phone: '', name: '' } })
+    const two = await newOrder(a, { customer: { kind: 'counter', phone: '', name: '' } })
+    const named = await newOrder(a, { customer: { kind: 'counter', phone: '', name: 'Mrs Lim' } })
+    expect(one.customer).toMatchObject({ name: '', phone: null, anonymized: false })
+    expect(one.customer.id).not.toBe(two.customer.id)
+    const listed = (await listCustomers(db, a, { page: 1, pageSize: 20 })).items.map(customer => customer.name)
+    expect(listed.sort()).toEqual(['Mrs Lim', 'Sokha'])
+    expect(named.customer.name).toBe('Mrs Lim')
+  })
+
+  it('a former customer\'s phone (anonymized: freed) makes a new customer', async () => {
+    await anonymizeCustomer(db, a, sokha, { version: 1 })
+    const order = await newOrder(a, counter('012 345 678', 'New Sokha'))
+    expect(order.customer).toMatchObject({ name: 'New Sokha', phone: '+85512345678' })
+    expect(order.customer.id).not.toBe(sokha)
+  })
+
+  it('the same new phone made by another order meanwhile: this order uses that customer, no duplicate', async () => {
+    beforeNextBatch(() => createCustomer(db, a, { name: 'Made meanwhile', phone: '+855971112222', note: null }))
+    const order = await newOrder(a, counter('097 111 2222', 'Dara'))
+    expect(order.customer.name).toBe('Made meanwhile')
+    expect((await customersOf(a)).filter(customer => customer.phone === '+855971112222')).toHaveLength(1)
+  })
+
+  it('a customer anonymized between the read and the batch stops the order', async () => {
+    beforeNextBatch(() => anonymizeCustomer(db, a, sokha, { version: 1 }))
+    expect(await refusal(newOrder(a, counter('012 345 678')))).toBe('409 CUSTOMER_UNAVAILABLE')
+    expect(await db.$count(orders)).toBe(0)
+  })
+})
+
+describe('the board\'s stages (D27)', () => {
+  it('waiting is received or in progress; ready; done is collected or cancelled; only the shop\'s', async () => {
+    const [received, started, ready, collected, cancelled] = [await newOrder(), await newOrder(), await newOrder(), await newOrder(), await newOrder()]
+    await transitionOrder(db, a, started.id, { action: 'start', input: { version: 1 } })
+    await transitionOrder(db, a, ready.id, { action: 'ready', input: { version: 1 } })
+    await transitionOrder(db, a, collected.id, { action: 'ready', input: { version: 1 } })
+    await collectOrder(db, a, collected.id, { version: 2, allowUnpaid: true })
+    await transitionOrder(db, a, cancelled.id, { action: 'cancel', input: { version: 1 } })
+    await newOrder(b, { customer: { kind: 'counter', phone: '', name: '' }, lines: [{ priceItemId: otherShopShirt, quantity: 1 }] })
+    const stage = (name: 'waiting' | 'ready' | 'done') => listOrders(db, a, { page: 1, pageSize: 20, stage: name }).then(page => page.items.map(order => order.number).sort())
+    expect(await stage('waiting')).toEqual([received.number, started.number].sort())
+    expect(await stage('ready')).toEqual([ready.number])
+    expect(await stage('done')).toEqual([collected.number, cancelled.number].sort())
   })
 })

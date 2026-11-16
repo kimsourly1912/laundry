@@ -40,7 +40,7 @@ function validateLines() {
 const create = useMutation(() => apiFetch<Order>('/shop/orders', {
   method: 'POST',
   headers: { 'Idempotency-Key': idempotencyKey },
-  body: { customerId: customer.value!.id, lines: toCreateLines(lines.value), note: note.value, paid: paid.value },
+  body: { customer: { kind: 'existing', id: customer.value!.id }, lines: toCreateLines(lines.value), note: note.value, paid: paid.value },
 }), { inline: true, invalidate: ['orders'] })
 
 const dirty = computed(() => step.value !== 'done' && Boolean(customer.value || lines.value.length || note.value.trim()))

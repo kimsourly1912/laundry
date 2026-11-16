@@ -1,6 +1,7 @@
 import * as v from 'valibot'
 import type { PriceUnit } from './pricing'
 import { idSchema, optionalParam, optionalTextSchema, pageQuerySchema, versionSchema } from './common'
+import { optionalPhoneSchema } from './phone'
 
 /**
  * A shop's orders (`/api/shop/orders`, spec §7, §8.1, §9, step M2.3). Shared by the server, which
@@ -79,8 +80,27 @@ const linesSchema = <T extends v.GenericSchema>(line: T) => v.pipe(
   v.maxLength(MAX_ORDER_LINES, `At most ${MAX_ORDER_LINES} lines`),
 )
 
+/** The most a customer's name typed at the counter holds (the customers contract's limit). */
+export const ORDER_CUSTOMER_NAME_MAX = 100
+
+/**
+ * Who the order is for (D27): a customer already chosen (`existing`), or the person at the counter
+ * (`counter`): with a phone, the shop's customer with that phone, made now if there is none; with
+ * no phone, a walk-in, a customer of their own with only the name given (or none). A name typed
+ * for a phone that's already a customer's is ignored: the customer keeps theirs.
+ */
+export const orderCustomerSchema = v.variant('kind', [
+  v.strictObject({ kind: v.literal('existing'), id: idSchema }),
+  v.strictObject({
+    kind: v.literal('counter'),
+    phone: optionalPhoneSchema,
+    name: v.pipe(v.string(), v.trim(), v.maxLength(ORDER_CUSTOMER_NAME_MAX, `At most ${ORDER_CUSTOMER_NAME_MAX} characters`)),
+  }),
+])
+export type OrderCustomerInput = v.InferOutput<typeof orderCustomerSchema>
+
 export const createOrderSchema = v.strictObject({
-  customerId: idSchema,
+  customer: orderCustomerSchema,
   lines: linesSchema(newLineSchema),
   note: optionalTextSchema(ORDER_NOTE_MAX),
   /** Paid at drop-off: the payment is recorded with the order. */
@@ -104,9 +124,23 @@ export const collectOrderSchema = v.strictObject({ version: versionSchema, allow
 export type CollectOrderInput = v.InferOutput<typeof collectOrderSchema>
 
 /** `GET …?status=&payment=&search=&customerId=&page=`: search is an order number, phone digits or a name. */
+/**
+ * The orders board's tabs (D27): what's waiting to be done (received or, from before D27, in
+ * progress), what's ready for pickup, and what's done (collected or cancelled).
+ */
+export const ORDER_STAGES = {
+  waiting: ['received', 'in_progress'],
+  ready: ['ready'],
+  done: ['collected', 'cancelled'],
+} as const satisfies Record<string, readonly OrderStatus[]>
+export type OrderStage = keyof typeof ORDER_STAGES
+export const ORDER_STAGE_NAMES = Object.keys(ORDER_STAGES) as OrderStage[]
+
 export const orderListQuerySchema = v.object({
   ...pageQuerySchema,
   status: optionalParam(v.picklist(ORDER_STATUSES)),
+  /** A board tab: its statuses (with `status`, both apply). */
+  stage: optionalParam(v.picklist(ORDER_STAGE_NAMES)),
   payment: optionalParam(v.picklist(PAYMENT_STATUSES)),
   search: optionalParam(v.pipe(v.string(), v.trim(), v.maxLength(100))),
   /** One customer's orders (their history on the customer page). */
@@ -118,7 +152,7 @@ export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
 
 export interface OrderCustomer {
   id: string
-  /** Empty once anonymized: the app shows "Former customer". */
+  /** Empty once anonymized ("Former customer"), or when none was given (a phone, or "Walk-in"). */
   name: string
   phone: string | null
   anonymized: boolean

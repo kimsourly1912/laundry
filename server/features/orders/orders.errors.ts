@@ -43,7 +43,7 @@ export function cancelledNoPayment() {
 
 /** The customer is missing, another shop's, or anonymized: all answer the same. */
 export function customerUnavailable() {
-  return apiError(409, 'CUSTOMER_UNAVAILABLE', 'Choose another customer.', { fieldErrors: { customerId: ['Choose another customer'] } })
+  return apiError(409, 'CUSTOMER_UNAVAILABLE', 'Choose another customer.', { fieldErrors: { customer: ['Choose another customer'] } })
 }
 
 /** New lines come only from active price items of the shop; `paths` are the lines' fields. */
