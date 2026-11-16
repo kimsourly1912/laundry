@@ -1,0 +1,183 @@
+# Data model
+
+← [Docs](../README.md) · Query rules: [repositories.md](./repositories.md) · Writes: [architecture → Writing data](./architecture.md#writing-data)
+
+Every table, its owner, its constraints and its lifecycle. This is spec §6, kept current: when a migration changes a table, this page changes in the same PR.
+
+**Status:** no tables exist yet. Each table's **Status** says the step that creates it; it changes to "Built (migration `NNNN`)" when the migration lands.
+
+---
+
+## Conventions
+
+- Tables `snake_case` plural; columns `snake_case` in SQL, `camelCase` in TypeScript (Drizzle `casing: 'snake_case'`).
+- Our ids: UUID v7 (`text` primary key). Better Auth tables keep their own ids.
+- **Every table below except Better Auth's has `shop_id`** (FK → `organization.id`, **restrict**), and every query filters by it.
+- Money: integer minor units with a currency code beside it. Weight: integer grams. Times: UTC (`integer` timestamp_ms).
+- Enum columns: lower `snake_case` text with a `CHECK`.
+- Editable records have `version` (integer, starts at 1).
+- **FK on-delete:** as listed per table. Where the spec gives none, the FK is **restrict**: the parent (shop, customer, order) is never deleted, so restrict only turns a bug into an error.
+
+## Relationships
+
+```mermaid
+erDiagram
+    user ||--o| member : "belongs to (max 1)"
+    organization ||--|{ member : has
+    organization ||--|| shop_settings : has
+    organization ||--o{ customers : has
+    organization ||--o{ service_types : has
+    organization ||--o{ price_items : has
+    organization ||--|| order_counters : has
+    organization ||--o{ ticket_batches : has
+    ticket_batches ||--|{ tickets : contains
+    organization ||--o{ orders : has
+    customers ||--o{ orders : places
+    orders ||--|| tickets : "identified by"
+    orders ||--|{ order_lines : has
+    orders ||--|{ order_events : logs
+    service_types ||--o{ price_items : groups
+    price_items ||--o{ order_lines : "priced from"
+    customers ||--o{ telegram_links : has
+    orders ||--o{ telegram_links : "order-only link"
+    orders ||--o{ notifications : triggers
+    organization ||--o{ audit_events : logs
+```
+
+## Better Auth tables (owner: `identity`)
+
+**Status:** M1.4.
+
+| Table | Notes |
+|---|---|
+| `user` | Plus `username` (username plugin), `role` (admin plugin: `superadmin` or empty), `banned`, `mustChangePassword` (additional field). `email` may hold an internal placeholder (verified in M1.4) |
+| `session`, `account`, `verification` | Better Auth's |
+| `organization` | = a shop: `id`, `name`, `slug`, `createdAt` |
+| `member` | `organizationId`, `userId` **UNIQUE** (one shop per user, added by our migration), `role` (`owner` \| `staff`) |
+| `invitation` | Exists, unused; its endpoints are blocked |
+
+## `shop_settings` (owner: `shops`)
+
+**Status:** M1.5 (created with the shop) / M2.1 (settings screen).
+
+| Column | Type | Notes |
+|---|---|---|
+| `shop_id` | text PK | FK → `organization.id`, restrict |
+| `phone` | text null | |
+| `address` | text null | |
+| `currency` | text | `KHR` (default) \| `USD`. One currency per shop (P7) |
+| `policy_text_km`, `policy_text_en` | text null | Shown on the public ticket page |
+| `reminder_after_days` | integer | Default 3 (P13) |
+| `language` | text | `km` (default) \| `en`: customer-facing messages. Not in spec §6; spec §3 lists it as a shop setting ([Q5](../current-state.md#open-questions)) |
+| `status` | text | `active` \| `suspended` |
+| `version`, `created_at`, `updated_at` | | |
+
+## `customers` (owner: `customers`)
+
+**Status:** M2.2.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id`, `shop_id` | | |
+| `name` | text | Cleared on anonymize |
+| `phone_e164` | text null | Normalized on the server (`libphonenumber-js`, region KH). Cleared on anonymize |
+| `note` | text null | |
+| `anonymized_at` | timestamp null | |
+| `version`, `created_at`, `updated_at` | | |
+
+- Partial UNIQUE `(shop_id, phone_e164)` where `phone_e164` is not null. A duplicate → `409`, and the UI offers the existing customer.
+- **Never deleted.** Anonymized (P11): the phone is freed for reuse.
+
+## `service_types`, `price_items` (owner: `pricing`)
+
+**Status:** M2.1.
+
+`service_types`: `id`, `shop_id`, `name_km`, `name_en`, `sort`, `status` (`active` \| `archived`), `version`.
+
+`price_items`: `id`, `shop_id`, `service_type_id` (FK restrict), `name_km`, `name_en`, `unit` (`piece` \| `kg`), `price` (integer, minor units, per piece or per kg), `sort`, `status` (`active` \| `archived`), `version`.
+
+- Archived, never deleted, once used by an order. Archived items aren't offered for new orders.
+- Required language fields: [Open, Q1](../current-state.md#open-questions).
+
+## `order_counters`, `orders`, `order_lines`, `order_events` (owner: `orders`)
+
+**Status:** M2.3.
+
+`order_counters`: `shop_id` PK, `last_number`. Incremented in the same batch as the order insert.
+
+`orders`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id`, `shop_id` | | |
+| `number` | integer | Per shop. UNIQUE `(shop_id, number)` |
+| `customer_id` | text | FK → `customers`, restrict |
+| `status` | text | `received` \| `in_progress` \| `ready` \| `collected` \| `cancelled` |
+| `payment_status` | text | `unpaid` \| `paid` |
+| `total` | integer | Minor units, computed by the server |
+| `currency` | text | Copied from the shop at creation |
+| `note` | text null | |
+| `ready_at`, `collected_at`, `paid_at`, `cancelled_at` | timestamp null | |
+| `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
+
+- Index `(shop_id, status, created_at)`.
+- **Never deleted.** Cancelled.
+
+`order_lines`: `id`, `shop_id`, `order_id` (FK **cascade**), `price_item_id` (FK **set null**), `service_name_km`, `service_name_en`, `item_name_km`, `item_name_en`, `unit`, `quantity` (pieces or grams), `unit_price`, `line_total`, `sort`.
+- Names and price are **snapshots**: a later price change never changes old orders.
+
+`order_events`: `id`, `shop_id`, `order_id` (FK cascade), `type` (`created` \| `updated` \| `started` \| `ready` \| `rework` \| `collected` \| `cancelled` \| `payment_recorded` \| `ticket_bound`), `actor_user_id`, `data` (json), `created_at`.
+
+(The cascades are a safety net only: orders are never deleted.)
+
+## `ticket_batches`, `tickets` (owner: `tickets`)
+
+**Status:** M3.1.
+
+`ticket_batches`: `id`, `shop_id`, `count`, `created_by`, `created_at`.
+
+`tickets`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id`, `shop_id` | | |
+| `batch_id` | text null | FK → `ticket_batches` |
+| `serial` | integer | Per shop (manual entry fallback for scanning) |
+| `public_token` | text | **UNIQUE**. 128-bit random, base64url, 22 chars |
+| `order_id` | text null | **UNIQUE**. Set when bound |
+| `bound_at`, `voided_at` | timestamp null | |
+
+- A pre-printed slip is a ticket with no order yet. An order created without a slip gets a ticket generated in the same batch.
+- Every lookup goes **token → ticket → order**.
+- **Never deleted.** Voided if lost before binding.
+
+## `telegram_links`, `notifications` (owner: `notifications`)
+
+**Status:** M4.1 / M4.2.
+
+`telegram_links`: `id`, `shop_id`, `customer_id` (FK **cascade**), `order_id` null (order-only link), `telegram_user_id`, `chat_id`, `verified_phone` (bool), `linked_at`, `revoked_at`.
+- Partial UNIQUE `(shop_id, customer_id, telegram_user_id)` where `revoked_at` is null and `order_id` is null.
+
+`notifications` (the outbox): `id`, `shop_id`, `order_id`, `customer_id`, `chat_id`, `kind` (`order_ready` \| `order_collected` \| `reminder` \| `link_confirmed`), `dedupe_key` **UNIQUE**, `status` (`pending` \| `sent` \| `failed` \| `skipped`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+- Sent and skipped rows purged after 90 days.
+
+## `audit_events`, `idempotency_keys` (owner: `platform`)
+
+**Status:** M1.3 / M1.5.
+
+`audit_events`: `id`, `shop_id` null (null = platform action), `actor_user_id`, `action`, `target_type`, `target_id`, `data`, `created_at`.
+
+`idempotency_keys`: `key`, `shop_id`, `actor_user_id`, `action`, `request_hash`, `response` (json), `created_at`. Unique on the scope + key. Purged after 24 h.
+
+## Lifecycle summary
+
+| Record | Rule |
+|---|---|
+| Shop | Never deleted. Suspended |
+| Owner user | Never deleted while the shop exists. Banned / password reset |
+| Customer | Never deleted. Anonymized |
+| Service type, price item | Archived. Line FK is `set null` as a safety net |
+| Order | Never deleted. Cancelled |
+| Ticket | Never deleted. Voided if lost before binding |
+| Notifications | Sent/skipped rows purged after 90 days |
+| Idempotency keys | Purged after 24 h |
