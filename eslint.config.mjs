@@ -45,6 +45,18 @@ export default withNuxt(
       'vue/no-v-html': 'error',
     },
   },
+  // Money, numbers and dates are shown only through app/utils/format.ts (docs/standards/i18n.md):
+  // one place sets the currency's decimals, the digits and the shop's time zone.
+  {
+    files: ['app/**/*.{ts,vue}'],
+    ignores: ['app/utils/format.ts'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        { selector: 'MemberExpression[object.name="Intl"]', message: 'Format through app/utils/format.ts (formatMoney, formatDate).' },
+        { selector: 'CallExpression[callee.property.name=/^toLocale(?:String|DateString|TimeString)$/]', message: 'Format through app/utils/format.ts (formatMoney, formatDate).' },
+      ],
+    },
+  },
   {
     files: ['app/**/*.{ts,vue}'],
     ignores: ['app/pages/**'],

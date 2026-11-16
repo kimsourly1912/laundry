@@ -59,7 +59,7 @@ erDiagram
 
 ## `shop_settings` (owner: `shops`)
 
-**Status:** Built (migration `0000_identity`). Created with the shop by the platform (M1.5, version 1, `active`); suspend, resume and the platform's rename move `version`. The owner's settings screen is M2.1.
+**Status:** Built (migration `0000_identity`). Created with the shop by the platform (M1.5, version 1, `active`); suspend, resume, the platform's rename and the owner's settings save (`/api/shop/settings`, M2.1) all move `version`. **The currency changes only while the shop has no price item**, archived included, checked inside the save's batch (D22).
 
 | Column | Type | Notes |
 |---|---|---|
@@ -91,14 +91,22 @@ erDiagram
 
 ## `service_types`, `price_items` (owner: `pricing`)
 
-**Status:** M2.1.
+**Status:** Built (migration `0003_pricing`, M2.1).
 
-`service_types`: `id`, `shop_id`, `name_km`, `name_en`, `sort`, `status` (`active` \| `archived`), `version`.
+`service_types`: `id`, `shop_id`, `name_en`, `name_km` null, `sort`, `status` (`active` \| `archived`), `version`, timestamps.
+- UNIQUE `(shop_id, id)`: the target of `price_items`' composite foreign key. Index `(shop_id, status, sort)`.
 
-`price_items`: `id`, `shop_id`, `service_type_id` (FK restrict), `name_km`, `name_en`, `unit` (`piece` \| `kg`), `price` (integer, minor units, per piece or per kg), `sort`, `status` (`active` \| `archived`), `version`.
+`price_items`: `id`, `shop_id`, `service_type_id`, `name_en`, `name_km` null, `unit` (`piece` \| `kg`), `price` (integer ≥ 0, minor units of the shop's currency, per piece or per kg), `sort`, `status`, `version`, timestamps.
+- **FK `(shop_id, service_type_id)` → `service_types (shop_id, id)`, restrict**: an item's service type is always its own shop's, whatever writes it ([D22](../decisions.md#d22-the-price-list)). Indexes `(shop_id, status, sort)`, `(shop_id, service_type_id)`.
+- CHECKs on `status`, `unit`, `price >= 0`.
 
-- Archived, never deleted, once used by an order. Archived items aren't offered for new orders.
+Rules (service, inside the batch):
+- **Archived, never deleted.** Archived entries aren't offered for new orders; orders keep their own copy of names and prices (M2.3). No restore yet.
+- A service type is archived only with **no active items**; an item goes only into an **active** service type.
+- At most **50 active service types and 300 active items per shop**, so a list is always read whole (D22).
+- New entries go last (`sort` = the shop's max + 1, computed in the insert).
 - `name_en` required, `name_km` optional ([D4](../decisions.md#d4-english-is-the-default-language)).
+- Every write has an `audit_events` row in the shop's history (`service-type.*`, `price-item.*`; `data.fields` on edits).
 
 ## `order_counters`, `orders`, `order_lines`, `order_events` (owner: `orders`)
 

@@ -252,3 +252,19 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** A darker palette (`blue`): changes the look the owner chose (D7). A system Khmer font: missing or broken on many Android phones.
 
 **Consequences.** The build downloads fonts from Google once (CI and local); the deployed app serves them itself. No contrast warnings in the dev server after the change.
+
+## D22. The price list
+
+**Context.** Spec M2.1: shop settings and the price list (service types, price items, archive). Prices are integers in the shop's currency (T12), and the spec leaves open how edits look on a phone and how big a list may be.
+
+**Decision.**
+- **The currency changes only while the shop has no price item, archived included.** A price is an amount in that currency: switching KHR → USD would turn 13,500៛ into $135.00. Checked inside the settings save's batch (`requireEmptyPriceListStatement` from pricing), so a price added meanwhile can't slip through. `GET /api/shop/settings` says `currencyLocked`.
+- **An item's service type is its own shop's, by the database:** a composite foreign key `(shop_id, service_type_id)` → `service_types (shop_id, id)`. The service checks "active" inside the batch.
+- **Caps: 50 active service types, 300 active items per shop**, checked inside the batch. Lists are then answered whole (`{ items }`): the price list is reference data for pickers (orders, M2.3), not a growing list.
+- **Edits are pages** (`/prices/items/:id`), not modals: Back works without our own history handling, and the unsaved-changes guard is a route guard. The overlay wrappers stay deferred until an overlay holds input.
+- **Archived, never restored (yet).** An archived entry is visible on its tab; restoring it is added when an owner asks.
+- Owner writes are audited in the shop's own history (`shop_id` set): settings, service types, price items.
+
+**Alternatives.** Converting prices on a currency change (rates the spec rules out, P7). Paginating the price list (a picker would page). Modal editors (Back closes the page under them without the overlay wrappers).
+
+**Consequences.** A shop that wants another currency archives nothing: it needs an empty list, so in practice the currency is chosen before the first price. A shop with more than 300 active prices is refused with `409 PRICE_LIST_FULL`; raise the cap if a real shop needs it.

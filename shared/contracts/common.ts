@@ -60,3 +60,16 @@ export interface Page<T> {
 export function toPage<T>(items: T[], query: PageQuery, total: number): Page<T> {
   return { items, page: query.page, pageSize: query.pageSize, total }
 }
+
+/** Optional text: trimmed; blank is no value (`null`), so a cleared field clears the stored one. */
+export function optionalTextSchema(max: number) {
+  return v.pipe(v.string(), v.trim(), v.maxLength(max, `At most ${max} characters`), v.transform(text => text || null))
+}
+
+export const idSchema = v.pipe(v.string(), v.uuid('Must be a valid id'))
+
+/**
+ * A delete's version, as `?version=`: Nitro on Cloudflare Workers forwards a body only for POST,
+ * PUT and PATCH, so a DELETE's body never reaches the route there (from NUK).
+ */
+export const deleteVersionQuerySchema = v.object({ version: intParam(1, Number.MAX_SAFE_INTEGER) })

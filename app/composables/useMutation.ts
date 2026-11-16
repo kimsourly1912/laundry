@@ -54,5 +54,10 @@ export function useMutation<TInput, TResult>(fn: (input: TInput) => Promise<TRes
     }
   }
 
-  return { execute, pending: readonly(pending), error: readonly(error) }
+  /** Forgets the last error (after the person reloaded or dismissed it). */
+  function reset() {
+    error.value = undefined
+  }
+
+  return { execute, reset, pending: readonly(pending), error: readonly(error) }
 }

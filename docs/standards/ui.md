@@ -159,7 +159,7 @@ How controls behave, so every screen behaves the same.
 
 ### Overlays
 
-- **Back closes the overlay on top and stays on the page.** A phone's Back is a history back, so each open modal, slideover and drawer gets its own history entry. Back works like Escape on the top overlay only: unsaved input asks first. The next Back leaves the page. Closing another way (X, Save) leaves no entry behind. Shared overlay wrappers own this, built with the first overlay that holds input (M2.1); after that, `UModal`, `USlideover` and `UDrawer` are lint errors outside the wrappers. Until then a confirm dialog (no input) uses `UModal` directly.
+- **Back closes the overlay on top and stays on the page.** A phone's Back is a history back, so each open modal, slideover and drawer gets its own history entry. Back works like Escape on the top overlay only: unsaved input asks first. The next Back leaves the page. Closing another way (X, Save) leaves no entry behind. Shared overlay wrappers own this, built with the first overlay that holds input (edits are pages so far, D22); after that, `UModal`, `USlideover` and `UDrawer` are lint errors outside the wrappers. Until then a confirm dialog (no input) uses `UModal` directly.
 - **The backdrop is dark** behind every modal, slideover and drawer, set once in `app.config.ts`.
 - **Only an overlay's body scrolls**, between a header and footer that stay in view. A page adds borders or a footer's layout, never spacing.
 - **Errors inside an overlay show inside it**, not only as a toast (a toast behind a modal can't be reached).
