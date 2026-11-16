@@ -63,6 +63,7 @@ Every query on a shop's data names the shop:
 | Table | Owner | Columns others may read | For |
 |---|---|---|---|
 | `user` | identity | `id`, `name` | who did something (`createdBy` name) |
+| `organization` | identity | `id`, `name`, `slug`, `createdAt` | a shop's name in the platform's shop list (shops) |
 | `customers` | customers | `id`, `shopId`, `name`, `phoneE164`, `anonymizedAt` | an order's customer in lists and search |
 
 Everything else goes through the owner's `index.ts`. A condition with business meaning ("an active shop") is exported by its owner, not written again.

@@ -30,3 +30,13 @@ export function unknownStatement(request: unknown) {
 export function platformAdminExists() {
   return apiError(409, 'PLATFORM_ADMIN_EXISTS', 'A platform admin already exists.')
 }
+
+/** Shop creation: the owner's username is another account's. */
+export function usernameTaken() {
+  return apiError(409, 'USERNAME_TAKEN', 'This username is already used by another account.', { fieldErrors: { 'owner.username': ['Already used by another account'] } })
+}
+
+/** Shop creation: another shop has this short name. */
+export function slugTaken() {
+  return apiError(409, 'SLUG_TAKEN', 'Another shop already uses this short name.', { fieldErrors: { slug: ['Already used by another shop'] } })
+}

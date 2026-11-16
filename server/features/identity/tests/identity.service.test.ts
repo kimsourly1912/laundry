@@ -48,6 +48,13 @@ describe('authorizeShop (spec §12, in order)', () => {
     expect(await refusal(authorizeShop({ db, user: sessionOf(admin.userId, { role: 'superadmin' }), permissions: { order: ['read'] } }))).toBe('403 NO_SHOP')
   })
 
+  it('403 NO_SHOP for a super admin even with a membership row (the platform never acts in a shop)', async () => {
+    const shop = await createTestShop(db)
+    const admin = await createTestUser(db, { role: 'superadmin' })
+    await addMember(db, shop.shopId, admin.userId)
+    expect(await refusal(authorizeShop({ db, user: sessionOf(admin.userId, { role: 'superadmin' }), permissions: { shop: ['read'] } }))).toBe('403 NO_SHOP')
+  })
+
   it('403 NO_SHOP for a shop without its settings row', async () => {
     const shop = await createTestShop(db, { settings: false })
     const owner = await createTestUser(db)

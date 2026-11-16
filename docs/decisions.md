@@ -210,3 +210,18 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Per address only: a guess spread over many addresses isn't slowed.
 
 **Consequences.** Someone who knows an owner's username can block their sign-in for 10 minutes. Accepted: owners stay signed in for 30 days, and the platform admin can sign them out and reset the password. The per-username count is approximate under concurrency (read then write), enough for a bound on abuse.
+
+## D19. Platform actions and their audit rows
+
+**Context.** Spec §9 lists the platform's shop routes; §6 says `audit_events.shop_id` is null for a platform action. M1.5 builds them: the platform acts on any shop, by the id in the path.
+
+**Decision.**
+- The **shops** feature owns the use cases (`shops.service.ts`). It asks **identity** for the organization and owner statements (Better Auth's tables are identity's) and **platform** for the audit row, and runs one batch.
+- A platform action's audit row has `shop_id` **null** and the shop as its target (`target_type: 'shop'`). A shop's own history (M2) will have its `shop_id`.
+- The super admin types the owner's **temporary password** (spec §4 screen). It's hashed on the server with Better Auth's `hashPassword`, never logged or audited, and must be changed at the first sign-in, where Better Auth's leaked-password check applies.
+- Versions: `shop_settings.version` is the shop's version for every platform change (rename, suspend, resume). The batch's `requireOneChange` decides a stale write; there is no separate early check.
+- `authorizeShop` refuses a super admin with `403 NO_SHOP` **even if a membership row exists**, and the owner lookups skip super admins, so a stray row can't let the platform act in a shop.
+
+**Alternatives.** A server-generated temporary password shown once (NUK): stronger by default, but the spec's form has the admin choose it and tell the owner. Revisit if admins pick weak ones. `shop_id` set on platform rows (NUK): mixes the platform's actions into the shop's own history.
+
+**Consequences.** `/api/platform/**` takes a shop id from the path, the one place a shop id comes from the client; it never reaches a shop route. Platform routes are pinned to the spec's statements by `server/tests/routes.test.ts`.

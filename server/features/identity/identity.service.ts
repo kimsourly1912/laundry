@@ -1,8 +1,10 @@
+import { hashPassword } from 'better-auth/crypto'
+import type { ShopOwner } from '#shared/contracts/platform-shops'
 import type { Db, Statement } from '#server/utils/batch'
-import { runBatch } from '#server/utils/batch'
+import { readInChunks, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { shopStatus } from '#server/features/shops'
-import { forbidden, noShop, passwordChangeRequired, platformAdminExists, shopSuspended, unauthenticated, unknownStatement } from './identity.errors'
+import { forbidden, noShop, passwordChangeRequired, platformAdminExists, shopSuspended, slugTaken, unauthenticated, unknownStatement, usernameTaken } from './identity.errors'
 import { grantedPlatformStatements, grantedShopStatements, isKnownPermission, platformRoles, platformStatements, shopRoles, shopStatements } from './identity.permissions'
 import type { PlatformPermission, ShopPermission, ShopRole } from './identity.permissions'
 import * as repo from './identity.repository'
@@ -49,7 +51,9 @@ interface ShopAccess {
 export async function authorizeShop(access: ShopAccess): Promise<ShopActor> {
   const { db, user, permissions } = access
   if (!isKnownPermission(shopStatements, permissions)) throw unknownStatement(permissions)
-  const { id } = signedIn(user)
+  const { id, role: platformRole } = signedIn(user)
+  // The platform team never acts in a shop (spec §5), even if a membership row said otherwise.
+  if (isSuperAdmin(platformRole)) throw noShop()
   const membership = await repo.findMembership(db, id)
   const role = membership && shopRoleOf(membership.role)
   if (!membership || !role) throw noShop()
@@ -149,4 +153,75 @@ export async function seedPlatformAdmin(seed: PlatformAdminSeed): Promise<{ user
     ...repo.insertPlatformAdminStatements(db, { userId, accountId: newId(), username, name: 'Platform admin', email: placeholderEmail(userId), passwordHash, now }),
   ], platformAdminExists)
   return { userId, username }
+}
+
+// --- Shops and their owners (spec P1: only the platform creates them, M1.5) ---
+
+interface ShopNames {
+  username: string
+  slug: string
+}
+
+/**
+ * Refuses with 409 `USERNAME_TAKEN` or `SLUG_TAKEN`. Advisory before the batch (the unique indexes
+ * decide); the caller asks again after a unique violation, to name the field.
+ */
+export async function requireShopNamesAvailable(db: Db, names: ShopNames): Promise<void> {
+  const { username, slug } = names
+  if (await repo.usernameExists(db, normalizeUsername(username))) throw usernameTaken()
+  if (await repo.slugExists(db, slug)) throw slugTaken()
+}
+
+interface NewShopAndOwner {
+  shopId: string
+  name: string
+  slug: string
+  owner: { name: string, username: string, password: string }
+  now: Date
+}
+
+/**
+ * A shop's organization and its owner (on the temporary password, hashed here), for the caller's
+ * batch with the shop's settings and audit row. Checks the names first.
+ */
+export async function newShopStatements(db: Db, shop: NewShopAndOwner): Promise<Statement[]> {
+  const { shopId, name, slug, owner, now } = shop
+  const username = normalizeUsername(owner.username)
+  await requireShopNamesAvailable(db, { username, slug })
+  const userId = newId()
+  return [
+    repo.insertOrganizationStatement(db, { shopId, name, slug, now }),
+    ...repo.insertOwnerStatements(db, { shopId, userId, accountId: newId(), memberId: newId(), username, name: owner.name, email: placeholderEmail(userId), passwordHash: await hashPassword(owner.password), now }),
+  ]
+}
+
+/** Renames the shop (its organization), for the caller's versioned batch. */
+export function renameShopStatement(db: Db, shopId: string, name: string): Statement {
+  return repo.renameOrganizationStatement(db, shopId, name)
+}
+
+const toShopOwner = (row: repo.ShopOwnerRow): ShopOwner => ({ id: row.id, name: row.name, username: row.username ?? '', mustChangePassword: Boolean(row.mustChangePassword) })
+
+/** The owner of each shop, by shop id; a shop without one is missing from the map. */
+export async function shopOwners(db: Db, shopIds: string[]): Promise<Map<string, ShopOwner>> {
+  const rows = await readInChunks(shopIds, ids => repo.findShopOwners(db, ids))
+  return new Map(rows.map(row => [row.shopId, toShopOwner(row)]))
+}
+
+/** The shop's owner, or `undefined`. */
+export async function shopOwner(db: Db, shopId: string): Promise<ShopOwner | undefined> {
+  return (await shopOwners(db, [shopId])).get(shopId)
+}
+
+interface OwnerPasswordReset {
+  userId: string
+  /** The new temporary password, in clear: hashed here. */
+  password: string
+  now: Date
+}
+
+/** `resetPasswordStatements` from a password in clear (the platform's reset form). */
+export async function ownerPasswordResetStatements(db: Db, reset: OwnerPasswordReset): Promise<Statement[]> {
+  const { userId, password, now } = reset
+  return resetPasswordStatements(db, { userId, passwordHash: await hashPassword(password), now })
 }

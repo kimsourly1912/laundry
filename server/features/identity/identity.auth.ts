@@ -5,7 +5,7 @@ import { newId } from '#server/utils/ids'
 import { authEndpointAllowlist } from './auth-endpoints'
 import { platformAc, platformRoles, shopAc, shopRoles } from './identity.permissions'
 import { adminSessionExpiry, isSuperAdmin, SESSION_EXPIRES_IN_S, SESSION_UPDATE_AGE_S } from './identity.sessions'
-import { MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH, normalizeUsername } from './identity.rules'
+import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH, normalizeUsername } from './identity.rules'
 
 const MINUTE_S = 60
 
@@ -139,8 +139,8 @@ export function identityAuthOptions(settings: IdentityAuthSettings = {}) {
       // Over HTTP only the endpoints the app uses (auth-endpoints.ts); the server's calls go through.
       authEndpointAllowlist(),
       username({
-        minUsernameLength: 3,
-        maxUsernameLength: 32,
+        minUsernameLength: MIN_USERNAME_LENGTH,
+        maxUsernameLength: MAX_USERNAME_LENGTH,
         usernameNormalization: normalizeUsername,
       }),
       admin({
