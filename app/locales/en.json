@@ -22,7 +22,8 @@
     "pagination": "{from}–{to} of {total}",
     "unsaved": {
       "leave": "Leave without saving? Your changes will be lost."
-    }
+    },
+    "optional": "Optional"
   },
   "errors": {
     "kind": {
@@ -217,22 +218,6 @@
     "priceChangeHelp": "A new price applies to new orders only.",
     "needServiceType": "Add a service type first"
   },
-  "today": {
-    "nav": "Today",
-    "title": "Today",
-    "counts": {
-      "received": "Received",
-      "inProgress": "In progress",
-      "ready": "Ready",
-      "unpaid": "Unpaid",
-      "createdToday": "New today",
-      "collectedToday": "Collected today"
-    },
-    "readyTitle": "Ready, not collected",
-    "readyEmpty": "Nothing is waiting to be collected.",
-    "unpaidTitle": "Unpaid",
-    "unpaidEmpty": "Every order is paid."
-  },
   "platform": {
     "nav": {
       "shops": "Shops",
@@ -367,12 +352,7 @@
     "back": "Orders",
     "backToOrder": "Back to the order",
     "search": "Search number, phone or name",
-    "empty": "No orders yet",
-    "emptyDescription": "Orders you take at the counter appear here.",
     "noMatch": "No orders match your search",
-    "tabs": {
-      "all": "All"
-    },
     "status": {
       "received": "Received",
       "in_progress": "In progress",
@@ -381,10 +361,8 @@
       "cancelled": "Cancelled"
     },
     "payment": {
-      "any": "Paid or not",
       "unpaid": "Unpaid",
-      "paid": "Paid",
-      "filter": "Payment"
+      "paid": "Paid"
     },
     "unit": {
       "piece": "pcs",
@@ -405,19 +383,7 @@
     "total": "Total",
     "customer": "Customer",
     "note": "Note",
-    "paidNow": "Paid now",
-    "paidNowHelp": "The customer pays {total} at drop-off.",
-    "create": "Create order",
-    "created": "Order #{number} created",
-    "createdDescription": "{name} · {total}",
     "view": "View order",
-    "flow": {
-      "step": "Step {step} of {of}",
-      "customer": "Customer",
-      "lines": "Items",
-      "review": "Review",
-      "next": "Next"
-    },
     "title": "Order #{number}",
     "titleLoading": "Order",
     "edit": "Edit",
@@ -467,6 +433,41 @@
     "customerHistory": "Orders",
     "customerNone": "No orders yet.",
     "customerMore": "And {count} more in the orders list.",
-    "more": "More actions"
+    "more": "More actions",
+    "walkIn": "Walk-in",
+    "slip": {
+      "nothing": "Fill in at least one item",
+      "tooMany": "At most {max} items on one order",
+      "saved": "Order saved. Write this number on the bag:",
+      "next": "Next order",
+      "noPrices": "No prices yet",
+      "noPricesDescription": "The shop's price list is set up by the platform. Contact support to add your prices.",
+      "phone": "Phone",
+      "name": "Name",
+      "less": "One fewer {name}",
+      "more": "One more {name}",
+      "pieces": "Pieces of {name}",
+      "kg": "Kilograms of {name}",
+      "save": "Save order"
+    },
+    "board": {
+      "waiting": "Waiting",
+      "ready": "Ready",
+      "done": "Done",
+      "empty": {
+        "waiting": "Nothing waiting",
+        "ready": "Nothing ready for pickup",
+        "done": "Nothing collected yet"
+      },
+      "paidAndCollected": "Paid now and collected",
+      "unpaidDescription": "{total} isn't paid yet. Did the customer pay now?"
+    }
+  },
+  "more": {
+    "nav": "More",
+    "title": "More",
+    "support": "Need a change or help?",
+    "supportDescription": "New prices, new items, a problem: message us and we'll set it up for you.",
+    "contactSupport": "Contact support"
   }
 }

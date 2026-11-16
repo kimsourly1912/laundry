@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import OrderListPage from '~/features/orders/components/OrderListPage.vue'
-
-definePageMeta({ layout: 'shop', area: 'shop', permission: 'order:read', title: 'orders.listTitle' })
+// The orders board is the shop's home (D27); old links to /orders land there.
+definePageMeta({ layout: 'shop', area: 'shop', redirect: '/' })
 </script>
 
 <template>
-  <OrderListPage />
+  <div />
 </template>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import TodayPage from '~/features/today/components/TodayPage.vue'
+import OrdersBoardPage from '~/features/orders/components/OrdersBoardPage.vue'
 
-definePageMeta({ layout: 'shop', area: 'shop', title: 'today.title' })
+definePageMeta({ layout: 'shop', area: 'shop', permission: 'order:read', title: 'orders.listTitle' })
 </script>
 
 <template>
-  <TodayPage />
+  <OrdersBoardPage />
 </template>

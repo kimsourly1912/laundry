@@ -8,6 +8,7 @@ import type { Order, OrderAction } from '#shared/contracts/orders'
 import { canRecordPayment, canTransition, isEditable } from '#shared/contracts/orders'
 import { formatPhone } from '#shared/contracts/phone'
 import { formatQuantity } from '../schemas/order-lines'
+import { customerLabel } from '../schemas/slip-form'
 import OrderBadges from './OrderBadges.vue'
 
 const props = defineProps<{ id: string }>()
@@ -70,7 +71,8 @@ function reload() {
 const may = (action: OrderAction) => Boolean(record.value) && canTransition(record.value!.status, action) && can(action === 'cancel' ? 'order:cancel' : 'order:transition')
 const mayPay = computed(() => Boolean(record.value) && canRecordPayment(record.value!.status, record.value!.paymentStatus) && can('payment:record'))
 const mayEdit = computed(() => Boolean(record.value) && isEditable(record.value!.status) && can('order:update'))
-const hasActions = computed(() => mayPay.value || (['start', 'ready', 'rework', 'collect'] as const).some(may))
+// No Start button (D27): an order goes from received straight to ready; "in progress" stays for older orders.
+const hasActions = computed(() => mayPay.value || (['ready', 'rework', 'collect'] as const).some(may))
 const lineName = (names: { nameEn: string, nameKm: string | null }) => localName(names, locale.value)
 const money = (minor: number) => formatMoney(minor, record.value!.currency, locale.value)
 </script>
@@ -114,7 +116,7 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
     </template>
 
     <template #body>
-      <div class="mx-auto w-full max-w-xl space-y-6">
+      <div class="mx-auto w-full max-w-page space-y-6">
         <UEmpty
           v-if="missing"
           icon="i-lucide-file-x"
@@ -144,17 +146,17 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0">
               <NuxtLink
-                v-if="!record.customer.anonymized"
+                v-if="!record.customer.anonymized && (record.customer.name || record.customer.phone)"
                 :to="`/customers/${record.customer.id}`"
                 class="font-medium break-words underline-offset-2 hover:underline"
               >
-                {{ record.customer.name }}
+                {{ customerLabel(record.customer, t) }}
               </NuxtLink>
               <p
                 v-else
                 class="font-medium"
               >
-                {{ t('customers.former') }}
+                {{ customerLabel(record.customer, t) }}
               </p>
               <p class="text-sm text-muted tabular-nums">
                 {{ record.customer.phone ? formatPhone(record.customer.phone) : t('customers.noPhone') }}
@@ -219,14 +221,6 @@ const money = (minor: number) => formatMoney(minor, record.value!.currency, loca
               :loading="act.pending.value"
               :disabled="busy"
               @click="run('rework')"
-            />
-            <UButton
-              v-if="may('start')"
-              :label="t('orders.action.start')"
-              color="neutral"
-              variant="outline"
-              :disabled="busy"
-              @click="run('start')"
             />
             <UButton
               v-if="mayPay"

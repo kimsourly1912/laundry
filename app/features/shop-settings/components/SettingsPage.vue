@@ -67,7 +67,7 @@ const readOnly = computed(() => !can('shop:update'))
     </template>
 
     <template #body>
-      <div class="mx-auto w-full max-w-2xl">
+      <div class="mx-auto w-full max-w-page">
         <PageLoadError
           v-if="settings.error.value && !settings.data.value"
           :error="settings.error.value"
