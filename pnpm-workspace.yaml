@@ -7,3 +7,6 @@ allowBuilds:
 # GHSA-85c8-ppgw-ccpr (critical), which its parent pins. Remove once oxfmt ships a patched tinypool.
 overrides:
   tinypool@2: ^2.1.2
+# Newer than pnpm's minimum release age when installed (as in the starter); remove on the next upgrade.
+minimumReleaseAgeExclude:
+  - '@nuxtjs/better-auth@0.3.17'

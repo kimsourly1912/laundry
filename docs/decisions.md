@@ -144,3 +144,69 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Create both now: tables and helpers without a caller, documented before they're used.
 
 **Consequences.** The first migration comes with Better Auth in M1.4.
+
+## D13. Better Auth endpoint lockdown
+
+**Context.** Spec §5: Better Auth's organization, member, invitation and access-control endpoints are blocked for everyone with `403`; shops and owners are made only through `/api/platform/**`. Better Auth mounts every plugin's endpoints, including the admin plugin's (create user, set role, impersonate) and account updates. NUK closes them with an allowlist answering 404.
+
+**Decision.** An **allowlist** of the endpoints the app uses (`get-session`, `sign-in/username`, `sign-out`, `change-password`, `list-sessions`, `revoke-other-sessions`); every other `/api/auth/*` request answers **`403 FORBIDDEN`** in our error format (spec's status). Server code calls `auth.api.*` directly and isn't affected. Platform roles: `user` (everyone; the spec's "empty" role) and `superadmin`; neither is granted any of Better Auth's own admin or organization statements.
+
+**Alternatives.** A blocklist of the spec's four groups: leaves sign-up, email sign-in, the admin plugin and any endpoint a later version adds open. NUK's 404: the spec asks for 403.
+
+**Consequences.** A new page needing an endpoint adds it to `AUTH_HTTP_ENDPOINTS` after reading that endpoint's checks in the installed version. Sign-up is also disabled in the config.
+
+## D14. Session lifetimes
+
+**Context.** Spec T16: owners 30 days sliding, no cap; super admins 12 h idle, 7-day cap. §17 asked whether Better Auth's global `expiresIn` allows per-role lifetimes and an absolute cap, and whether renewal issues a new cookie value. Read in better-auth 1.7.25 (`api/routes/session.mjs`): a session is renewed when `expiresAt − expiresIn + updateAge ≤ now`, by `internalAdapter.updateSession`, which runs the `session.update` database hooks with the request's current session in `ctx.context.session`.
+
+**Decision.**
+- Owners: Better Auth's own `expiresIn` 30 days, `updateAge` 1 day.
+- Super admins: the `session.create` and `session.update` hooks set `expiresAt` to `min(now + 12 h, createdAt + 7 days)`. A super admin's session is then always due for renewal, so every use moves it (one write per platform request, acceptable for one or two admins), never past the cap. Better Auth refuses the expired session itself, on every route, `/api/auth/get-session` included.
+- **Renewal keeps the token:** the same session row and cookie value, a new `expiresAt` and cookie `Max-Age` (checked in a test).
+
+**Alternatives.** The spec's fallback: our own idle and cap checks in `requirePlatformPermission`. They would leave Better Auth's session alive elsewhere (the app would see a session the platform API refuses), and need a `lastSeenAt` write of our own, since `updatedAt` only moves once a day.
+
+**Consequences.** Depends on Better Auth passing the current session to the update hook; the faked-time tests (`identity.auth.test.ts`) fail if an upgrade changes that. No cookie cache is configured: with one, renewal could be skipped.
+
+## D15. Accounts: username and a placeholder email
+
+**Context.** Spec P4: owners sign in with username + password, no email. §17: Better Auth's `user.email` is required. Phone keyboards capitalize and add spaces.
+
+**Decision.** Every user gets `email = <userId>@users.invalid` (RFC 2606 reserved domain): unique, never shown, never mailed (nothing sends email). Usernames are trimmed and lowercased (`normalizeUsername`), at creation and **at sign-in** (a `before` hook rewrites the body, because Better Auth validates the characters before its own normalization).
+
+**Alternatives.** A fake real-looking domain: could someday receive mail. Leaving sign-in case-sensitive: owners locked out by their keyboard.
+
+**Consequences.** Better Auth's sign-in response includes the placeholder email: the app never displays `email`.
+
+## D16. The first platform admin
+
+**Context.** Spec §14: a seed task creates the super admin from env and refuses if one exists. A Cloudflare Worker has no command line to run a Nitro task on. NUK has no seed: its first admin signs up and is promoted by hand in SQL; Laundry has no sign-up.
+
+**Decision.**
+- `seedPlatformAdmin` (identity) creates the admin on a **temporary password**, guarded inside the batch (no super admin may exist).
+- Locally: the Nitro task `identity:seed-platform-admin`.
+- Deployed: `scripts/platform-admin-sql.ts` (`pnpm admin:sql`) hashes the password locally with Better Auth's `hashPassword` and prints SQL whose inserts are guarded the same way; run it with `wrangler d1 execute --remote --file`.
+
+**Alternatives.** A one-time setup endpoint: an open door on every deployed Worker until used. Typing the hash by hand: error-prone.
+
+**Consequences.** The password is never sent to the Worker or stored in clear; the temporary password must be changed at the first sign-in.
+
+## D17. One shop per user in the database
+
+**Context.** Spec T4 asks for a unique index on Better Auth's `member.user_id`; §17 asked whether our migration can add one without breaking the generated schema.
+
+**Decision.** A hand-written migration (`0001_member_one_shop.sql`, made with `drizzle-kit generate --custom`) adds `member_user_id_unique`. It isn't in the Drizzle schema (Better Auth generates that table's definition), so drizzle-kit neither generates nor drops it.
+
+**Alternatives.** The spec's fallback: enforce it in the platform service only.
+
+**Consequences.** A second membership fails in the database whatever writes it (tested). A future Better Auth migration that rebuilds `member` must keep the index: the test catches its loss.
+
+## D18. Sign-in limits
+
+**Context.** Spec §12: sign-in rate-limited per IP and per username. Better Auth's limiter keys on address and path only.
+
+**Decision.** Better Auth's limiter (`storage: 'database'`): `sign-in/username` 5/min and `change-password` 5/min per address. Ours, in a `before` hook: 10 tries per 10 minutes **per username** across addresses, counted in Better Auth's `rate_limit` table (`username:<name>`). Both only where Better Auth enables rate limiting (production builds).
+
+**Alternatives.** Per address only: a guess spread over many addresses isn't slowed.
+
+**Consequences.** Someone who knows an owner's username can block their sign-in for 10 minutes. Accepted: owners stay signed in for 30 days, and the platform admin can sign them out and reset the password. The per-username count is approximate under concurrency (read then write), enough for a bound on abuse.

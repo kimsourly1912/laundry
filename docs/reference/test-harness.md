@@ -37,7 +37,7 @@ Each call is its own database. `options.logger` passes a Drizzle logger, to see 
 | `dumpSchema(client)` | A database as statements that recreate it |
 | `D1_MAX_PARAMS`, `D1_MAX_PATTERN_BYTES` | The limits, for tests at the edge |
 
-Seed helpers (a shop with its owner, a second shop for isolation tests) come with the first tables in M1.4/M1.5.
+Seed helpers for accounts and shops (`createOwner`, `createTestShop`, `createTestUser`, `addMember`) and a Better Auth instance on the test database (`createTestAuth`) are in `server/tests/support/auth.ts` ([reference/access.md](./access.md#tests)). Two `createOwner` calls give the two shops of an isolation test.
 
 ## Tests
 

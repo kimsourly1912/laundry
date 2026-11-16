@@ -30,7 +30,7 @@ Environments, configuration and secrets, migrations, deploys, scheduled jobs and
 | Migrations | `pnpm db:migrate:staging` (after a staging build) |
 | Deploy | CI job `deploy-staging` on every push to `main`, after the checks pass: build, migrations (when any exist), `wrangler deploy`, smoke check (`/api/health`, the JSON 404, the CSP header). `pnpm deploy:staging` does the same from a laptop: never use it for a build-only check |
 
-Before the first deploy, the owner adds two **GitHub Actions secrets** (repository → Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token limited to this account with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* and *Zone: DNS: Edit* on `angder.app`) and `CLOUDFLARE_ACCOUNT_ID`. Then the Worker secrets, once the code needs them: `wrangler secret put NUXT_BETTER_AUTH_SECRET --name laundry-staging` (M1.4), Telegram (M4).
+Before the first deploy, the owner adds two **GitHub Actions secrets** (repository → Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token limited to this account with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* and *Zone: DNS: Edit* on `angder.app`) and `CLOUDFLARE_ACCOUNT_ID`. Then the Worker secrets, set once per environment from a laptop (`pnpm exec wrangler login` first): `pnpm exec wrangler secret put NUXT_BETTER_AUTH_SECRET --name laundry-staging` (a new random value of at least 32 characters, e.g. `openssl rand -base64 48`), Telegram (M4). The smoke check's `/api/me` → 401 fails until the auth secret is set.
 
 ## Configuration
 
@@ -49,14 +49,26 @@ A new variable is added to `.env.example` (name only), `nuxt.config.ts` (`runtim
 
 ## First platform admin
 
-A seed task (M1.4) creates the super admin from `NUXT_PLATFORM_ADMIN_USERNAME` / `NUXT_PLATFORM_ADMIN_PASSWORD`. It **refuses if any super admin already exists**. After the first sign-in, change the password and remove the variables.
+The first super admin comes from `NUXT_PLATFORM_ADMIN_USERNAME` / `NUXT_PLATFORM_ADMIN_PASSWORD`, on a **temporary password** changed at the first sign-in. Both ways **refuse if any super admin already exists** ([D16](../decisions.md#d16-the-first-platform-admin)).
+
+- **Local:** with the variables in `.env` and `pnpm dev` running: `npx nuxt task run identity:seed-platform-admin`.
+- **Deployed (staging, production):** a Worker has no command line, so a script prints guarded SQL and the password is hashed on your machine (only the hash reaches the database):
+
+  ```bash
+  NUXT_PLATFORM_ADMIN_USERNAME=admin NUXT_PLATFORM_ADMIN_PASSWORD='…' pnpm --silent admin:sql > admin.sql
+  pnpm exec wrangler d1 execute laundry-staging --remote --file admin.sql
+  rm admin.sql
+  ```
+
+  Then sign in at the site and change the password. Running it again creates nothing.
 
 Local development: `pnpm dev:accounts` (M1.5/M2) creates 1 super admin and 2 shops with owners, prices and sample orders.
 
 ## Migrations
 
 - Each feature's tables are in `server/features/<f>/<f>.schema.ts`, registered with NuxtHub by the `hub:db:schema:extend` hook.
-- **Generate** with drizzle-kit into `server/db/migrations` (exact command recorded in [development](../guides/development.md) with the first migration, M1.4).
+- **Generate** after a schema change: `npx nuxt db generate` (drizzle-kit, from every feature's `*.schema.ts` and Better Auth's generated schema, into `server/db/migrations/sqlite`). Rename the generated file to say what it does and update its `tag` in `meta/_journal.json`.
+- **Hand-written SQL** (an index on a table we don't define, like `member_user_id_unique`): `npx drizzle-kit generate --custom --name <name> --config .nuxt/hub/db/drizzle.config.ts`, then write the SQL in the empty file it makes, so the journal stays in order.
 - **Locally**, NuxtHub applies pending migrations when the dev server starts.
 - **Deployed**, apply with `wrangler d1 migrations apply DB --remote` **before** deploying the Worker (NUK's `db:migrate:*` scripts).
 - **Migrations are backwards compatible** (expand, then contract): the old Worker keeps working against the migrated database for the moment between the migration and the new Worker. A column removal is a second migration in a later deploy.

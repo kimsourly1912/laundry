@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Layers: [architecture.md](./architecture.md) · Queries: [repositories.md](./repositories.md)
 
-Identity, roles and statements, access helpers, sessions, passwords, request protection, secrets, logging, and the checklist every route passes. Request protection is built ([reference/request-protection.md](../reference/request-protection.md)); identity and access come in M1.4–M1.5; items the spec lists as **needs verification** (§17) are settled in M1.4 and recorded in `decisions.md`.
+Identity, roles and statements, access helpers, sessions, passwords, request protection, secrets, logging, and the checklist every route passes. Built: request protection ([reference/request-protection.md](../reference/request-protection.md)) and identity and access ([reference/access.md](../reference/access.md)). The spec §17 items for identity are settled in D13–D18.
 
 ---
 
@@ -25,8 +25,8 @@ Use these; don't rebuild them. Check each against its docs for the installed ver
 ## Identity
 
 - **No self-signup** (spec P1). The platform admin creates each shop and its owner through `/api/platform/**`.
-- **One user belongs to exactly one shop** (spec P2): a unique index on `member.user_id`, added by our migration (spec T4; how is verified in M1.4).
-- **Owners sign in with username + password** (spec P4). If Better Auth requires `user.email`, a placeholder (`<id>@users.invalid`) is stored, never shown, never mailed (verified in M1.4).
+- **One user belongs to exactly one shop** (spec P2): a unique index on `member.user_id` (`member_user_id_unique`), added by our own migration `0001` ([D17](../decisions.md#d17-one-shop-per-user-in-the-database)).
+- **Owners sign in with username + password** (spec P4). Better Auth requires `user.email`, so a placeholder (`<id>@users.invalid`) is stored, never shown, never mailed. Usernames are trimmed and lowercased, also at sign-in ([D15](../decisions.md#d15-accounts-username-and-a-placeholder-email)).
 - **The super admin** has `user.role = 'superadmin'` (admin plugin), is **never a member of a shop** and never reads shop data (spec T5).
 - **The first super admin** is created by a seed task from `NUXT_PLATFORM_ADMIN_USERNAME` / `_PASSWORD`. It refuses if any super admin exists.
 
@@ -90,14 +90,14 @@ Goal: **a shop owner never meets the sign-in page in normal use.** Safety comes 
 | Idle lifetime (sliding) | **30 days** (`expiresIn`), renewed at most once a day (`updateAge`) | **12 hours** |
 | Absolute cap | none | **7 days** from session creation |
 
-Better Auth's `expiresIn` is global; the admin's shorter idle time and absolute cap are probably our own checks on `session.updatedAt` / `session.createdAt` in `requirePlatformPermission`, which revoke the session (verified in M1.4).
+Better Auth's `expiresIn` is global, so a super admin's `expiresAt` is clamped by Better Auth's session hooks, on sign-in and on every renewal, to 12 h from now and never past 7 days from sign-in. Better Auth itself then refuses the expired session, on every route ([D14](../decisions.md#d14-session-lifetimes)). A renewal extends the same session: the token and the cookie's value stay, only the expiry moves.
 
 **Revocation** (each takes effect on the next request):
 - The owner changes their password → all their **other** sessions are revoked.
 - The admin resets the owner's password → **all** owner sessions are revoked, and `mustChangePassword` is set.
 - The owner taps "Sign out other devices" on `/account`.
 - The admin taps "Sign owner out everywhere" (lost or stolen phone).
-- User banned → sessions revoked.
+- User banned → every request with their session is refused 401 by the access helpers, and Better Auth refuses their sign-in. (No ban action exists in Phase 1; the admin plugin's endpoints are closed.)
 - Shop suspended → sessions stay; shop APIs answer `403 SHOP_SUSPENDED`.
 
 **No access + refresh token pair.** A sliding server-side session meets the goal and is revocable at once; a token pair adds refresh races between tabs for little gain on one origin. Revisit only for a native app or an outside API client.
@@ -125,7 +125,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 |---|---|
 | **CSRF / origin** | Every non-GET request to `/api/**` except `/api/auth/**` (Better Auth checks its own) and `/api/webhooks/**` must carry an `Origin` (or `Referer`) from the trusted origins, else `403`. `GET` never changes state. A sibling subdomain of `angder.app` is not trusted. |
 | **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body (401 otherwise). No session, no origin check. It can only link a chat after the phone check and record contacts (spec §8.2). |
-| **Rate limits** | Workers rate-limit bindings per client address ([D10](../decisions.md#d10-rate-limits)): `/api/public/**` 300/min, `/api/webhooks/**` 600/min; `429 RATE_LIMITED` with `Retry-After: 60`. Nothing limited where no binding exists (dev, tests). Sign-in per IP and username: Better Auth's own limits (M1.4). `/api/health` is never limited. |
+| **Rate limits** | Workers rate-limit bindings per client address ([D10](../decisions.md#d10-rate-limits)): `/api/public/**` 300/min, `/api/webhooks/**` 600/min; `429 RATE_LIMITED` with `Retry-After: 60`. Nothing limited where no binding exists (dev, tests). Sign-in: 5/min per address (Better Auth) and 10 per 10 minutes per username across addresses (ours), production builds only ([D18](../decisions.md#d18-sign-in-limits)). `/api/health` is never limited. |
 | **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. **Slip scanning (M3.2) needs `camera=(self)`** on the shop pages that scan; loosen only there. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **Ticket page** | `/t/**`: `Cache-Control: no-store, no-transform`, no analytics. Its URL carries a bearer token; `strict-origin` keeps it out of referrers. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |

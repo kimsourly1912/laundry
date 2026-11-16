@@ -9,7 +9,8 @@ Commands, tests and the checks to run before a pull request.
 ## Toolchain
 
 - **Node.js 24** (`engines.node`: `^24.22.1`) and **pnpm 12.15.0** (`packageManager`). `corepack enable pnpm` reads the pin.
-- `pnpm install --frozen-lockfile` after cloning. `postinstall` runs `nuxt prepare`, which generates `.nuxt/` (types, the ESLint config, NuxtHub's schema). Lint and typecheck need it.
+- `pnpm install --frozen-lockfile` after cloning. `postinstall` runs `nuxt prepare`, which generates `.nuxt/` (types, the ESLint config, Better Auth's and NuxtHub's schema). Lint, typecheck and the server tests need it.
+- `.env` for `pnpm dev`: `NUXT_BETTER_AUTH_SECRET` (any 32+ characters locally), and the platform admin variables to seed one.
 
 ## Commands
 
@@ -25,6 +26,9 @@ Commands, tests and the checks to run before a pull request.
 | `pnpm test:changed` | `unit` + `server` tests affected by changes since `origin/main` |
 | `pnpm test:e2e` | The `e2e` project (harness arrives in M1.6; fails with "no test files" until then) |
 | `pnpm audit --audit-level high` | Dependency audit as CI runs it |
+| `npx nuxt db generate` | A migration after a schema change ([operations → Migrations](../server/operations.md#migrations)) |
+| `npx nuxt task run identity:seed-platform-admin` | The first platform admin in the local database, with `pnpm dev` running ([operations](../server/operations.md#first-platform-admin)) |
+| `pnpm admin:sql` | The first platform admin of a deployed database, as SQL |
 
 ## Tests
 

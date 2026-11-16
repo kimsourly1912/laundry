@@ -114,6 +114,8 @@ jobs:
           set -eu
           # The Worker answers and reaches its database (a new custom domain can take a minute).
           curl --fail --silent --show-error --retry 10 --retry-delay 6 --retry-all-errors "$STAGING_URL/api/health" | grep -q '"ok"'
+          # Better Auth answers (the Worker has its NUXT_BETTER_AUTH_SECRET): signed out is our JSON 401, not a 500.
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$STAGING_URL/api/me")" = 401
           # An unknown API path is our JSON 404, not the app's HTML.
           test "$(curl --silent --output /dev/null --write-out '%{http_code}' "$STAGING_URL/api/does-not-exist")" = 404
           # The app shell loads with the security headers.

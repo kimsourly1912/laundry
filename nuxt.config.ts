@@ -66,7 +66,7 @@ const RATE_LIMITS = [
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
-  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxt/a11y'],
+  modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxtjs/better-auth', '@nuxt/a11y'],
   $env: {
     // `--envName staging` replaces `$production` (one environment block applies), so the security
     // headers are repeated here. The production block is named `prod`, never `production`: without
