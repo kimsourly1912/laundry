@@ -35,7 +35,7 @@ Every `UForm` sets `:validate-on="['input', 'change']"`.
 ## 4. Errors
 
 - **An error appears** when the value changes or the form is submitted, never because a field was left.
-- **An error leaves as soon as it's fixed**, also a rule across fields (fixing either field clears it). The form re-checks fields that show a schema error after each change (`useFormErrorRecheck(form)`: the form's ref).
+- **An error leaves as soon as it's fixed**, also a rule across fields (fixing either field clears it). The form re-checks fields that show an error from its own rules (its `schema`, or its `validate` function) after each change (`useFormErrorRecheck(form)`: the form's ref).
 - **A server's field error** (`fieldErrors` in the response, e.g. a phone already used by another customer) is set on its field and stays until that field is edited or the form is sent again.
 - **A failed submit goes to the first error:** the first invalid field in page order scrolls into view and takes focus (`@error="focusFirstError"` on every `UForm`).
 - **Rows with their own errors** (order lines) name errors by position (`lines.2.quantity`). Removing or moving a row must move its errors with it, so the next row doesn't inherit an error (a shared composable when the first row list is built, M2.3).

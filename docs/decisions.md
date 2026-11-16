@@ -300,3 +300,33 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Building `tickets` now without slips or batches (a table half-specified until M3). Partial payments (a `payments` table; the spec has none). Letting a paid order's total change and marking it unpaid again (silently turns a paid order into a debt). Storing the full first response (stale on replay). Auditing every order action twice (`audit_events` and `order_events`).
 
 **Consequences.** M3.1 owns the backfill of tickets for orders made before it. A shop that wants to change a paid order cancels it and makes a new one. The customer page shows the customer's latest 10 orders (`?customerId=` on the order list).
+
+## D25. The paper-slip flow and slip templates
+
+**Context.** Testing M2.3 with the owner's eyes: a shop owner shouldn't have to learn our process. Shops already work from a paper slip, a grid of clothing items with a box for each, a service tick, an amount and paid / not paid. The platform runs each shop as a managed service: the super admin sets a shop up to match its slip, and the owner only takes orders. This changes the spec's shop flow (§4, §8.1), by the owner's choice.
+
+**Decision.**
+- **The platform sets shops up from slip templates.** A template is a ready-made price list (services, items in slip order, a price per item and service, a currency), kept by the platform (`/api/platform/templates`, `template: ['read', 'write']`).
+- **A shop gets a copy, not a link.** Creating a shop from a template writes the shop's own service types and price items in the same batch. A later template change never touches an existing shop's prices or its orders' totals; a fix to a template reaches only new shops.
+- **One JSON definition per template** (`slip_templates.definition`), validated by a shared Valibot schema, instead of service, item and price tables: it's read whole and copied once, never searched. The shop's copy goes into the real `service_types` / `price_items` tables, so orders keep their constraints.
+- **Mobile first for the shop app**: content up to 640px wide, centred on larger screens; the platform's editors (templates, later the receipt designer) use the full width.
+- **Next** (separate PRs): the owner's two pages (a slip-like order form and an orders board), then a receipt image rendered from a design bound to order data and sent on Telegram. Rendering was checked first: resvg (WebAssembly) on Workers shapes Khmer correctly over a background image; a render costs ~350 ms of CPU (Workers Paid plan).
+
+**Alternatives.** Live templates that shops follow (one edit silently reprices many shops). Template tables per service, item and price (more joins, no query needs them). A default list hard-coded in the app (no per-shop slip). Keeping the owner as the one who builds the price list (the cost the owner wants gone).
+
+**Consequences.** The super admin needs a way to change a shop's slip after it's created (D26). The template editor starts from a usual Phnom Penh slip (wash & iron, dry clean, iron × common items) to save typing; its Khmer names need the owner's review.
+
+## D26. The platform keeps each shop's price list
+
+**Context.** D25 makes the owner an end user: the platform sets the shop up and makes later changes on request (feedback, new items, price changes). The rule so far was "the platform admin never reads shop data" (spec §5), and the owner held `price: ['write']`.
+
+**Decision.**
+- **The owner reads the price list and never changes it** (`price: ['read']` only). Changes go through the platform.
+- **The super admin keeps a shop's price list** through platform routes, `/api/platform/shops/:shopId/service-types|price-items` (platform `price: ['read', 'write']`). The shop comes from the path, checked to exist (404 otherwise, `platformShopActor`); the same pricing services and guards run, and the audit row lands in **that shop's** history with the admin as actor.
+- **The rule narrows, it doesn't go:** a super admin still never reads a shop's orders or customers, and `/api/shop/**` still answers them `403 NO_SHOP`. A price list is configuration the platform sets, not the shop's customers' data.
+- The app shows the same price list pages in both places; a scope (`providePlatformPriceScope`) says where they read, write and link.
+
+**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes).
+
+**Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
+

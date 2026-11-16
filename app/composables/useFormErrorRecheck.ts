@@ -15,20 +15,26 @@ interface StandardSchema {
 interface FormLike {
   getErrors: () => { name?: string, message: string }[]
   validate: (options: { name: string[], silent: true }) => Promise<unknown>
-  $props: { schema?: unknown, state?: unknown }
+  $props: { schema?: unknown, state?: unknown, validate?: (state: unknown) => { name?: string, message: string }[] | Promise<{ name?: string, message: string }[]> }
 }
 
 const key = (name: string | undefined, message: string) => `${name ?? ''}\u0000${message}`
 
-/** The schema's errors for a state, named the way `UForm` names them (`modifiers.1.name`). */
-async function schemaErrors(schema: unknown, state: unknown) {
+/**
+ * The form's own errors for its state, named the way `UForm` names them (`modifiers.1.name`): its
+ * schema's, and its `validate` function's (a form checked by code, like a price grid).
+ */
+async function schemaErrors(props: FormLike['$props']) {
+  const { schema, state, validate } = props
   const standard = (schema as Partial<StandardSchema> | undefined)?.['~standard']
-  if (!standard) return []
-  const result = await standard.validate(state)
-  return (result.issues ?? []).map(issue => ({
-    name: (issue.path ?? []).map(part => String(typeof part === 'object' ? part.key : part)).join('.'),
-    message: issue.message,
-  }))
+  const fromSchema = standard
+    ? ((await standard.validate(state)).issues ?? []).map(issue => ({
+        name: (issue.path ?? []).map(part => String(typeof part === 'object' ? part.key : part)).join('.'),
+        message: issue.message,
+      }))
+    : []
+  const fromValidate = validate ? await validate(state) : []
+  return [...fromSchema, ...fromValidate]
 }
 
 /**
@@ -56,7 +62,7 @@ export function useFormErrorRecheck(formRef: MaybeRefOrGetter<object | null | un
   watch(() => form()?.getErrors().map(e => key(e.name, e.message)).join('\n'), async (shown) => {
     const instance = form()
     if (!instance || !shown) return
-    const confirmed = new Set((await schemaErrors(instance.$props.schema, instance.$props.state)).map(e => key(e.name, e.message)))
+    const confirmed = new Set((await schemaErrors(instance.$props)).map(e => key(e.name, e.message)))
     for (const error of instance.getErrors()) {
       if (confirmed.has(key(error.name, error.message))) fromSchema.add(key(error.name, error.message))
     }

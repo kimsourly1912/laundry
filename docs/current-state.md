@@ -16,11 +16,15 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | M2.1 Shop settings + pricing | Done: `/api/shop/settings` (currency locked once prices exist), service types and price items with archive (migration `0003`, composite FK, caps), settings and price list screens, money formatter + lint rule, unsaved-changes guard, the super admin's 403 over HTTP (e2e). D22 |
 | M2.2 Customers | Done: `/api/shop/customers` (search by name or phone digits, pages), create, edit, anonymize; phones in E.164 (`libphonenumber-js`), one per shop by a partial unique index (migration `0004`); list and customer screens; shop route statements pinned to spec §9. D23 |
 | M2.3 Orders | Done: `/api/shop/orders` (create with `Idempotency-Key`, list with status, payment, search and customer filters, detail, edit lines and note, start / ready / rework / collect / cancel, payment with `Idempotency-Key`), `/api/shop/today`; `order_counters`, `orders`, `order_lines`, `order_events`, `idempotency_keys` (migration `0005`), the daily key purge job; new-order flow with the customer picker, order list, order page, edit page, Today, a customer's orders, the bottom bar. D24 |
-| M3.1 Ticket batches | **Next** |
+| New flow A: slip templates + shop setup | Done: `slip_templates` (migration `0006`), `/api/platform/templates`, template editor (item × service price grid), create shop from a template (a copy, in its currency), the platform keeps each shop's price list (`/api/platform/shops/:shopId/…`), owner reads prices only. D25, D26 |
+| New flow B: the owner's two pages | **Next** |
 
-## Next step: M3.1 Ticket batches
+## The new flow (D25), replacing spec §18 from here
 
-Ticket batches, printable A4 sheet (8 slips), void (spec §6, §8.1, §9 → Platform). Adds `tickets` and `ticket_batches`, `uqr`, and gives every order made before it a generated ticket (D24). **Before that: show a real shop** (spec §18, after M2.3).
+The owner tested M2.3 and chose a simpler, managed flow: the platform sets each shop up from a slip template; the owner only takes orders. Plan, one PR each:
+
+- **B. The owner's two pages** (mobile first, 640px): a one-screen order form shaped like the paper slip (phone optional, steppers per item, service tabs, paid / not paid), an orders board (Waiting / Ready / Collected, one big button; "paid and collected" in one tap), "More" for the rest and a contact-support link. The wizard and Today go. Walk-in orders (no customer) and phone-only customers.
+- **C. Receipt to Telegram:** the admin designs a receipt per template / shop (the slip's artwork as background + fields bound to order data), rendered to PNG on the server (resvg; Khmer checked), a QR on the staff screen to link Telegram, and status messages. Replaces M3.1–M4.3 as planned; printed QR slips later if shops want them.
 
 ## Not built yet (on purpose)
 
@@ -35,6 +39,7 @@ Ticket batches, printable A4 sheet (8 slips), void (spec §6, §8.1, §9 → Pla
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
 | Q7 | A paid order's lines are locked (D24): is "cancel and make a new order" acceptable at the counter, or are partial payments / top-ups needed? | Owner, with a real shop | Nothing now |
+| Q8 | Rendering the receipt costs ~350 ms of CPU: is the Cloudflare account on Workers Paid (the free plan allows 10 ms)? | Owner | PR C |
 
 ## Owner notes
 

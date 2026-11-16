@@ -59,6 +59,20 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/shops/[shopId]/resume.post.ts': `{ shop: ['suspend'] }`,
   'platform/shops/[shopId]/owner/reset-password.post.ts': `{ owner: ['reset-password'] }`,
   'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
+  'platform/shops/[shopId]/service-types/index.get.ts': `{ price: ['read'] }`,
+  'platform/shops/[shopId]/service-types/index.post.ts': `{ price: ['write'] }`,
+  'platform/shops/[shopId]/service-types/[id].patch.ts': `{ price: ['write'] }`,
+  'platform/shops/[shopId]/service-types/[id].delete.ts': `{ price: ['write'] }`,
+  'platform/shops/[shopId]/price-items/index.get.ts': `{ price: ['read'] }`,
+  'platform/shops/[shopId]/price-items/index.post.ts': `{ price: ['write'] }`,
+  'platform/shops/[shopId]/price-items/[id].patch.ts': `{ price: ['write'] }`,
+  'platform/shops/[shopId]/price-items/[id].delete.ts': `{ price: ['write'] }`,
+  'platform/templates/index.get.ts': `{ template: ['read'] }`,
+  'platform/templates/index.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[templateId].get.ts': `{ template: ['read'] }`,
+  'platform/templates/[templateId].patch.ts': `{ template: ['write'] }`,
+  'platform/templates/[templateId]/archive.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[templateId]/restore.post.ts': `{ template: ['write'] }`,
 }
 
 /**

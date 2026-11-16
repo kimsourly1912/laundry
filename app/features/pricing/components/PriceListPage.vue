@@ -4,8 +4,7 @@
  * the shop's currency. Archived entries on their own tab. Edits open their own page (Back works).
  */
 import type { PriceStatus } from '#shared/contracts/pricing'
-import { useShopSettings } from '~/features/shop-settings'
-import { usePriceItems, useServiceTypes } from '../composables/usePriceList'
+import { usePriceItems, usePriceScope, useServiceTypes } from '../composables/usePriceList'
 
 const { t, locale } = useI18n()
 const { can } = useSession()
@@ -15,20 +14,20 @@ const status = computed<PriceStatus>({
   get: () => (route.query.status === 'archived' ? 'archived' : 'active'),
   set: value => router.replace({ query: value === 'active' ? {} : { status: value } }),
 })
-const settings = useShopSettings()
+const scope = usePriceScope()
 // Items are grouped under every service type, archived ones included, so an item stays findable.
 const types = useServiceTypes('active')
 const archivedTypes = useServiceTypes('archived')
 const items = usePriceItems(status)
 
-const currency = computed(() => settings.data.value?.currency ?? 'KHR')
-const loading = computed(() => types.loading.value || archivedTypes.loading.value || items.loading.value || settings.loading.value)
-const error = computed(() => types.error.value ?? archivedTypes.error.value ?? items.error.value ?? settings.error.value)
+const currency = computed(() => scope.currency.value ?? 'KHR')
+const loading = computed(() => types.loading.value || archivedTypes.loading.value || items.loading.value || scope.loading.value)
+const error = computed(() => types.error.value ?? archivedTypes.error.value ?? items.error.value ?? scope.error.value)
 function retry() {
   void types.refresh()
   void archivedTypes.refresh()
   void items.refresh()
-  void settings.refresh()
+  scope.refresh()
 }
 
 const groups = computed(() => {
@@ -50,14 +49,22 @@ const writable = computed(() => can('price:write'))
     <template #header>
       <UDashboardNavbar :title="t('pricing.title')">
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <UButton
+            v-if="scope.back"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('platform.shop.title')"
+            :to="scope.back"
+          />
+          <UDashboardSidebarCollapse v-else />
         </template>
         <template #right>
           <UButton
             v-if="writable"
             :label="t('pricing.newItem')"
             icon="i-lucide-plus"
-            to="/prices/items/new"
+            :to="`${scope.pages}/items/new`"
           />
         </template>
       </UDashboardNavbar>
@@ -92,7 +99,7 @@ const writable = computed(() => can('price:write'))
         icon="i-lucide-tags"
         :title="status === 'active' ? t('pricing.empty') : t('pricing.emptyArchived')"
         :description="status === 'active' ? t('pricing.emptyDescription') : undefined"
-        :actions="status === 'active' && writable ? [{ label: t('pricing.newServiceType'), icon: 'i-lucide-plus', to: '/prices/types/new' }] : []"
+        :actions="status === 'active' && writable ? [{ label: t('pricing.newServiceType'), icon: 'i-lucide-plus', to: `${scope.pages}/types/new` }] : []"
       />
       <template v-else>
         <section
@@ -117,7 +124,7 @@ const writable = computed(() => can('price:write'))
             </h2>
             <UButton
               v-if="writable && group.type.status === 'active'"
-              :to="`/prices/types/${group.type.id}`"
+              :to="`${scope.pages}/types/${group.type.id}`"
               :label="t('pricing.editServiceType')"
               :aria-label="t('pricing.editServiceTypeNamed', { name: localName(group.type, locale) })"
               icon="i-lucide-pencil"
@@ -136,7 +143,7 @@ const writable = computed(() => can('price:write'))
             >
               <component
                 :is="writable && item.status === 'active' ? 'NuxtLink' : 'div'"
-                :to="writable && item.status === 'active' ? `/prices/items/${item.id}` : undefined"
+                :to="writable && item.status === 'active' ? `${scope.pages}/items/${item.id}` : undefined"
                 class="flex items-center justify-between gap-3 px-4 py-3"
                 :class="{ 'hover:bg-elevated/50': writable && item.status === 'active' }"
               >
@@ -163,7 +170,7 @@ const writable = computed(() => can('price:write'))
             icon="i-lucide-plus"
             color="neutral"
             variant="outline"
-            to="/prices/types/new"
+            :to="`${scope.pages}/types/new`"
           />
         </div>
       </template>

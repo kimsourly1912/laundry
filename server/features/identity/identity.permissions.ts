@@ -31,9 +31,10 @@ export const shopStatements = {
 export const shopAc = createAccessControl(shopStatements)
 
 export const shopRoles = {
+  // The platform keeps each shop's price list (D26): the owner reads it, never changes it.
   owner: shopAc.newRole({
     shop: ['read', 'update'],
-    price: ['read', 'write'],
+    price: ['read'],
     customer: ['read', 'write', 'anonymize'],
     order: ['read', 'create', 'update', 'transition', 'cancel'],
     payment: ['record'],
@@ -63,6 +64,10 @@ export const platformStatements = {
   shop: ['create', 'read', 'update', 'suspend'],
   owner: ['create', 'reset-password', 'revoke-sessions'],
   ticketBatch: ['create', 'read', 'void'],
+  // Slip templates (D25): ready-made price lists picked when creating a shop.
+  template: ['read', 'write'],
+  // A shop's price list, kept by the platform (D26), through /api/platform/shops/:shopId/…
+  price: ['read', 'write'],
 } as const
 
 export const platformAc = createAccessControl(platformStatements)
@@ -73,6 +78,8 @@ export const platformRoles = {
     shop: ['create', 'read', 'update', 'suspend'],
     owner: ['create', 'reset-password', 'revoke-sessions'],
     ticketBatch: ['create', 'read', 'void'],
+    template: ['read', 'write'],
+    price: ['read', 'write'],
   }),
 }
 

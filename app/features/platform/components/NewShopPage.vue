@@ -2,6 +2,7 @@
 /** New shop + owner (spec §4 task flow): saved together or not at all; then the shop's page. */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { PlatformShop } from '#shared/contracts/platform-shops'
+import type { TemplateList } from '#shared/contracts/templates'
 import { MIN_PASSWORD_LENGTH } from '#shared/contracts/identity'
 import type { NewShopForm } from '../schemas/shop-form'
 import { emptyNewShopForm, newShopFormSchema, slugFromName, toCreateShopRequest } from '../schemas/shop-form'
@@ -11,6 +12,21 @@ const schema = computed(() => newShopFormSchema(t))
 const state = reactive<NewShopForm>(emptyNewShopForm())
 const form = useTemplateRef('form')
 useFormErrorRecheck(form)
+
+// The slip templates to start from (D25); with exactly one, it's chosen already.
+const templates = useApiQuery('platform:templates:active', () => apiFetch<TemplateList>('/platform/templates'))
+const NO_TEMPLATE = 'none'
+const templateOptions = computed(() => [
+  ...(templates.data.value?.items ?? []).map(template => ({ label: template.name, description: t('platform.templates.counts', { services: template.serviceCount, items: template.itemCount }), value: template.id })),
+  { label: t('platform.newShop.noTemplate'), value: NO_TEMPLATE },
+])
+const templateChoice = computed({
+  get: () => state.templateId || NO_TEMPLATE,
+  set: (value: string) => { state.templateId = value === NO_TEMPLATE ? '' : value },
+})
+watch(() => templates.data.value, (list) => {
+  if (list?.items.length === 1 && !state.templateId) state.templateId = list.items[0]!.id
+}, { immediate: true })
 
 // The short name follows the shop's name until it's typed by hand.
 const slugEdited = ref(false)
@@ -100,6 +116,24 @@ async function onSubmit(event: FormSubmitEvent<NewShopForm>) {
               spellcheck="false"
               class="w-full"
               @update:model-value="slugEdited = true"
+            />
+          </UFormField>
+        </UPageCard>
+
+        <UPageCard
+          :title="t('platform.newShop.priceSection')"
+          :description="t('platform.newShop.priceSectionDescription')"
+          variant="subtle"
+        >
+          <UFormField
+            :label="t('platform.newShop.template')"
+            name="templateId"
+          >
+            <USelect
+              v-model="templateChoice"
+              :items="templateOptions"
+              :loading="templates.loading.value"
+              class="w-full"
             />
           </UFormField>
         </UPageCard>

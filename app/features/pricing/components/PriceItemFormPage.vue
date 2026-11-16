@@ -6,22 +6,21 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { PriceItem } from '#shared/contracts/pricing'
 import { PRICE_UNITS } from '#shared/contracts/pricing'
-import { useShopSettings } from '~/features/shop-settings'
-import { usePriceItems, useServiceTypes } from '../composables/usePriceList'
+import { usePriceItems, usePriceScope, useServiceTypes } from '../composables/usePriceList'
 import type { PriceItemForm } from '../schemas/price-form'
 import { priceItemFormSchema, toPriceItemForm, toPriceItemRequest } from '../schemas/price-form'
 
 const props = defineProps<{ id?: string }>()
 const { t, te, locale } = useI18n()
 const route = useRoute()
-const settings = useShopSettings()
+const scope = usePriceScope()
 const types = useServiceTypes('active')
 const items = usePriceItems('active')
-const currency = computed(() => settings.data.value?.currency ?? 'KHR')
+const currency = computed(() => scope.currency.value ?? 'KHR')
 const record = computed(() => (props.id ? items.data.value?.items.find(item => item.id === props.id) : undefined))
 const missing = computed(() => Boolean(props.id && items.data.value && !record.value))
-const ready = computed(() => settings.data.value && types.data.value && (!props.id || record.value))
-const loadError = computed(() => settings.error.value ?? types.error.value ?? items.error.value)
+const ready = computed(() => scope.currency.value && types.data.value && (!props.id || record.value))
+const loadError = computed(() => scope.error.value ?? types.error.value ?? items.error.value)
 
 const schema = computed(() => priceItemFormSchema(t, currency.value))
 const state = reactive<PriceItemForm>(toPriceItemForm(undefined, 'KHR'))
@@ -29,22 +28,22 @@ const baseline = ref('')
 const form = useTemplateRef('form')
 useFormErrorRecheck(form)
 // Filled once the item and the currency are known; a new item starts in the service type it was asked from.
-watch([record, () => settings.data.value], ([item, value]) => {
+watch([record, () => scope.currency.value], ([item, value]) => {
   if (!value || (props.id && !item)) return
-  Object.assign(state, toPriceItemForm(item, value.currency))
+  Object.assign(state, toPriceItemForm(item, value))
   if (!item && typeof route.query.type === 'string') state.serviceTypeId = route.query.type
   baseline.value = JSON.stringify(state)
 }, { immediate: true })
 const dirty = computed(() => baseline.value !== '' && JSON.stringify(state) !== baseline.value)
 
 const save = useMutation((body: PriceItemForm) => (record.value
-  ? apiFetch<PriceItem>(`/shop/price-items/${record.value.id}`, { method: 'PATCH', body: { ...toPriceItemRequest(body, currency.value), version: record.value.version } })
-  : apiFetch<PriceItem>('/shop/price-items', { method: 'POST', body: toPriceItemRequest(body, currency.value) })), {
+  ? apiFetch<PriceItem>(`${scope.api}/price-items/${record.value.id}`, { method: 'PATCH', body: { ...toPriceItemRequest(body, currency.value), version: record.value.version } })
+  : apiFetch<PriceItem>(`${scope.api}/price-items`, { method: 'POST', body: toPriceItemRequest(body, currency.value) })), {
   inline: true,
   invalidate: ['pricing', 'shop-settings'],
   success: () => t('pricing.saved'),
 })
-const archive = useMutation(() => apiFetch<PriceItem>(`/shop/price-items/${record.value!.id}`, { method: 'DELETE', query: { version: record.value!.version } }), {
+const archive = useMutation(() => apiFetch<PriceItem>(`${scope.api}/price-items/${record.value!.id}`, { method: 'DELETE', query: { version: record.value!.version } }), {
   invalidate: ['pricing'],
   success: () => t('pricing.archivedDone'),
 })
@@ -56,7 +55,7 @@ async function onSubmit(event: FormSubmitEvent<PriceItemForm>) {
   const result = await save.execute(event.data)
   if (result.ok) {
     baseline.value = JSON.stringify(state)
-    return navigateTo('/prices')
+    return navigateTo(scope.pages)
   }
   if (result.error.fieldErrors) {
     form.value?.setErrors(formErrors(result.error.fieldErrors).map(error => ({ ...error, message: te(`errors.code.${result.error.code}`) ? t(`errors.code.${result.error.code}`) : error.message })))
@@ -66,7 +65,7 @@ async function onSubmit(event: FormSubmitEvent<PriceItemForm>) {
 async function onArchive() {
   const result = await archive.execute(undefined)
   confirming.value = false
-  if (result.ok) await navigateTo('/prices')
+  if (result.ok) await navigateTo(scope.pages)
 }
 
 const typeOptions = computed(() => (types.data.value?.items ?? []).map(type => ({ label: localName(type, locale.value), value: type.id })))
@@ -84,7 +83,7 @@ const priceLabel = computed(() => t(state.unit === 'kg' ? 'pricing.pricePerKg' :
             color="neutral"
             variant="ghost"
             :aria-label="t('pricing.back')"
-            to="/prices"
+            :to="scope.pages"
           />
         </template>
       </UDashboardNavbar>
@@ -96,12 +95,12 @@ const priceLabel = computed(() => t(state.unit === 'kg' ? 'pricing.pricePerKg' :
           v-if="missing"
           icon="i-lucide-tags"
           :title="t('pricing.notFound')"
-          :actions="[{ label: t('pricing.back'), color: 'neutral', variant: 'outline', to: '/prices' }]"
+          :actions="[{ label: t('pricing.back'), color: 'neutral', variant: 'outline', to: scope.pages }]"
         />
         <PageLoadError
           v-else-if="loadError && !ready"
           :error="loadError"
-          @retry="() => { settings.refresh(); types.refresh(); items.refresh() }"
+          @retry="() => { scope.refresh(); types.refresh(); items.refresh() }"
         />
         <USkeleton
           v-else-if="!ready"
@@ -111,7 +110,7 @@ const priceLabel = computed(() => t(state.unit === 'kg' ? 'pricing.pricePerKg' :
           v-else-if="!typeOptions.length"
           icon="i-lucide-tags"
           :title="t('pricing.needServiceType')"
-          :actions="[{ label: t('pricing.newServiceType'), icon: 'i-lucide-plus', to: '/prices/types/new' }]"
+          :actions="[{ label: t('pricing.newServiceType'), icon: 'i-lucide-plus', to: `${scope.pages}/types/new` }]"
         />
         <UForm
           v-else

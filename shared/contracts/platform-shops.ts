@@ -1,6 +1,7 @@
 import * as v from 'valibot'
-import { nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
+import { idSchema, nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
 import { passwordSchema, usernameSchema } from './identity'
+import type { Currency } from './shop-settings'
 
 /**
  * The platform's shops (`/api/platform/shops`, spec §9, step M1.5): a super admin creates a shop
@@ -36,6 +37,8 @@ export const createShopSchema = v.strictObject({
     /** Temporary: the owner must change it at the first sign-in. */
     password: passwordSchema,
   }),
+  /** The slip template to copy the price list and currency from (D25); none: an empty price list in riel. */
+  templateId: v.optional(idSchema),
 })
 export type CreateShopInput = v.InferOutput<typeof createShopSchema>
 
@@ -81,6 +84,8 @@ export interface PlatformShop {
   createdAt: string
   /** Send it back with every change (409 when someone changed the shop meanwhile). */
   version: number
+  /** The shop's prices are in this currency (shown with its price list, D26). */
+  currency: Currency
   /** `null` only if the shop lost its owner (never by our routes). */
   owner: ShopOwner | null
 }

@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements, isKnownPermission, platformStatements, shopStatements } from '#server/features/identity/identity.permissions'
 
 describe('shop roles (spec §5)', () => {
-  it('give the owner every shop statement', () => {
+  it('give the owner every shop statement but changing prices: the platform keeps the price list (D26)', () => {
     expect(grantedShopStatements('owner').sort()).toEqual([
       'customer:anonymize', 'customer:read', 'customer:write',
       'order:cancel', 'order:create', 'order:read', 'order:transition', 'order:update',
-      'payment:record', 'price:read', 'price:write', 'report:read', 'shop:read', 'shop:update', 'ticket:bind',
+      'payment:record', 'price:read', 'report:read', 'shop:read', 'shop:update', 'ticket:bind',
     ])
   })
 
@@ -31,7 +31,9 @@ describe('platform roles', () => {
   it('give the super admin the platform statements and nothing of Better Auth\'s admin endpoints', () => {
     expect(grantedPlatformStatements('superadmin').sort()).toEqual([
       'owner:create', 'owner:reset-password', 'owner:revoke-sessions',
+      'price:read', 'price:write',
       'shop:create', 'shop:read', 'shop:suspend', 'shop:update',
+      'template:read', 'template:write',
       'ticketBatch:create', 'ticketBatch:read', 'ticketBatch:void',
     ])
     expect(grantedPlatformStatements('user')).toEqual([])
