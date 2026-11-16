@@ -59,6 +59,7 @@ The `staff` role exists in the map but is not assignable until Phase 2 (spec P3)
 | shop | create, read, update, suspend |
 | owner | create, reset-password, revoke-sessions |
 | ticketBatch | create, read, void |
+| template | read, write ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)) |
 
 Rules:
 - **Platform statements never grant shop statements.** A super admin calling `/api/shop/**` gets `403 NO_SHOP`.

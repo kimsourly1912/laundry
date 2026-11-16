@@ -43,6 +43,13 @@
       "when": 1794817483511,
       "tag": "0005_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794823116686,
+      "tag": "0006_slip_templates",
+      "breakpoints": true
     }
   ]
 }

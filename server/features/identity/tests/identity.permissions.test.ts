@@ -32,6 +32,7 @@ describe('platform roles', () => {
     expect(grantedPlatformStatements('superadmin').sort()).toEqual([
       'owner:create', 'owner:reset-password', 'owner:revoke-sessions',
       'shop:create', 'shop:read', 'shop:suspend', 'shop:update',
+      'template:read', 'template:write',
       'ticketBatch:create', 'ticketBatch:read', 'ticketBatch:void',
     ])
     expect(grantedPlatformStatements('user')).toEqual([])

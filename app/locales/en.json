@@ -61,7 +61,10 @@
       "ORDER_PAID": "This order is paid, so its lines can't change.",
       "ORDER_UNPAID": "This order isn't paid yet.",
       "ALREADY_PAID": "This order is already paid.",
-      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again."
+      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
+      "TEMPLATE_NAME_TAKEN": "Another template has this name.",
+      "TEMPLATE_UNAVAILABLE": "This template is archived. Choose another.",
+      "TEMPLATE_LIST_FULL": "Too many active templates. Archive some first."
     }
   },
   "account": {
@@ -232,7 +235,8 @@
   },
   "platform": {
     "nav": {
-      "shops": "Shops"
+      "shops": "Shops",
+      "templates": "Templates"
     },
     "shops": {
       "title": "Shops",
@@ -296,6 +300,57 @@
       "resumeDescription": "The owner can use the shop again.",
       "resumed": "The shop was resumed.",
       "notFound": "This shop doesn't exist."
+    },
+    "templates": {
+      "title": "Templates",
+      "new": "New template",
+      "back": "Templates",
+      "tabs": {
+        "active": "Active",
+        "archived": "Archived"
+      },
+      "empty": "No templates yet",
+      "emptyDescription": "A template is a ready-made price list: its services, its clothing items and their prices. Pick one when you create a shop.",
+      "noArchived": "No archived templates",
+      "counts": "{services} services · {items} items",
+      "updated": "Updated {date}",
+      "notFound": "This template doesn't exist.",
+      "description": "List the services and clothing items in the order the shop's paper slip has them, then give each item a price in each service it's offered in. A new shop gets its own copy: changing this template later doesn't change shops already made from it.",
+      "archivedNotice": "This template is archived: it isn't offered when creating a shop. Restore it to change it.",
+      "name": "Template name",
+      "currency": "Currency",
+      "currencyHelp": "The new shop's currency.",
+      "services": "Services",
+      "servicesHelp": "Like wash & iron, dry clean, iron only. Staff choose one per line.",
+      "items": "Clothing items",
+      "itemsHelp": "The rows of the slip, like shirt, pants, coat. Choose kg for items weighed.",
+      "nameEn": "English name",
+      "nameKm": "Khmer name",
+      "serviceNameEn": "Service {n}, English name",
+      "serviceNameKm": "Service {n}, Khmer name",
+      "itemNameEn": "Item {n}, English name",
+      "itemNameKm": "Item {n}, Khmer name",
+      "unit": "Unit of {name}",
+      "unnamed": "#{n}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "remove": "Remove {name}",
+      "addService": "Add a service",
+      "addItem": "Add an item",
+      "prices": "Prices",
+      "pricesHelp": "In {currency}, per piece or per kg. Leave a cell empty where the item isn't offered.",
+      "item": "Item",
+      "priceOf": "Price of {item}, {service}",
+      "needService": "Add at least one service",
+      "needItem": "Add at least one item",
+      "needPrice": "Give at least one price",
+      "saved": "The template was saved.",
+      "archive": "Archive",
+      "archiveConfirm": "Archive {name}?",
+      "archiveDescription": "It won't be offered when creating a shop. Shops already made from it keep their prices. You can restore it later.",
+      "archivedDone": "The template was archived.",
+      "restore": "Restore",
+      "restoredDone": "The template was restored."
     }
   },
   "orders": {

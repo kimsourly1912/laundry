@@ -63,6 +63,8 @@ export const platformStatements = {
   shop: ['create', 'read', 'update', 'suspend'],
   owner: ['create', 'reset-password', 'revoke-sessions'],
   ticketBatch: ['create', 'read', 'void'],
+  // Slip templates (D25): ready-made price lists picked when creating a shop.
+  template: ['read', 'write'],
 } as const
 
 export const platformAc = createAccessControl(platformStatements)
@@ -73,6 +75,7 @@ export const platformRoles = {
     shop: ['create', 'read', 'update', 'suspend'],
     owner: ['create', 'reset-password', 'revoke-sessions'],
     ticketBatch: ['create', 'read', 'void'],
+    template: ['read', 'write'],
   }),
 }
 

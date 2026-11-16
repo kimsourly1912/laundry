@@ -176,6 +176,21 @@ Rules (service, inside the batch):
 `notifications` (the outbox): `id`, `shop_id`, `order_id`, `customer_id`, `chat_id`, `kind` (`order_ready` \| `order_collected` \| `reminder` \| `link_confirmed`), `dedupe_key` **UNIQUE**, `status` (`pending` \| `sent` \| `failed` \| `skipped`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
 - Sent and skipped rows purged after 90 days.
 
+## `slip_templates` (owner: `templates`)
+
+**Status:** Built (migration `0006_slip_templates`, D25).
+
+`slip_templates`: `id`, `name`, `currency` (`KHR` \| `USD`), `definition` (JSON), `status` (`active` \| `archived`), `version`, timestamps.
+- **Platform-owned: no `shop_id`.** A shop never reads a template; it gets a copy when it's created ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)).
+- UNIQUE `lower(name)`: the admin picks a template by name. Index `(status, name)`.
+- CHECKs on `status`, `currency`, `json_valid(definition)`.
+- `definition` is `{ services: [{ key, nameEn, nameKm }], items: [{ key, nameEn, nameKm, unit }], prices: [{ service, item, price }] }`, in slip order, checked by `templateDefinitionSchema` on every write (unique keys, prices naming known keys, one price per pair). It's read whole and copied, never queried inside, so one JSON column is simpler than three tables. Keys live only inside the template.
+
+Rules (service, inside the batch):
+- **Archived, never deleted**; only an active template is edited, and only an active one is offered for a new shop.
+- At most **100 active templates** (`MAX_ACTIVE_TEMPLATES`), so the list is read whole.
+- Every write has a platform `audit_events` row (`template.create`, `.update`, `.archive`, `.restore`; `shop_id` null, target `template`).
+
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 
 **Status:** `audit_events` built (migration `0002_audit_events`, M1.5); `idempotency_keys` built (migration `0005_orders`, M2.3) ([D12](../decisions.md#d12-tables-arrive-with-their-first-user)).
@@ -205,6 +220,7 @@ Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_ty
 | Owner user | Never deleted while the shop exists. Banned / password reset |
 | Customer | Never deleted. Anonymized |
 | Service type, price item | Archived. Line FK is `set null` as a safety net |
+| Slip template | Archived. Shops keep their copy |
 | Order | Never deleted. Cancelled |
 | Ticket | Never deleted. Voided if lost before binding |
 | Notifications | Sent/skipped rows purged after 90 days |
