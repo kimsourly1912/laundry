@@ -2,7 +2,7 @@
 
 Shared rules for Claude Code, Codex and other coding agents.
 
-Laundry Portal is a platform for small laundry shops in Cambodia: orders, customers, pre-printed QR slips and Telegram notifications. The platform admin creates each shop and its owner; one user belongs to exactly one shop. One Nuxt 4 + Nitro app deployed as one Cloudflare Worker: NuxtHub (D1 in deployed environments, SQLite locally), Drizzle, Better Auth, Valibot, Nuxt UI 4 + Tailwind 4, `@nuxtjs/i18n`, grammY, pnpm, Vitest.
+Laundry is a platform for small laundry shops in Cambodia: orders, customers, pre-printed QR slips and Telegram notifications. The platform admin creates each shop and its owner; one user belongs to exactly one shop. One Nuxt 4 + Nitro app deployed as one Cloudflare Worker: NuxtHub (D1 in deployed environments, SQLite locally), Drizzle, Better Auth, Valibot, Nuxt UI 4 + Tailwind 4, `@nuxtjs/i18n`, grammY, pnpm, Vitest.
 
 ## Authority
 

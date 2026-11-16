@@ -11,11 +11,26 @@ Environments, configuration and secrets, migrations, deploys, scheduled jobs and
 | Env | Database | Telegram bot | Deploy | Status |
 |---|---|---|---|---|
 | local | SQLite file in `.data/` (NuxtHub) | optional dev bot + tunnel | `pnpm dev` | Exists |
-| staging | D1 `laundry-staging` | staging bot | automatic on merge to `main` | Not created |
-| production | D1 `laundry-production` | production bot | manual | Not created |
+| staging | D1 `laundry-staging` (APAC) | staging bot | `laundry-staging.angder.app`; automatic on merge to `main` | D1 created; Worker not deployed yet |
+| production | D1 `laundry-production` | production bot | `laundry.angder.app`; manual | Not created |
 
 - Staging and production share nothing: their own D1 database, secrets and bot.
-- Builds for each environment will be selected with `nuxt build --envName <env>` and `$env` blocks in `nuxt.config.ts` (NUK's pattern), added when the D1 databases exist. The block name for production is `prod`, not `production`: without `--envName`, a block named `production` would apply to every plain production build.
+- Each deployed environment is a `$env` block in `nuxt.config.ts`, built with `nuxt build --envName <env>` (`pnpm build:staging`). The block sets the `cloudflare_module` preset, the Worker name, its custom domain, public vars, cron triggers and the D1 database id. The production block will be named `prod`, not `production`: without `--envName`, a block named `production` would apply to every plain build.
+- **Domains** (D8): both are subdomains of `angder.app`, attached as Worker **custom domains** (`routes: [{ pattern, custom_domain: true }]`). `wrangler deploy` creates the DNS record and certificate on the first deploy; no manual DNS. `workers_dev` and preview URLs are off, so each Worker answers at one address only.
+- **Cloudflare account:** the same account as `angder.app` (it also holds NUK's Workers and databases). Laundry's resources all start with `laundry-`.
+
+### Staging
+
+| | |
+|---|---|
+| Worker | `laundry-staging` |
+| Domain | `https://laundry-staging.angder.app` |
+| D1 | `laundry-staging`, id `8e47c3e9-12e5-42ff-aee3-cfd41edc6439`, primary location APAC |
+| Build | `pnpm build:staging` (writes `.output/server/wrangler.json`) |
+| Migrations | `pnpm db:migrate:staging` (after a staging build) |
+| Deploy | CI on merge to `main` (job added in M1.3, with `/api/health` for its smoke check). `pnpm deploy:staging` also applies remote migrations and deploys: never use it for a build-only check |
+
+Before the first deploy, the owner adds two **GitHub Actions secrets** (repository → Settings → Secrets and variables → Actions): `CLOUDFLARE_API_TOKEN` (a token limited to this account with *Workers Scripts: Edit*, *D1: Edit*, *Workers Routes: Edit* and *Zone: DNS: Edit* on `angder.app`) and `CLOUDFLARE_ACCOUNT_ID`. Then the Worker secrets, once the code needs them: `wrangler secret put NUXT_BETTER_AUTH_SECRET --name laundry-staging` (M1.4), Telegram (M4).
 
 ## Configuration
 

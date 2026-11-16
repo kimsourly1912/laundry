@@ -75,3 +75,26 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Use each customer's Telegram language: unreliable and not available on the ticket page.
 
 **Consequences.** Spec §6 should add the column. Built with `shop_settings` in M1.5.
+
+## D7. Palette: sky and slate
+
+**Context.** Spec "Values to fill in" left the palette open. The owner accepted the recommendation (2026-11-16).
+
+**Decision.** `primary: 'sky'`, `neutral: 'slate'` in `app/app.config.ts` (already the placeholder).
+
+**Alternatives.** Teal + slate: also calm and clean; no strong reason over sky.
+
+**Consequences.** M1.6 measures contrast in light and dark mode; light-mode text shades that fail 4.5:1 get a darker `--ui-<color>` in `tailwind.css` ([ui §2](standards/ui.md#2-color-tokens)).
+
+## D8. Product name and domains
+
+**Context.** Spec "Values to fill in": product name and domain. The owner chose the name **Laundry** and a subdomain of their existing `angder.app` (2026-11-16), in the same Cloudflare account as NUK.
+
+**Decision.**
+- Production: `laundry.angder.app`. Staging: `laundry-staging.angder.app`.
+- Each is a Worker custom domain, created by `wrangler deploy`; `workers_dev` and preview URLs off.
+- Staging D1 `laundry-staging` created in APAC (near Cambodia).
+
+**Alternatives.** `staging.laundry.angder.app`: a second-level subdomain, which Cloudflare's free Universal SSL certificate (`*.angder.app`) doesn't cover; it would need an advanced certificate. `laundry-staging` stays one level deep.
+
+**Consequences.** `NUXT_PUBLIC_SITE_URL` per environment is set in its `$env` block as a public var. Laundry shares the account with NUK: every laundry resource is named `laundry-*`, and the CI token should be scoped to what laundry deploys.

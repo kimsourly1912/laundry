@@ -1,4 +1,4 @@
-# Laundry Portal
+# Laundry
 
 A platform for small laundry shops: orders, customers, QR slips and Telegram notifications.
 One Nuxt 4 application deployed as a Cloudflare Worker with D1; local development uses Node.js and SQLite.

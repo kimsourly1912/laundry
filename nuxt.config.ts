@@ -42,9 +42,50 @@ function deployedSecurityRules() {
   }
 }
 
+/**
+ * Staging on Cloudflare (docs/server/operations.md → Environments): `nuxt build --envName staging`
+ * builds a Worker served only at its own domain, with its own D1 database. Secrets are Worker
+ * secrets, never in this file. Production (`laundry.angder.app`) gets its own block and database.
+ */
+const STAGING = {
+  worker: 'laundry-staging',
+  domain: 'laundry-staging.angder.app',
+  siteUrl: 'https://laundry-staging.angder.app',
+  d1DatabaseId: '8e47c3e9-12e5-42ff-aee3-cfd41edc6439',
+}
+
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxt/a11y'],
+  $env: {
+    // `--envName staging` replaces `$production` (one environment block applies), so the security
+    // headers are repeated here. The production block is named `prod`, never `production`: without
+    // `--envName`, c12 uses NODE_ENV, and a block named `production` would apply to every plain build.
+    staging: {
+      routeRules: deployedSecurityRules(),
+      nitro: {
+        preset: 'cloudflare_module',
+        cloudflare: {
+          wrangler: {
+            name: STAGING.worker,
+            // Served only at its own domain: no second workers.dev or preview origin.
+            routes: [{ pattern: STAGING.domain, custom_domain: true }],
+            workers_dev: false,
+            preview_urls: false,
+            observability: { enabled: true },
+            // Public, not secret: Better Auth's base URL and the only trusted origin.
+            vars: { NUXT_PUBLIC_SITE_URL: STAGING.siteUrl },
+            // Cloudflare calls the Worker on these; Nitro runs the matching tasks.
+            triggers: { crons: Object.keys(SCHEDULED_TASKS) },
+          },
+        },
+      },
+      hub: {
+        // NuxtHub binds the database as `DB` and points D1 at our migrations.
+        db: { dialect: 'sqlite', casing: 'snake_case', connection: { databaseId: STAGING.d1DatabaseId } },
+      },
+    },
+  },
   $production: {
     // Production builds only: the Vite dev server needs inline scripts and a websocket.
     routeRules: deployedSecurityRules(),
@@ -55,7 +96,7 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   app: {
     head: {
-      title: 'Laundry Portal',
+      title: 'Laundry',
       htmlAttrs: { lang: 'en' },
     },
   },

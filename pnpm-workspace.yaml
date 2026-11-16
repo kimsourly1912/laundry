@@ -2,6 +2,7 @@ allowBuilds:
   esbuild: true
   unrs-resolver: true
   vue-demi: true
+  workerd: true
 # tinypool (oxfmt, used by lint only): forced to a patched version for GHSA-5gmw-xhrv-c9v3 and
 # GHSA-85c8-ppgw-ccpr (critical), which its parent pins. Remove once oxfmt ships a patched tinypool.
 overrides:
