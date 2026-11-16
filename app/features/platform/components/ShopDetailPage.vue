@@ -178,6 +178,23 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
           </UPageCard>
 
           <UPageCard
+            v-if="can('price:read')"
+            :title="t('platform.shop.priceList')"
+            :description="t('platform.shop.priceListDescription', { currency: t(`settings.currencies.${current.currency}`) })"
+            variant="subtle"
+          >
+            <div>
+              <UButton
+                :label="t('platform.shop.openPriceList')"
+                icon="i-lucide-tags"
+                color="neutral"
+                variant="outline"
+                :to="`/platform/shops/${current.id}/prices`"
+              />
+            </div>
+          </UPageCard>
+
+          <UPageCard
             :title="t('platform.shop.owner')"
             variant="subtle"
           >

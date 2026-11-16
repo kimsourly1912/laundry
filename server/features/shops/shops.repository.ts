@@ -23,6 +23,7 @@ const shopColumns = {
   name: organization.name,
   slug: organization.slug,
   status: shopSettings.status,
+  currency: shopSettings.currency,
   version: shopSettings.version,
   createdAt: organization.createdAt,
 }
@@ -32,6 +33,7 @@ export interface ShopRow {
   name: string
   slug: string
   status: ShopStatus
+  currency: Currency
   version: number
   createdAt: Date
 }
@@ -59,13 +61,15 @@ export async function listShops(db: Db, query: ShopListQuery): Promise<{ rows: S
 
 interface NewSettings {
   shopId: string
+  /** The template's (D25); the default (riel) without one. */
+  currency?: Currency
   now: Date
 }
 
 /** A new shop's settings: active, version 1, the defaults of spec §6. */
 export function insertSettingsStatement(db: Db, settings: NewSettings): Statement {
-  const { shopId, now } = settings
-  return db.insert(shopSettings).values({ shopId, status: 'active', version: 1, createdAt: now, updatedAt: now })
+  const { shopId, currency, now } = settings
+  return db.insert(shopSettings).values({ shopId, status: 'active', currency, version: 1, createdAt: now, updatedAt: now })
 }
 
 /** The settings an owner edits (spec §3 → Shop settings); the name is the organization's. */

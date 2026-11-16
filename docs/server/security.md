@@ -41,7 +41,7 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 | shop | read | ✓ | ✓ |
 | shop | update | ✓ | |
 | price | read | ✓ | ✓ |
-| price | write | ✓ | |
+| price | write | | ([D26](../decisions.md#d26-the-platform-keeps-each-shops-price-list): the platform's) |
 | customer | read, write | ✓ | ✓ |
 | customer | anonymize | ✓ | |
 | order | read, create, update, transition | ✓ | ✓ |
@@ -60,9 +60,10 @@ The `staff` role exists in the map but is not assignable until Phase 2 (spec P3)
 | owner | create, reset-password, revoke-sessions |
 | ticketBatch | create, read, void |
 | template | read, write ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)) |
+| price | read, write: a shop's price list, through `/api/platform/shops/:shopId/…` ([D26](../decisions.md#d26-the-platform-keeps-each-shops-price-list)) |
 
 Rules:
-- **Platform statements never grant shop statements.** A super admin calling `/api/shop/**` gets `403 NO_SHOP`.
+- **Platform statements never grant shop statements.** A super admin calling `/api/shop/**` gets `403 NO_SHOP`. The one shop record the platform touches is a shop's price list, through its own platform routes (the shop from the path, 404 when missing, audited in that shop's history); never orders or customers (D26).
 - **A suspended shop:** its owner can sign in and sees a "shop suspended" page; every `/api/shop/**` call returns `403 SHOP_SUSPENDED`; its public ticket pages show "unavailable"; no messages are sent.
 - **Better Auth's `organization`, `member`, `invitation` and `ac` endpoints are blocked** for everyone (`403`). Shops and owners are created only through `/api/platform/**`. Server code calls `auth.api.*` directly and is unaffected.
 - The app reads granted statements from `/api/me` to show or hide actions. **The server always checks again.**

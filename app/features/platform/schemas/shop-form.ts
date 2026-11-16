@@ -25,6 +25,7 @@ export function newShopFormSchema(t: Translate) {
       username: v.pipe(v.string(), v.trim(), v.toLowerCase(), v.minLength(1, t('validation.required')), v.minLength(MIN_USERNAME_LENGTH, t('validation.minLength', { min: MIN_USERNAME_LENGTH })), v.maxLength(MAX_USERNAME_LENGTH, t('validation.maxLength', { max: MAX_USERNAME_LENGTH })), v.regex(/^[a-z0-9_.]+$/, t('validation.username'))),
       password: temporaryPasswordFormSchema(t),
     }),
+    templateId: v.string(),
   })
 }
 
@@ -36,10 +37,12 @@ export interface NewShopForm {
   name: string
   slug: string
   owner: { name: string, username: string, password: string }
+  /** The slip template to copy (D25); `''`: none, an empty price list. */
+  templateId: string
 }
 
 export function emptyNewShopForm(): NewShopForm {
-  return { name: '', slug: '', owner: { name: '', username: '', password: '' } }
+  return { name: '', slug: '', owner: { name: '', username: '', password: '' }, templateId: '' }
 }
 
 /** A suggested short name from the shop's name: "Sokha Laundry" → "sokha-laundry" (Latin only). */
@@ -49,5 +52,5 @@ export function slugFromName(name: string): string {
 
 /** The form's (already validated) values as the request body. */
 export function toCreateShopRequest(form: NewShopForm): CreateShopInput {
-  return { name: form.name, slug: form.slug, owner: { name: form.owner.name, username: form.owner.username, password: form.owner.password } }
+  return { name: form.name, slug: form.slug, owner: { name: form.owner.name, username: form.owner.username, password: form.owner.password }, templateId: form.templateId || undefined }
 }

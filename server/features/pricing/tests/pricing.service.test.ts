@@ -17,7 +17,9 @@ let db: Db
 let a: ShopActor
 let b: ShopActor
 
-const actorOf = async (userId: string) => ({ ...await authorizeShop({ db, user: { id: userId, role: 'user' }, permissions: { price: ['write'] } }), requestId: 'req-1' })
+// Each shop's actor: its shop from its owner's membership, as a route would resolve it. The service
+// checks no statements (the route does: a platform route for writes, D26), only the shop.
+const actorOf = async (userId: string) => ({ ...await authorizeShop({ db, user: { id: userId, role: 'user' }, permissions: { price: ['read'] } }), requestId: 'req-1' })
 
 beforeEach(async () => {
   db = await createTestDb()

@@ -108,7 +108,8 @@ Rules (service, inside the batch):
 - At most **50 active service types and 300 active items per shop**, so a list is always read whole (D22).
 - New entries go last (`sort` = the shop's max + 1, computed in the insert).
 - `name_en` required, `name_km` optional ([D4](../decisions.md#d4-english-is-the-default-language)).
-- Every write has an `audit_events` row in the shop's history (`service-type.*`, `price-item.*`; `data.fields` on edits).
+- Every write has an `audit_events` row in the shop's history (`service-type.*`, `price-item.*`; `data.fields` on edits). The actor is the super admin when the platform changes it ([D26](../decisions.md#d26-the-platform-keeps-each-shops-price-list)).
+- **A shop made from a slip template** gets its list in the creation's batch: service types and items in the template's order (`sort` 1, 2, …), new ids ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)).
 
 ## `order_counters`, `orders`, `order_lines`, `order_events` (owner: `orders`)
 

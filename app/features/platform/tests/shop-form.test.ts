@@ -4,7 +4,7 @@ import { createShopSchema } from '#shared/contracts/platform-shops'
 import { emptyNewShopForm, newShopFormSchema, slugFromName, toCreateShopRequest } from '../schemas/shop-form'
 
 const t = (key: string) => key
-const form = { name: ' Sokha Laundry ', slug: 'Sokha-Laundry', owner: { name: 'Sokha', username: ' Sokha.Chan ', password: 'temporary pass 1' } }
+const form = { name: ' Sokha Laundry ', slug: 'Sokha-Laundry', owner: { name: 'Sokha', username: ' Sokha.Chan ', password: 'temporary pass 1' }, templateId: '' }
 
 describe('newShopFormSchema', () => {
   it('what it accepts, the server\'s contract accepts (docs/standards/forms.md: never looser)', () => {
@@ -20,6 +20,15 @@ describe('newShopFormSchema', () => {
   ])('refuses %s, like the contract', (_case, input) => {
     expect(v.safeParse(newShopFormSchema(t), input).success).toBe(false)
     expect(v.safeParse(createShopSchema, input).success).toBe(false)
+  })
+})
+
+describe('toCreateShopRequest', () => {
+  it('sends the chosen template, and none for "no template"', () => {
+    const id = '01900000-0000-7000-8000-000000000000'
+    expect(toCreateShopRequest({ ...form, templateId: '' }).templateId).toBeUndefined()
+    expect(toCreateShopRequest({ ...form, templateId: id }).templateId).toBe(id)
+    expect(v.safeParse(createShopSchema, toCreateShopRequest({ ...form, templateId: id })).success).toBe(true)
   })
 })
 

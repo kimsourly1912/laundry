@@ -270,7 +270,11 @@
       "username": "Username",
       "password": "Temporary password",
       "submit": "Create shop",
-      "created": "{shop} was created."
+      "created": "{shop} was created.",
+      "priceSection": "Price list",
+      "priceSectionDescription": "The shop starts with its own copy of a template's services, items and prices, in the template's currency. You can change the shop's prices later.",
+      "template": "Template",
+      "noTemplate": "No template: an empty price list"
     },
     "shop": {
       "title": "Shop",
@@ -299,7 +303,10 @@
       "resume": "Resume shop",
       "resumeDescription": "The owner can use the shop again.",
       "resumed": "The shop was resumed.",
-      "notFound": "This shop doesn't exist."
+      "notFound": "This shop doesn't exist.",
+      "priceList": "Price list",
+      "priceListDescription": "Its services and prices, in {currency}. The owner sees them; only the platform changes them.",
+      "openPriceList": "Open the price list"
     },
     "templates": {
       "title": "Templates",

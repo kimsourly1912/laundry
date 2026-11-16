@@ -2,12 +2,15 @@ import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
 import type { CreateShopInput, PlatformShop, ResetOwnerPasswordInput, ShopListQuery, ShopStatus, ShopStatusChangeInput, UpdateShopInput } from '#shared/contracts/platform-shops'
 import type { Db, Statement } from '#server/utils/batch'
-import { isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
+import { isStaleWrite, isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { auditStatement } from '#server/features/platform'
 import type { AuditEntry } from '#server/features/platform'
 import { newShopStatements, ownerPasswordResetStatements, renameShopStatement, requireShopNamesAvailable, revokeSessionsStatements, shopOwner, shopOwners } from '#server/features/identity'
 import type { PlatformActor } from '#server/features/identity'
+import { newPriceListStatements } from '#server/features/pricing'
+import type { PriceActor } from '#server/features/pricing'
+import { requireActiveTemplateStatement, templateForNewShop } from '#server/features/templates'
 import { alreadySuspended, notSuspended, ownerNotFound, shopChanged, shopNotFound } from './shops.errors'
 import * as repo from './shops.repository'
 import type { ShopRow } from './shops.repository'
@@ -47,25 +50,39 @@ export async function getShop(db: Db, shopId: string): Promise<PlatformShop> {
 
 /**
  * A new shop and its owner in one batch: the organization, settings, owner account and membership,
- * and the audit row. All of it or nothing. 409 `USERNAME_TAKEN` / `SLUG_TAKEN` name the field.
+ * the price list copied from the chosen template (D25), and the audit row. All of it or nothing.
+ * 409 `USERNAME_TAKEN` / `SLUG_TAKEN` name the field; `TEMPLATE_UNAVAILABLE` when the template was
+ * archived, even between the read and the batch (its guard is in the batch).
  */
 export async function createShop(db: Db, actor: PlatformActor, input: CreateShopInput, now = new Date()): Promise<PlatformShop> {
-  const { name, slug, owner } = input
+  const { name, slug, owner, templateId } = input
   const shopId = newId()
+  const template = templateId ? await templateForNewShop(db, templateId) : undefined
   const statements = await newShopStatements(db, { shopId, name, slug, owner, now })
   try {
     await db.batch([
-      audit(db, actor, shopId, { action: 'shop.create', data: { ownerUsername: owner.username } }, now),
+      audit(db, actor, shopId, { action: 'shop.create', data: templateId ? { ownerUsername: owner.username, templateId } : { ownerUsername: owner.username } }, now),
       ...statements,
-      repo.insertSettingsStatement(db, { shopId, now }),
+      repo.insertSettingsStatement(db, { shopId, currency: template?.currency, now }),
+      ...(template ? [requireActiveTemplateStatement(db, templateId!), ...newPriceListStatements(db, { shopId, definition: template.definition, now })] : []),
     ])
   }
   catch (error) {
     // Another save took the username or short name since the check: say which.
     if (isUniqueViolation(error)) await requireShopNamesAvailable(db, { username: owner.username, slug })
+    if (template && isStaleWrite(error)) await templateForNewShop(db, templateId!)
     throw error
   }
   return getShop(db, shopId)
+}
+
+/**
+ * A super admin acting on a shop's configuration (D26: its price list), the shop named in the
+ * path: 404 when there is no such shop. Never a way into orders or customers.
+ */
+export async function platformShopActor(db: Db, actor: PlatformActor, shopId: string): Promise<PriceActor> {
+  await loadShop(db, shopId)
+  return { userId: actor.userId, shopId, requestId: actor.requestId }
 }
 
 /** Renames the shop, at the version the admin saw (409 when stale: the batch's guard decides). */

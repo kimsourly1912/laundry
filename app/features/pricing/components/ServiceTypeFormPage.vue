@@ -2,12 +2,13 @@
 /** A service type: new, or edit and archive (spec §4 → Price list). Saved at the version opened. */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { ServiceType } from '#shared/contracts/pricing'
-import { useServiceTypes } from '../composables/usePriceList'
+import { usePriceScope, useServiceTypes } from '../composables/usePriceList'
 import type { ServiceTypeForm } from '../schemas/price-form'
 import { serviceTypeFormSchema, toServiceTypeForm, toServiceTypeRequest } from '../schemas/price-form'
 
 const props = defineProps<{ id?: string }>()
 const { t, te } = useI18n()
+const scope = usePriceScope()
 const types = useServiceTypes('active')
 const record = computed(() => (props.id ? types.data.value?.items.find(type => type.id === props.id) : undefined))
 const missing = computed(() => Boolean(props.id && types.data.value && !record.value))
@@ -25,13 +26,13 @@ watch(record, (value) => {
 const dirty = computed(() => JSON.stringify(state) !== baseline.value)
 
 const save = useMutation((body: ServiceTypeForm) => (record.value
-  ? apiFetch<ServiceType>(`/shop/service-types/${record.value.id}`, { method: 'PATCH', body: { ...toServiceTypeRequest(body), version: record.value.version } })
-  : apiFetch<ServiceType>('/shop/service-types', { method: 'POST', body: toServiceTypeRequest(body) })), {
+  ? apiFetch<ServiceType>(`${scope.api}/service-types/${record.value.id}`, { method: 'PATCH', body: { ...toServiceTypeRequest(body), version: record.value.version } })
+  : apiFetch<ServiceType>(`${scope.api}/service-types`, { method: 'POST', body: toServiceTypeRequest(body) })), {
   inline: true,
   invalidate: ['pricing'],
   success: () => t('pricing.saved'),
 })
-const archive = useMutation(() => apiFetch<ServiceType>(`/shop/service-types/${record.value!.id}`, { method: 'DELETE', query: { version: record.value!.version } }), {
+const archive = useMutation(() => apiFetch<ServiceType>(`${scope.api}/service-types/${record.value!.id}`, { method: 'DELETE', query: { version: record.value!.version } }), {
   invalidate: ['pricing'],
   success: () => t('pricing.archivedDone'),
 })
@@ -43,13 +44,13 @@ async function onSubmit(event: FormSubmitEvent<ServiceTypeForm>) {
   const result = await save.execute(event.data)
   if (!result.ok) return
   baseline.value = JSON.stringify(state)
-  await navigateTo('/prices')
+  await navigateTo(scope.pages)
 }
 
 async function onArchive() {
   const result = await archive.execute(undefined)
   confirming.value = false
-  if (result.ok) await navigateTo('/prices')
+  if (result.ok) await navigateTo(scope.pages)
 }
 </script>
 
@@ -63,7 +64,7 @@ async function onArchive() {
             color="neutral"
             variant="ghost"
             :aria-label="t('pricing.back')"
-            to="/prices"
+            :to="scope.pages"
           />
         </template>
       </UDashboardNavbar>
@@ -75,7 +76,7 @@ async function onArchive() {
           v-if="missing"
           icon="i-lucide-tags"
           :title="t('pricing.notFound')"
-          :actions="[{ label: t('pricing.back'), color: 'neutral', variant: 'outline', to: '/prices' }]"
+          :actions="[{ label: t('pricing.back'), color: 'neutral', variant: 'outline', to: scope.pages }]"
         />
         <PageLoadError
           v-else-if="types.error.value && !types.data.value"

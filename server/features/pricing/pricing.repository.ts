@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm'
 import type { PriceStatus, PriceUnit } from '#shared/contracts/pricing'
 import type { Db, Statement } from '#server/utils/batch'
-import { requireAtMost, requireCount, updateAtVersion } from '#server/utils/batch'
+import { insertAll, requireAtMost, requireCount, updateAtVersion } from '#server/utils/batch'
 import { firstRow } from '#server/utils/query'
 import { priceItems, serviceTypes } from './pricing.schema'
 
@@ -158,6 +158,14 @@ interface NewPriceItem extends ItemFields {
   shopId: string
   id: string
   now: Date
+}
+
+/**
+ * A whole new price list in slip order (a shop made from a template, D25): the rows carry their
+ * own `sort`, in pieces under D1's parameter limit. Service types before their items (the FK).
+ */
+export function insertPriceListStatements(db: Db, list: { types: (typeof serviceTypes.$inferInsert)[], items: (typeof priceItems.$inferInsert)[] }): Statement[] {
+  return [...insertAll(db, serviceTypes, list.types), ...insertAll(db, priceItems, list.items)]
 }
 
 export function insertPriceItemStatement(db: Db, row: NewPriceItem): Statement {

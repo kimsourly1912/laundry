@@ -316,3 +316,17 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 **Consequences.** The super admin needs a way to change a shop's slip after it's created (D26). The template editor starts from a usual Phnom Penh slip (wash & iron, dry clean, iron × common items) to save typing; its Khmer names need the owner's review.
 
+## D26. The platform keeps each shop's price list
+
+**Context.** D25 makes the owner an end user: the platform sets the shop up and makes later changes on request (feedback, new items, price changes). The rule so far was "the platform admin never reads shop data" (spec §5), and the owner held `price: ['write']`.
+
+**Decision.**
+- **The owner reads the price list and never changes it** (`price: ['read']` only). Changes go through the platform.
+- **The super admin keeps a shop's price list** through platform routes, `/api/platform/shops/:shopId/service-types|price-items` (platform `price: ['read', 'write']`). The shop comes from the path, checked to exist (404 otherwise, `platformShopActor`); the same pricing services and guards run, and the audit row lands in **that shop's** history with the admin as actor.
+- **The rule narrows, it doesn't go:** a super admin still never reads a shop's orders or customers, and `/api/shop/**` still answers them `403 NO_SHOP`. A price list is configuration the platform sets, not the shop's customers' data.
+- The app shows the same price list pages in both places; a scope (`providePlatformPriceScope`) says where they read, write and link.
+
+**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes).
+
+**Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
+

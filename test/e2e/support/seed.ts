@@ -2,9 +2,9 @@ import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/libsql'
 import { createClient } from '@libsql/client'
 import { hashPassword } from 'better-auth/crypto'
-import { authorizeShop, seedPlatformAdmin } from '#server/features/identity'
+import { seedPlatformAdmin } from '#server/features/identity'
 import { createPriceItem, createServiceType } from '#server/features/pricing'
-import { createShop } from '#server/features/shops'
+import { createShop, platformShopActor } from '#server/features/shops'
 import { user } from '#server/db/tables'
 import type { Db } from '#server/utils/batch'
 
@@ -38,7 +38,8 @@ export async function seedE2e(dbFile: string) {
     const priceShop = await createShop(db, actor, { name: priceOwner.shop, slug: 'siem-reap-wash', owner: { name: 'Price Owner', username: priceOwner.username, password: priceOwner.password } })
     const customerShop = await createShop(db, actor, { name: customerOwner.shop, slug: 'battambang-laundry', owner: { name: 'Customer Owner', username: customerOwner.username, password: customerOwner.password } })
     const orderShop = await createShop(db, actor, { name: orderOwner.shop, slug: 'phnom-penh-fresh', owner: { name: 'Order Owner', username: orderOwner.username, password: orderOwner.password } })
-    const orderActor = await authorizeShop({ db, user: { id: orderShop.owner!.id, role: 'user' }, permissions: { price: ['write'] } })
+    // The platform keeps the price list (D26).
+    const orderActor = await platformShopActor(db, actor, orderShop.id)
     const wash = await createServiceType(db, orderActor, { nameEn: 'Wash & iron', nameKm: 'បោក និងអ៊ុត' })
     await createPriceItem(db, orderActor, { serviceTypeId: wash.id, nameEn: 'Shirt', nameKm: 'អាវ', unit: 'piece', price: 2000 })
     await createPriceItem(db, orderActor, { serviceTypeId: wash.id, nameEn: 'Mixed clothes', nameKm: 'ខោអាវចម្រុះ', unit: 'kg', price: 3000 })
