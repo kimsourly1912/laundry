@@ -1,75 +1,24 @@
-# Nuxt Minimal Starter
+# Laundry
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A platform for small laundry shops: orders, customers, QR slips and Telegram notifications.
+One Nuxt 4 application deployed as a Cloudflare Worker with D1; local development uses Node.js and SQLite.
 
-## Setup
+## Toolchain
 
-Make sure to install dependencies:
+The source of truth is [`package.json`](package.json):
 
-```bash
-# npm
-npm install
+- `engines.node`: Node.js 24.22.1 or newer within Node 24.
+- `packageManager`: exactly pnpm 12.15.0 (`corepack enable pnpm` reads the pin).
 
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
+## Development and checks
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
-bun run dev
+pnpm install --frozen-lockfile
+pnpm dev                      # http://localhost:3000
+pnpm lint
+pnpm typecheck
+pnpm audit --audit-level high
+pnpm test:unit                # unit + server projects
 ```
 
-## Production
-
-Build the application for production:
-
-```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
-bun run build
-```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
+Copy `.env.example` to `.env` for local configuration.
