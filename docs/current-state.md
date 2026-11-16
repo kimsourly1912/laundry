@@ -35,5 +35,4 @@ Create shop + owner in one batch, suspend/resume, reset owner password, sign own
 
 ## Blockers
 
-- **Staging auth secret:** the staging Worker needs `NUXT_BETTER_AUTH_SECRET` as a Worker secret, set once by the owner ([operations → Staging](server/operations.md#staging)). Until then the smoke check's `/api/me` fails after deploy.
-- **Staging platform admin:** after the secret, create the first admin with `pnpm admin:sql` + `wrangler d1 execute` ([operations → First platform admin](server/operations.md#first-platform-admin)).
+- **Staging platform admin:** staging is deployed (`laundry-staging.angder.app`, secret set, migrations `0000`–`0001` applied). Create the first admin with `pnpm admin:sql` + `wrangler d1 execute` ([operations → First platform admin](server/operations.md#first-platform-admin)).
