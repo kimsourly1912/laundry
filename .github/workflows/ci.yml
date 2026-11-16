@@ -1,0 +1,53 @@
+# Checks on each pull request and push to main (spec §14: lint → typecheck → audit → tests).
+# The e2e job comes with the e2e harness (M1.6); the staging deploy with the staging D1 database.
+# Setup follows https://pnpm.io/continuous-integration. Actions are pinned by full commit id.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# The workflow token can only read the repository: no job writes to GitHub.
+permissions:
+  contents: read
+
+# A newer push to a pull request cancels its older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Read the project's Node.js requirement
+        id: node
+        run: |
+          version=$(jq -er '.engines.node' package.json)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      # Installs pnpm (packageManager) and Node (engines.node) from package.json, then `pnpm install`
+      # (frozen lockfile in CI) with the store cached. Pinned by commit: v2.0.0.
+      - name: Install pnpm, Node.js and dependencies
+        uses: pnpm/setup@c9883cc79df532ad1a7b81bf9ab944ceb090d65c # v2.0.0
+        with:
+          runtime: node@${{ steps.node.outputs.version }}
+          cache: true
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # Known advisories below "high" are accepted and reviewed when dependencies are updated.
+      - name: Dependency audit (high and critical)
+        run: pnpm audit --audit-level high
+
+      - name: Unit and server tests
+        run: pnpm test:unit
