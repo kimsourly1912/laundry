@@ -436,3 +436,20 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - **On-canvas text editing needs an HTML editor over the SVG** (the SVG has no text to edit): show a `contenteditable` box in the same font while editing, and redraw paths when it closes.
 - **Lines wrap only at spaces and new lines (Q14).** Khmer has no spaces between words, and each runtime's `Intl.Segmenter` splits words differently (workerd and Node gave different results), so automatic breaks could differ between the studio and the PNG. The platform puts a space or a new line where a long Khmer line may break.
 - A Vue detail the spike hit: after a click selects an element, Vue passes Moveable its new target one tick later, so Moveable's "start dragging" must run only while the mouse button is still down. Otherwise the next gesture drags instead of resizing.
+
+## D33. Studio scope: photo first, English only, shop details copied to the order
+**Owner, 2026-11-17 (plan Q9, Q10).**
+
+**Context.** Planning the studio's details (plan §5). The plan listed a full Canva-like editor (S2–S5) before any shop could take an order. AGENTS.md requires every screen in English and Khmer. Shop info elements (plan §5.4.4) read the shop's details when the slip is drawn, but an order's image must never change (plan §4).
+
+**Decision.**
+- **The main use is a photo of the shop's paper slip with form fields on it.** Shapes and text are for small touches and blank designs. So the work order is S1–S3 (format, canvas, form fields), then the platform screens, the owner portal and Telegram (steps 2–4), then the drawing tools (S4, S5).
+- **The studio is English only:** an exception to the English + Khmer rule, because only the platform uses it. Its strings still go through `en.json` under `studio.*`, so Khmer can be added later; the locale test doesn't require `studio.*` keys in `km.json`, and Khmer falls back to English. The slip itself, its text and the field labels (English and Khmer, both required to publish) are not affected.
+- **Shop info elements stay** (shop name, phone, address, logo), and **each order keeps a copy of the shop's details** (name, phone, address, logo image id, currency, language) when it's saved. The slip is drawn from that copy, so an old slip never changes when the shop does.
+
+**Alternatives.** Build the whole editor first (shops wait for drawing tools most templates don't need). Translate the studio (cost with no user who needs it). Drop the shop info elements (a phone change means editing and republishing templates). Draw shop info from the live shop details (old slips would change, against plan §4).
+
+**Consequences.**
+- S2 changes `test/unit/locales.test.ts` to exempt `studio.*` from the key parity check, and `docs/standards/i18n.md` to say so.
+- Step 1's schema gets the copy column on `orders` (plan §7).
+- Blank-canvas designs are thinner until S4.
