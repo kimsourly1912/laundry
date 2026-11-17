@@ -254,6 +254,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** The build downloads fonts from Google once (CI and local); the deployed app serves them itself. No contrast warnings in the dev server after the change.
 
 ## D22. The price list
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** Spec M2.1: shop settings and the price list (service types, price items, archive). Prices are integers in the shop's currency (T12), and the spec leaves open how edits look on a phone and how big a list may be.
 
@@ -270,6 +271,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** A shop that wants another currency archives nothing: it needs an empty list, so in practice the currency is chosen before the first price. A shop with more than 300 active prices is refused with `409 PRICE_LIST_FULL`; raise the cap if a real shop needs it.
 
 ## D23. Customers
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** Spec M2.2: search, create, edit, anonymize, phone normalization, one customer per phone in a shop (spec §6, §16). The spec says phones are normalized "on the server" and that a duplicate phone offers the existing customer.
 
@@ -284,6 +286,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** A phone search by name-like text never matches digits, and a search under 3 digits is a name search. `libphonenumber-js/min` adds its phone metadata to the app bundle and the Worker (the smallest of its metadata sets).
 
 ## D24. Orders
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** Spec M2.3: create (task flow, `Idempotency-Key`), list, detail, lines, state actions, payment, Today (spec §7, §8.1, §9). The spec also says "no slip → a ticket is generated in the batch", but tickets (table, tokens, serials, batches) are M3.1–M3.2. It leaves open what happens to a paid order whose lines change, and what a replayed request answers.
 
@@ -302,6 +305,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** M3.1 owns the backfill of tickets for orders made before it. A shop that wants to change a paid order cancels it and makes a new one. The customer page shows the customer's latest 10 orders (`?customerId=` on the order list).
 
 ## D25. The paper-slip flow and slip templates
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** Testing M2.3 with the owner's eyes: a shop owner shouldn't have to learn our process. Shops already work from a paper slip, a grid of clothing items with a box for each, a service tick, an amount and paid / not paid. The platform runs each shop as a managed service: the super admin sets a shop up to match its slip, and the owner only takes orders. This changes the spec's shop flow (§4, §8.1), by the owner's choice.
 
@@ -317,6 +321,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** The super admin needs a way to change a shop's slip after it's created (D26). The template editor starts from a usual Phnom Penh slip (wash & iron, dry clean, iron × common items) to save typing; its Khmer names need the owner's review.
 
 ## D26. The platform keeps each shop's price list
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** D25 makes the owner an end user: the platform sets the shop up and makes later changes on request (feedback, new items, price changes). The rule so far was "the platform admin never reads shop data" (spec §5), and the owner held `price: ['write']`.
 
@@ -331,6 +336,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
 
 ## D27. The owner's two pages
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** D25: the owner should use the app like the paper slip, without learning a process. M2.3 built a three-step wizard (find or create a customer, search a dropdown for each line, review), an order list, Today, and Start / Ready / Collect as separate actions.
 
@@ -348,6 +354,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 
 ## D28. The receipt on Telegram
+**Partly replaced by D31:** the receipt designer becomes the studio and links are per order; the renderer, the Khmer fix and the outbox stay.
 
 **Context.** D25: the customer's paper slip becomes a picture on Telegram, in the shop's own look, plus a message when the order is ready. The spec planned pre-printed QR slips (M3), a ticket page, and grammY for the bot (M4). The owner chose to start with the receipt image and a QR on the counter's screen; printed slips later, if shops want them. Rendering on a Worker has no browser: it must shape Khmer correctly with what runs in WebAssembly.
 
@@ -373,6 +380,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.** Weaker passwords, accepted by the owner. What still protects accounts: sign-in limits per address and per username (D18), the platform admin can sign an owner out everywhere and reset the password, and a super admin's session is short (D14). Revisit with the first real shop, or if an account is taken over.
 
 ## D30. A template into an existing shop, while its price list is empty
+**Replaced by D31** (the slip studio). Kept for history.
 
 **Context.** D25 copies a template only when a shop is created. A shop created without one (or before its slip's template existed) could only be filled item by item. D26 rejected copying a template again because it would overwrite the shop's own changes.
 
@@ -385,3 +393,21 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Replace or merge into an existing list (loses the shop's changes, and orders' lines keep the old price items). Only on the price list page (shared with the owner's read-only view, D26).
 
 **Consequences.** A shop's price list starts from at most one template; after that it's edited by hand. The currency follows the template, which is allowed because the list is empty (D22).
+
+## D31. The slip studio: a template is the paper slip
+
+**Context.** The owner tried the D25–D30 flow and found it still too much to learn, for owners and for the platform. Paper slips have no price per item: a box per item for a count, a service tick, one handwritten amount, and paid / not paid. The price grid (item × service), the customers section, and a receipt designer separate from the order form all came from the old model. The owner chose to start again from the slip (2026-11-17).
+
+**Decision.** The full plan, steps and open questions are in [`plan.md`](plan.md). In short:
+- **A Canva-like studio** (desktop, platform only) designs **templates**, over a photo of the shop's paper slip or from a blank canvas: shapes, text, images, shop info, and form fields (number, text, checkbox, choice, plus the fixed-meaning Order No., date, phone, amount and paid). Templates are owned by the platform and **attached to shops** by it. Each publish makes a fixed version, and an order keeps its version.
+- **The owner's portal has three items:** Overview (today's orders and Create order), Templates (choose the default among the attached ones), Orders. An order is the filled slip: values as JSON against its template version, plus phone, amount, paid and status (`open`, `picked_up`, `cancelled`).
+- **One SVG for screen and customer:** a shared function draws a design with its values, the studio shows it and the server renders it to PNG with resvg (D28's Khmer fix stays). The customer scans a QR and the bot sends that PNG.
+- **Removed:** price lists and service types, customers, order lines and the order states of D24, the separate receipt designs, apply-template, reminders. **The amount is typed by the owner**, not computed. The migrations restart from `0000` (only test data exists).
+- **Kept:** identity and tenancy, platform shop management, the server core, the app shell, Telegram over `fetch` with its outbox.
+
+**Alternatives.** Simplify the D25–D30 flow (the owner's earlier proposal, still built around the price grid). A canvas library such as Fabric or Konva for the studio (two drawing paths, browser and server, that drift apart). Templates shared with every shop (a template made from one shop's photo carries that shop's name).
+
+**Consequences.**
+- The spec's step plan (§18) and D22–D27 and D30 no longer guide work; `plan.md` does.
+- The rule "the server recomputes totals" has nothing to recompute: the server still sets the order number, date and template version, and checks every value against the template version.
+- A shop with no attached template can't take orders, so the platform attaches one when it creates the shop.
