@@ -1,15 +1,18 @@
 <script setup lang="ts">
 /**
  * The studio (plan §5, desktop only, platform only): one template's draft on a grey workspace, saved
- * by itself, with Preview (the server's PNG) and Publish. English only (D33). S1 draws the slip;
- * the canvas's editing (S2), the form fields (S3) and the drawing tools (S4) build on this page.
+ * by itself, with undo and redo, Preview (the server's PNG) and Publish. English only (D33). The
+ * left rail's tabs open their panels; the form fields (S3) and drawing tools (S4) add tabs.
  */
 import type { TemplateDetail } from '#shared/contracts/templates'
 import { sampleData } from '#shared/slip/fields'
 import { useSlipText } from '../composables/useSlipText'
+import { useStudioEditor } from '../composables/useStudioEditor'
 import { useTemplateDraft } from '../composables/useTemplateDraft'
 import { useWideScreen } from '../composables/useWideScreen'
-import SlipSvg from './SlipSvg.vue'
+import ElementToolbar from './ElementToolbar.vue'
+import LayersPanel from './LayersPanel.vue'
+import StudioCanvas from './StudioCanvas.vue'
 
 const props = defineProps<{ template: TemplateDetail }>()
 
@@ -19,7 +22,20 @@ const wide = useWideScreen()
 const { text, failed: fontsFailed, reload: reloadFonts } = useSlipText()
 const fontError = new ApiError({ kind: 'network', status: 0 })
 const draft = useTemplateDraft(props.template)
-const { design, status, saved } = draft
+const editor = useStudioEditor(props.template.design, draft)
+const { status, saved } = draft
+const design = editor.design
+
+// --- Left rail (plan §5.3): a tab opens its panel; clicking it again closes it ---
+
+const TABS = [
+  { key: 'layers', icon: 'i-lucide-layers' },
+] as const
+type Tab = typeof TABS[number]['key']
+const tab = ref<Tab | undefined>('layers')
+function toggleTab(key: Tab) {
+  tab.value = tab.value === key ? undefined : key
+}
 
 // --- Name ---
 
@@ -34,27 +50,6 @@ function finishRename() {
   renaming.value = false
   if (next && next !== draft.name.value) draft.rename(next)
 }
-
-// --- The canvas at Fit (zoom and pan come with S2) ---
-
-const workspace = ref<HTMLElement>()
-const area = reactive({ width: 0, height: 0 })
-let observer: ResizeObserver | undefined
-onMounted(() => {
-  observer = new ResizeObserver(([entry]) => {
-    area.width = entry!.contentRect.width
-    area.height = entry!.contentRect.height
-  })
-  if (workspace.value) observer.observe(workspace.value)
-})
-onBeforeUnmount(() => observer?.disconnect())
-
-/** The slip fills the workspace less a margin, never above 100%. */
-const zoom = computed(() => {
-  const margin = 48
-  if (!area.width || !area.height) return 1
-  return Math.min(1, (area.width - margin * 2) / design.value.width, (area.height - margin * 2) / design.value.height)
-})
 
 /** The studio draws the slip with sample values, so fields show where their values go. */
 const today = new Date().toISOString().slice(0, 10)
@@ -154,6 +149,26 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
         :color="saved.status === 'published' ? 'success' : 'neutral'"
         variant="subtle"
       />
+      <USeparator
+        orientation="vertical"
+        class="h-6"
+      />
+      <UButton
+        icon="i-lucide-undo-2"
+        color="neutral"
+        variant="ghost"
+        :aria-label="t('studio.undo')"
+        :disabled="!editor.canUndo.value"
+        @click="editor.undo()"
+      />
+      <UButton
+        icon="i-lucide-redo-2"
+        color="neutral"
+        variant="ghost"
+        :aria-label="t('studio.redo')"
+        :disabled="!editor.canRedo.value"
+        @click="editor.redo()"
+      />
 
       <div class="ms-auto flex items-center gap-2">
         <span
@@ -195,33 +210,55 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
       class="rounded-none"
     />
 
-    <main
-      ref="workspace"
-      class="relative flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-elevated"
-    >
-      <PageLoadError
-        v-if="fontsFailed"
-        :error="fontError"
-        @retry="reloadFonts()"
-      />
-      <USkeleton
-        v-else-if="!text"
-        class="size-64"
-      />
-      <div
-        v-else
-        class="shrink-0 bg-white shadow-lg"
-        data-testid="studio-canvas"
-        :style="{ width: `${design.width * zoom}px`, height: `${design.height * zoom}px` }"
+    <div class="flex min-h-0 flex-1">
+      <nav
+        class="flex w-16 shrink-0 flex-col items-center gap-1 border-e border-default py-2"
+        :aria-label="t('studio.rail')"
       >
-        <SlipSvg
-          :design="design"
+        <UButton
+          v-for="item in TABS"
+          :key="item.key"
+          :icon="item.icon"
+          :label="t(`studio.tabs.${item.key}`)"
+          color="neutral"
+          :variant="tab === item.key ? 'soft' : 'ghost'"
+          size="xs"
+          class="w-14 flex-col gap-0.5 text-[11px]"
+          :aria-pressed="tab === item.key"
+          @click="toggleTab(item.key)"
+        />
+      </nav>
+      <aside
+        v-if="tab"
+        class="w-72 shrink-0 overflow-y-auto border-e border-default p-3"
+      >
+        <LayersPanel
+          v-if="tab === 'layers'"
+          :editor="editor"
+        />
+      </aside>
+      <div class="flex min-w-0 flex-1 flex-col">
+        <ElementToolbar :editor="editor" />
+        <PageLoadError
+          v-if="fontsFailed"
+          :error="fontError"
+          class="m-6"
+          @retry="reloadFonts()"
+        />
+        <div
+          v-else-if="!text"
+          class="flex flex-1 items-center justify-center bg-elevated"
+        >
+          <USkeleton class="size-64" />
+        </div>
+        <StudioCanvas
+          v-else
+          :editor="editor"
           :data="data"
           :text="text"
         />
       </div>
-      <span class="absolute right-4 bottom-3 text-xs text-muted">{{ design.width }} × {{ design.height }} px · {{ Math.round(zoom * 100) }}%</span>
-    </main>
+    </div>
 
     <UModal
       v-model:open="previewOpen"

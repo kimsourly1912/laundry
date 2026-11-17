@@ -287,6 +287,45 @@
       "chooseTemplate": "Choose a template",
       "copyName": "Copy of {name}",
       "create": "Create and open"
+    },
+    "undo": "Undo",
+    "redo": "Redo",
+    "rail": "Studio tools",
+    "tabs": {
+      "layers": "Layers"
+    },
+    "layers": {
+      "title": "Layers",
+      "empty": "Nothing on the slip yet.",
+      "rename": "Layer name",
+      "show": "Show {name}",
+      "hide": "Hide {name}",
+      "lock": "Lock {name}",
+      "unlock": "Unlock {name}",
+      "background": "Background",
+      "backgroundPhoto": "Background photo"
+    },
+    "canvas": {
+      "duplicate": "Duplicate",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "delete": "Delete",
+      "more": "More",
+      "bringForward": "Bring forward",
+      "sendBackward": "Send backward",
+      "bringToFront": "Bring to front",
+      "sendToBack": "Send to back",
+      "zoom": "Zoom",
+      "fit": "Fit"
+    },
+    "toolbar": {
+      "x": "X",
+      "y": "Y",
+      "w": "W",
+      "h": "H",
+      "rotation": "Rotation",
+      "opacity": "Opacity %",
+      "none": "Select an element to change it. Shift adds to the selection; drag on the canvas to select several."
     }
   }
 }

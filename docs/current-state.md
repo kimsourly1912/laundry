@@ -9,7 +9,8 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 - **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). **Before it deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
 - **PR B, the studio (in progress, one commit per step):**
   - **S1 done:** the design format (`shared/contracts/slip-design.ts`), the shared SVG builder with fontkit text and its HarfBuzz test ([reference/slip.md](reference/slip.md)), `/api/platform/templates` (list, create from a photo, blank or a copy, autosave at `version`, publish, preview PNG), `/api/platform/images` (upload, list, bytes), the templates list, New template, and the studio page (the slip at Fit, rename, save status, Preview, Publish). The spike is deleted.
-  - **Next:** [S2](plan.md#9-steps), the canvas core.
+  - **S2 done:** the canvas (Moveable + Selecto over transparent boxes, D32): zoom 10–400% and Fit, pan, select (click, Shift, box), press-and-drag, resize, rotate (snaps 45° within 3°), snapping (Alt off), the keyboard of plan §5.7 but copy and paste (S5), undo / redo of the last 100 changes, the floating toolbar, position and size, and the Layers tab. Logic in `app/features/studio/utils` (history, design operations, shortcuts) with unit tests; e2e in `test/e2e/studio-canvas.test.ts`.
+  - **Next:** [S3](plan.md#9-steps), form fields.
 - **Studio details agreed (2026-11-17):** [plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only), D32, D33. Still open: [Q11 and Q7](plan.md#10-open-questions), needed by steps 4 and 3.
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
