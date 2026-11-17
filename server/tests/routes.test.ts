@@ -57,65 +57,17 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/shops/[shopId].patch.ts': `{ shop: ['update'] }`,
   'platform/shops/[shopId]/suspend.post.ts': `{ shop: ['suspend'] }`,
   'platform/shops/[shopId]/resume.post.ts': `{ shop: ['suspend'] }`,
-  'platform/shops/[shopId]/apply-template.post.ts': `{ price: ['write'], template: ['read'] }`,
   'platform/shops/[shopId]/owner/reset-password.post.ts': `{ owner: ['reset-password'] }`,
   'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
-  'platform/shops/[shopId]/service-types/index.get.ts': `{ price: ['read'] }`,
-  'platform/shops/[shopId]/service-types/index.post.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/service-types/[id].patch.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/service-types/[id].delete.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/price-items/index.get.ts': `{ price: ['read'] }`,
-  'platform/shops/[shopId]/price-items/index.post.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/price-items/[id].patch.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/price-items/[id].delete.ts': `{ price: ['write'] }`,
-  'platform/shops/[shopId]/receipt/index.get.ts': `{ receipt: ['read'] }`,
-  'platform/shops/[shopId]/receipt/index.patch.ts': `{ receipt: ['write'] }`,
-  'platform/shops/[shopId]/receipt/background.get.ts': `{ receipt: ['read'] }`,
-  'platform/shops/[shopId]/receipt/background.put.ts': `{ receipt: ['write'] }`,
-  'platform/shops/[shopId]/receipt/preview.post.ts': `{ receipt: ['read'] }`,
-  'platform/templates/index.get.ts': `{ template: ['read'] }`,
-  'platform/templates/index.post.ts': `{ template: ['write'] }`,
-  'platform/templates/[templateId].get.ts': `{ template: ['read'] }`,
-  'platform/templates/[templateId].patch.ts': `{ template: ['write'] }`,
-  'platform/templates/[templateId]/archive.post.ts': `{ template: ['write'] }`,
-  'platform/templates/[templateId]/restore.post.ts': `{ template: ['write'] }`,
 }
 
 /**
  * The same for the shop's routes (spec §9 → Shop): the owner holds every shop statement, so only
- * this table tells `customer: ['anonymize']` from `customer: ['write']` until staff exist (P3).
+ * this table tells one statement from another until staff exist (P3).
  */
 const SHOP_STATEMENTS: Record<string, string> = {
   'shop/settings.get.ts': `{ shop: ['read'] }`,
   'shop/settings.patch.ts': `{ shop: ['update'] }`,
-  'shop/service-types/index.get.ts': `{ price: ['read'] }`,
-  'shop/service-types/index.post.ts': `{ price: ['write'] }`,
-  'shop/service-types/[id].patch.ts': `{ price: ['write'] }`,
-  'shop/service-types/[id].delete.ts': `{ price: ['write'] }`,
-  'shop/price-items/index.get.ts': `{ price: ['read'] }`,
-  'shop/price-items/index.post.ts': `{ price: ['write'] }`,
-  'shop/price-items/[id].patch.ts': `{ price: ['write'] }`,
-  'shop/price-items/[id].delete.ts': `{ price: ['write'] }`,
-  'shop/customers/index.get.ts': `{ customer: ['read'] }`,
-  'shop/customers/index.post.ts': `{ customer: ['write'] }`,
-  'shop/orders/index.get.ts': `{ order: ['read'] }`,
-  'shop/orders/index.post.ts': `{ order: ['create'] }`,
-  'shop/orders/[id].get.ts': `{ order: ['read'] }`,
-  'shop/orders/[id].patch.ts': `{ order: ['update'] }`,
-  'shop/orders/[id]/start.post.ts': `{ order: ['transition'] }`,
-  'shop/orders/[id]/ready.post.ts': `{ order: ['transition'] }`,
-  'shop/orders/[id]/rework.post.ts': `{ order: ['transition'] }`,
-  'shop/orders/[id]/collect.post.ts': `{ order: ['transition'] }`,
-  'shop/orders/[id]/cancel.post.ts': `{ order: ['cancel'] }`,
-  'shop/orders/[id]/payment.post.ts': `{ payment: ['record'] }`,
-  'shop/orders/[id]/receipt.get.ts': `{ order: ['read'] }`,
-  // A QR for this order only (D28): what the person sees of the order, nothing more without the customer's phone.
-  'shop/orders/[id]/telegram-invite.post.ts': `{ order: ['read'] }`,
-  'shop/orders/[id]/telegram.get.ts': `{ order: ['read'] }`,
-  'shop/today.get.ts': `{ order: ['read'] }`,
-  'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
-  'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,
-  'shop/customers/[id]/anonymize.post.ts': `{ customer: ['anonymize'] }`,
 }
 
 describe.each([

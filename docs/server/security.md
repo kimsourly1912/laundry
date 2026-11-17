@@ -39,17 +39,8 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 |---|---|:-:|:-:|
 | shop | read | ✓ | ✓ |
 | shop | update | ✓ | |
-| price | read | ✓ | ✓ |
-| price | write | | ([D26](../decisions.md#d26-the-platform-keeps-each-shops-price-list): the platform's) |
-| customer | read, write | ✓ | ✓ |
-| customer | anonymize | ✓ | |
-| order | read, create, update, transition | ✓ | ✓ |
-| order | cancel | ✓ | |
-| payment | record | ✓ | ✓ |
-| ticket | bind | ✓ | ✓ |
-| report | read | ✓ | |
 
-The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
+After the reset (plan step 1) the shop has only its settings. The owner portal (step 3) adds the order and template statements (create, read, mark paid, pick up, cancel; choose the default template) to this table and to the permission map. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
 
 ### Platform statements (super admin only)
 
@@ -57,14 +48,11 @@ The `staff` role exists in the map but is not assignable until Phase 2 (spec P3)
 |---|---|
 | shop | create, read, update, suspend |
 | owner | create, reset-password, revoke-sessions |
-| ticketBatch | create, read, void |
-| template | read, write ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)) |
-| price | read, write: a shop's price list, through `/api/platform/shops/:shopId/…` ([D26](../decisions.md#d26-the-platform-keeps-each-shops-price-list)) |
-| receipt | read, write: a shop's receipt design, through `/api/platform/shops/:shopId/receipt…` ([D28](../decisions.md#d28-the-receipt-on-telegram)) |
+| template | read, write: the studio, images, attaching templates to shops ([D31](../decisions.md#d31-the-slip-studio-a-template-is-the-paper-slip); routes come with S1 and step 2) |
 
 Rules:
-- **Platform statements never grant shop statements.** A super admin calling `/api/shop/**` gets `403 NO_SHOP`. The shop records the platform touches are a shop's price list and its receipt design, through their own platform routes (the shop from the path, 404 when missing, audited in that shop's history); never orders or customers (D26, D28). The receipt preview is rendered with made-up values.
-- **A suspended shop:** its owner can sign in and sees a "shop suspended" page; every `/api/shop/**` call returns `403 SHOP_SUSPENDED`; its public ticket pages show "unavailable"; no messages are sent.
+- **Platform statements never grant shop statements.** A super admin calling `/api/shop/**` gets `403 NO_SHOP`. The platform touches a shop's settings, owner and attached templates through `/api/platform/shops/:shopId/…` (the shop from the path, 404 when missing, audited); **never its orders** (plan §4). The studio's previews and Try it draw made-up values.
+- **A suspended shop:** its owner can sign in and sees a "shop suspended" page; every `/api/shop/**` call returns `403 SHOP_SUSPENDED`; no messages are sent.
 - **Better Auth's `organization`, `member`, `invitation` and `ac` endpoints are blocked** for everyone (`403`). Shops and owners are created only through `/api/platform/**`. Server code calls `auth.api.*` directly and is unaffected.
 - The app reads granted statements from `/api/me` to show or hide actions. **The server always checks again.**
 
@@ -126,29 +114,21 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 | Protection | Rule |
 |---|---|
 | **CSRF / origin** | Every non-GET request to `/api/**` except `/api/auth/**` (Better Auth checks its own) and `/api/webhooks/**` must carry an `Origin` (or `Referer`) from the trusted origins, else `403`. `GET` never changes state. A sibling subdomain of `angder.app` is not trusted. |
-| **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body; otherwise, or with no bot token set, the same `404` as an unknown path. No session, no origin check. Only private chats with people count. All it can do is link a chat to an order, or to a customer after the phone check (below). |
+| **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body; otherwise, or with no bot token set, the same `404` as an unknown path. No session, no origin check. Only private chats with people count. Until step 4 it accepts a valid update and does nothing; then it links a chat to one order (below). |
 | **Rate limits** | Workers rate-limit bindings per client address ([D10](../decisions.md#d10-rate-limits)): `/api/public/**` 300/min, `/api/webhooks/**` 600/min; `429 RATE_LIMITED` with `Retry-After: 60`. Nothing limited where no binding exists (dev, tests). Sign-in: 5/min per address (Better Auth) and 10 per 10 minutes per username across addresses (ours), production builds only ([D18](../decisions.md#d18-sign-in-limits)). `/api/health` is never limited. |
-| **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. **Slip scanning (M3.2) needs `camera=(self)`** on the shop pages that scan; loosen only there. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
-| **Ticket page** | `/t/**`: `Cache-Control: no-store, no-transform`, no analytics. Its URL carries a bearer token; `strict-origin` keeps it out of referrers. |
+| **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |
 | **Case-sensitive paths** | `router.options.sensitive`: one spelling per page, so checks on paths can't be skipped by case. |
-| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. One exception, by exact path: a shop's receipt background upload, ≤ 1 MB (platform only); its type and size are read from the file itself, never from headers ([D28](../decisions.md#d28-the-receipt-on-telegram)). |
+| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. The studio's image upload (S1) will be the one exception, by exact path: ≤ 1 MB, platform only, its type and size read from the file itself, never from headers. |
 | **Enumeration** | Other shops' records are `404`. Sign-in errors don't say whether the username exists. |
 
-## Ticket tokens
+## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), plan §8)
 
-- 128-bit random, base64url, 22 characters (spec §6). Generated with a cryptographic random source.
-- Looked up by exact match on a unique index: **token → ticket → order**.
-- **The public response never contains customer identity** (no name, no phone): shop name and phone, order number, status, total, payment status, policy text only.
-- A voided ticket or a suspended shop's ticket shows "unavailable".
-
-## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram))
-
-- **The counter's QR** carries a 256-bit random token (base64url, 43 characters), new for each request, valid a day. Only its SHA-256 is stored. It's created by anyone who can read the order (`order: ['read']`), and gives no more than that one order's messages.
-- **The phone check** (spec §8.2): a person gets **every order of a customer** only by sharing their **own** contact (`contact.user_id` equals the sender) whose number is the customer's phone. Anything else links one order. So a photo of a QR never gives someone a customer's future messages.
-- Links are per shop: a person linked in two shops has two links; one shop's changes never queue messages for the other's links (two-shop tests).
-- Anonymizing a customer revokes their links in the same batch; a blocked bot revokes every link to that chat.
-- Messages carry the shop's name, the order number, the total and paid or not; never the customer's phone. Logs never carry chat ids (an outbox row's id ends with one, so it isn't logged either).
+Built in step 4; these rules hold for it:
+- **The QR** carries a 256-bit random token (base64url, 43 characters), new for each request, valid a day. Only its SHA-256 is stored. Whoever scans it gets **that one order's slip**, nothing more: links are per order (plan §8), so a photo of a QR never gives anyone another order.
+- Links are per shop and per order: a row can't pair one shop with another shop's order (composite foreign keys, two-shop tests).
+- A blocked bot revokes every link to that chat.
+- Messages carry the slip (shop name, order number, amount, paid or not); never the phone in text. Logs never carry chat ids (an outbox row's id ends with one, so it isn't logged either).
 
 ## Secrets
 
@@ -166,9 +146,8 @@ Never in the repo, never logged, never in error messages. `.env` is git-ignored;
 
 - Every request gets a **request id** (Cloudflare's `cf-ray` when present), in logs and in 5xx error bodies.
 - Structured logs: level, request id, route, actor id, code, duration.
-- **Never log** passwords, session tokens, cookies, ticket tokens, phone numbers, Telegram chat ids or full request bodies.
-- Personal data (customer name, phone) only where needed. Audit metadata records **which fields** changed, not their values.
-- **Anonymize** a customer: name and phone cleared, Telegram links revoked, orders kept and shown as "Former customer" (spec P11).
+- **Never log** passwords, session tokens, cookies, QR tokens, phone numbers, Telegram chat ids or full request bodies.
+- Personal data (an order's phone) only where needed. Audit metadata records **which fields** changed, not their values.
 
 ## Route checklist
 
@@ -176,8 +155,8 @@ Every route:
 
 - [ ] Calls **exactly one access helper first**, or is listed as public / webhook / health.
 - [ ] Validates params, query and body with a strict shared contract.
-- [ ] Never reads `shopId`, `userId`, role, ownership or price from the client.
-- [ ] Edits send `version`; order create and payment take an `Idempotency-Key`.
+- [ ] Never reads `shopId`, `userId`, role, ownership, order numbers, dates or template versions from the client.
+- [ ] Edits send `version`; order create and mark paid take an `Idempotency-Key`.
 - [ ] Another shop's record answers `404`.
 - [ ] Privileged writes add an audit row in the same batch.
 - [ ] Errors come from `*.errors.ts` or shared codes; no stack traces or SQL in responses.

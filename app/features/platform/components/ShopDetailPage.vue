@@ -1,12 +1,11 @@
 <script setup lang="ts">
 /**
- * One shop, as the platform sees it (spec §4 → settings pattern): profile and rename, its price
- * list (a template copied in while it's empty, D30), the owner (reset password, sign out
- * everywhere), suspend or resume. Each change sends the version shown.
+ * One shop, as the platform sees it (spec §4 → settings pattern): profile and rename, the owner
+ * (reset password, sign out everywhere), suspend or resume. Each change sends the version shown.
+ * Its templates come with plan step 2.
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { PlatformShopDetail } from '#shared/contracts/platform-shops'
-import type { TemplateList } from '#shared/contracts/templates'
 import { MIN_PASSWORD_LENGTH } from '#shared/contracts/identity'
 import * as v from 'valibot'
 import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop-form'
@@ -34,27 +33,6 @@ const rename = useMutation((name: string) => apiFetch<PlatformShopDetail>(`/plat
 function onRename(event: FormSubmitEvent<{ name: string }>) {
   return rename.execute(event.data.name)
 }
-
-// --- Price list: start from a template while it's empty (D30) ---
-const canApplyTemplate = computed(() => current.value?.priceListEmpty === true && can('price:write') && can('template:read'))
-// Asked for only while a template can be applied: a shop with prices never loads the list.
-const templates = useApiQuery(
-  () => (canApplyTemplate.value ? 'platform:templates:active' : 'platform:templates:unused'),
-  () => (canApplyTemplate.value ? apiFetch<TemplateList>('/platform/templates') : Promise.resolve(null)),
-)
-const templateOptions = computed(() => (templates.data.value?.items ?? []).map(template => ({
-  label: `${template.name} (${t(`settings.currencies.${template.currency}`)})`,
-  description: t('platform.templates.counts', { services: template.serviceCount, items: template.itemCount }),
-  value: template.id,
-})))
-const templateId = ref('')
-watch(templateOptions, (options) => {
-  if (!options.some(option => option.value === templateId.value)) templateId.value = options[0]?.value ?? ''
-}, { immediate: true })
-const applyTemplate = useMutation((id: string) => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}/apply-template`, { method: 'POST', body: { version: current.value!.version, templateId: id } }), {
-  invalidate: ['platform', 'pricing'],
-  success: () => t('platform.shop.templateApplied'),
-})
 
 // --- Owner: reset password ---
 const resetSchema = computed(() => v.object({ password: temporaryPasswordFormSchema(t) }))
@@ -89,7 +67,7 @@ async function confirm() {
 }
 const confirmText = computed(() => (confirming.value === 'revoke' ? t('platform.shop.revokeSessionsConfirm') : t('platform.shop.suspendConfirm', { shop: current.value?.name })))
 const confirmLabel = computed(() => (confirming.value === 'revoke' ? t('platform.shop.revokeSessions') : t('platform.shop.suspend')))
-const conflict = computed(() => [rename.error.value, setStatus.error.value, applyTemplate.error.value].some(error => error?.code === 'VERSION_CONFLICT'))
+const conflict = computed(() => [rename.error.value, setStatus.error.value].some(error => error?.code === 'VERSION_CONFLICT'))
 </script>
 
 <template>
@@ -198,82 +176,6 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value, appl
                 class="sm:mt-6"
               />
             </UForm>
-          </UPageCard>
-
-          <UPageCard
-            v-if="can('price:read')"
-            :title="t('platform.shop.priceList')"
-            :description="t('platform.shop.priceListDescription', { currency: t(`settings.currencies.${current.currency}`) })"
-            variant="subtle"
-          >
-            <div>
-              <UButton
-                :label="t('platform.shop.openPriceList')"
-                icon="i-lucide-tags"
-                color="neutral"
-                variant="outline"
-                :to="`/platform/shops/${current.id}/prices`"
-              />
-            </div>
-            <template v-if="canApplyTemplate">
-              <USeparator />
-              <div class="space-y-1">
-                <h3 class="text-sm font-medium text-highlighted">
-                  {{ t('platform.shop.applyTemplate') }}
-                </h3>
-                <p class="text-sm text-muted">
-                  {{ t('platform.shop.applyTemplateDescription') }}
-                </p>
-              </div>
-              <p
-                v-if="templates.data.value && !templateOptions.length"
-                class="text-sm text-muted"
-              >
-                {{ t('platform.shop.noTemplates') }}
-              </p>
-              <div
-                v-else
-                class="flex flex-col gap-3 sm:flex-row sm:items-start"
-              >
-                <UFormField
-                  :label="t('platform.newShop.template')"
-                  class="flex-1"
-                >
-                  <USelect
-                    v-model="templateId"
-                    :items="templateOptions"
-                    :loading="templates.loading.value"
-                    :disabled="applyTemplate.pending.value"
-                    class="w-full"
-                  />
-                </UFormField>
-                <UButton
-                  :label="t('platform.shop.applyTemplateButton')"
-                  icon="i-lucide-copy"
-                  :loading="applyTemplate.pending.value"
-                  :disabled="!templateId"
-                  class="sm:mt-6"
-                  @click="applyTemplate.execute(templateId)"
-                />
-              </div>
-            </template>
-          </UPageCard>
-
-          <UPageCard
-            v-if="can('receipt:read')"
-            :title="t('platform.shop.receipt')"
-            :description="t('platform.shop.receiptDescription')"
-            variant="subtle"
-          >
-            <div>
-              <UButton
-                :label="t('platform.shop.openReceipt')"
-                icon="i-lucide-receipt-text"
-                color="neutral"
-                variant="outline"
-                :to="`/platform/shops/${current.id}/receipt`"
-              />
-            </div>
           </UPageCard>
 
           <UPageCard

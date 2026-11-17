@@ -6,9 +6,11 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
-- **Next:** [plan step 1, Reset](plan.md#9-steps): delete the removed features and restart the migrations.
-- **Still being planned with the owner:** the studio details ([plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only)) and the [open questions Q9–Q12](plan.md#10-open-questions). Settle them before S2.
-- The table below is the history of what was built **before D31**. Much of it gets deleted in step 1 (see [plan §8](plan.md#8-what-happens-to-the-current-code)).
+- **Done, in review (PR A):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps): customers, pricing, the old orders, receipts, slip templates and reminders deleted; fresh migrations (`0000_init`, `0001_member_one_shop`) with the new tables ([data-model](server/data-model.md)). The shop's home is a placeholder Overview until step 3.
+- **Before this PR deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
+- **Next:** PR B, the studio: [S1](plan.md#9-steps) (design format and rendering). Delete the spike's code (`*/spike-studio`, the dev-only route in `nuxt.config.ts`, as S1 replaces it; `fontkit`, `vue3-moveable` and `vue3-selecto` move from dev dependencies to dependencies.
+- **Studio details agreed (2026-11-17):** [plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only), D32, D33. Still open: [Q11 and Q7](plan.md#10-open-questions), needed by steps 4 and 3.
+- The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
 ## Where we are (before D31)
 
@@ -48,18 +50,18 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
-| Q7 | A paid order's lines are locked (D24): is "cancel and make a new order" acceptable at the counter, or are partial payments / top-ups needed? | Owner, with a real shop | Nothing now |
+| Q7, Q11 | Moved to [plan → Open questions](plan.md#10-open-questions) (D31) | Owner | Steps 3 and 4 |
 
 ## Owner notes
 
-- **Q8 answered (2026-11-16):** the Cloudflare account is on Workers Paid; receipts render on the server.
-- **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)): create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once. Until then: no QR, nothing sent.
+- **Q8 answered (2026-11-16):** the Cloudflare account is on Workers Paid; slips render on the server.
+- **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)) before step 4: create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once.
 - **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) on staging **as a Secret**, not a plain variable: each deploy deletes plain variables set in the dashboard.
-- **Each shop's receipt:** upload a photo or scan of its paper slip on the shop's page → Design the receipt (PNG or JPEG, up to 1 MB, 200–2000 px a side; crop it to the slip first).
-- **PR size:** the owner prefers one PR for several small and medium steps (one commit each) over one PR per step (2026-11-16).
+- **Each shop's slip:** keep a straight, cropped photo of its paper slip (PNG or JPEG, up to 1 MB, 200–2000 px a side): the studio starts a template from it (plan §5.2).
+- **PR size:** one PR per area, one commit per step: Reset, Studio, Owner + Telegram ([plan §9](plan.md#9-steps), owner 2026-11-17).
 - **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.
-- **No pilot shop yet:** use mock data. `pnpm dev:accounts` and the staging sample data use two made-up shops with realistic prices, shaped like the paper tickets (spec §1).
+- **No pilot shop yet:** use mock data, shaped like real paper slips.
 
 ## Blockers
 
-None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password).
+None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password). **Its database must be emptied before PR A deploys** ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)).

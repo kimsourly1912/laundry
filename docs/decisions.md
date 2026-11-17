@@ -355,6 +355,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 ## D28. The receipt on Telegram
 **Partly replaced by D31:** the receipt designer becomes the studio and links are per order; the renderer, the Khmer fix and the outbox stay.
+**Partly replaced by D32:** text is shaped by fontkit and drawn as paths; the one-word-per-`<text>` fix is gone.
 
 **Context.** D25: the customer's paper slip becomes a picture on Telegram, in the shop's own look, plus a message when the order is ready. The spec planned pre-printed QR slips (M3), a ticket page, and grammY for the bot (M4). The owner chose to start with the receipt image and a QR on the counter's screen; printed slips later, if shops want them. Rendering on a Worker has no browser: it must shape Khmer correctly with what runs in WebAssembly.
 
@@ -401,7 +402,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Decision.** The full plan, steps and open questions are in [`plan.md`](plan.md). In short:
 - **A Canva-like studio** (desktop, platform only) designs **templates**, over a photo of the shop's paper slip or from a blank canvas: shapes, text, images, shop info, and form fields (number, text, checkbox, choice, plus the fixed-meaning Order No., date, phone, amount and paid). Templates are owned by the platform and **attached to shops** by it. Each publish makes a fixed version, and an order keeps its version.
 - **The owner's portal has three items:** Overview (today's orders and Create order), Templates (choose the default among the attached ones), Orders. An order is the filled slip: values as JSON against its template version, plus phone, amount, paid and status (`open`, `picked_up`, `cancelled`).
-- **One SVG for screen and customer:** a shared function draws a design with its values, the studio shows it and the server renders it to PNG with resvg (D28's Khmer fix stays). The customer scans a QR and the bot sends that PNG.
+- **One SVG for screen and customer:** a shared function draws a design with its values, the studio shows it and the server renders it to PNG with resvg (text: see D32). The customer scans a QR and the bot sends that PNG.
 - **Removed:** price lists and service types, customers, order lines and the order states of D24, the separate receipt designs, apply-template, reminders. **The amount is typed by the owner**, not computed. The migrations restart from `0000` (only test data exists).
 - **Kept:** identity and tenancy, platform shop management, the server core, the app shell, Telegram over `fetch` with its outbox.
 
@@ -411,3 +412,43 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - The spec's step plan (§18) and D22–D27 and D30 no longer guide work; `plan.md` does.
 - The rule "the server recomputes totals" has nothing to recompute: the server still sets the order number, date and template version, and checks every value against the template version.
 - A shop with no attached template can't take orders, so the platform attaches one when it creates the shop.
+
+## D32. Studio canvas and slip text
+**Accepted by the owner 2026-11-17 (plan Q13, Q14).** Replaces D28's Khmer fix (one `<text>` per word) and settles plan §6.3–6.4.
+
+**Context.** Plan §6.4 asked for a spike before choosing the studio's interaction library, and §6.3 kept D28's Khmer fix (resvg, one `<text>` per word). The spike (`app/spike-studio`, `shared/spike-studio`, `server/spike-studio`; page `/spike/studio` on the dev server only) built a small studio on the plan's design: one JSON design, one shared SVG builder, Moveable + Selecto over the SVG, and the same SVG rendered by resvg on the server. Findings:
+- **resvg shapes Khmer wrongly, even one word at a time:** `សេវា` draws as `សោ`, `ប្រើប្រាស់` and `ខោ` lose or misplace vowels. 2.6.2 (installed, latest stable) and 2.7.0-alpha.2 draw the same wrong glyphs. So D28's receipts are wrong for common words today.
+- **fontkit 3.0.0** (pure JavaScript, MIT) shapes Khmer **glyph-for-glyph the same as HarfBuzz** (glyph ids and positions compared on 5 test strings, including whole mixed Khmer + Latin lines). **fontkit 2.0.4 does not** (a stray glyph before `ស្ត្រី`, a wrong mark in `ក្រុម`). It runs in the browser and in workerd (tested with wrangler): ~5 ms to lay out a line and ~6 ms to rasterise it once warm, no `nodejs_compat` needed. Bundle: ~387 KB minified, ~158 KB gzip.
+- **harfbuzzjs still can't run on Workers** (D28's reason, re-tested with 1.6.4: its start-up compiles WebAssembly at runtime, which workerd forbids).
+- With text drawn as glyph paths, **the studio's SVG is byte-identical to the server's**, and the browser's pixels match the server PNG (0 of 24,640 ink pixels differ by more than 25%).
+- **Moveable 0.53 / vue3-moveable 0.28 and Selecto 1.26 / vue3-selecto 1.12** work on Nuxt 4 / Vue 3.5 over an SVG canvas, at any zoom: press-and-drag, resize, rotate, shift-click and box selection, group drag, snapping to the canvas centre and to other elements, plus our own undo/redo, arrow nudges, Ctrl+scroll zoom about the pointer and Space+drag pan (16 Playwright checks pass). Neither package has had a release since December 2023.
+
+**Decision.**
+- **Text is shaped by fontkit 3 in the shared builder and written as glyph `<path>`s.** The SVG holds no `<text>`; resvg only rasterises, with no fonts. The same font files (`NotoSansKhmer-Regular/Bold.ttf`) are loaded by the studio and the server. This replaces D28's one-word-per-`<text>` fix.
+- **Moveable + Selecto drive the canvas, and never own the design.** Transparent boxes over the SVG, one per element, are their targets; each drag, resize or rotate event writes x, y, w, h or rotation into the design JSON, and the SVG is rebuilt from it. Swapping the library later touches only this layer.
+- **Guard fontkit with tests:** a unit test compares fontkit with harfbuzzjs (which runs in Node) on a corpus of Khmer and mixed strings, so an upgrade that breaks Khmer fails in CI.
+
+**Alternatives.** Polotno (commercial licence, React, renders on a server only through a headless browser). Konva for the whole studio (no SVG export and no Workers rendering: a second drawing path; it stays the fallback for the handles layer only). Keep resvg's text (wrong Khmer). harfbuzzjs (not on Workers). fontkit 2.0.4 (wrong Khmer). Measure in the browser with canvas and draw `<text>` (the server still draws with resvg, so the customer's image stays wrong). Fabric or Konva (two drawing paths, rejected in D31). Writing our own handles (more work now; still possible later, since the library only drives the JSON).
+
+**Consequences.**
+- fontkit 3.0.0 was published on 2026-11-11, so it is very new: pin the exact version and keep the HarfBuzz comparison test.
+- Moveable and Selecto are unmaintained: pin them and keep them behind the studio's canvas component; fork (MIT) if a bug needs fixing.
+- **On-canvas text editing needs an HTML editor over the SVG** (the SVG has no text to edit): show a `contenteditable` box in the same font while editing, and redraw paths when it closes.
+- **Lines wrap only at spaces and new lines (Q14).** Khmer has no spaces between words, and each runtime's `Intl.Segmenter` splits words differently (workerd and Node gave different results), so automatic breaks could differ between the studio and the PNG. The platform puts a space or a new line where a long Khmer line may break.
+- A Vue detail the spike hit: after a click selects an element, Vue passes Moveable its new target one tick later, so Moveable's "start dragging" must run only while the mouse button is still down. Otherwise the next gesture drags instead of resizing.
+
+## D33. Studio scope: photo first, English only, shop details copied to the order
+**Owner, 2026-11-17 (plan Q9, Q10).**
+
+**Context.** Planning the studio's details (plan §5). The plan listed a full Canva-like editor (S2–S5) before any shop could take an order. AGENTS.md requires every screen in English and Khmer. Shop info elements (plan §5.4.4) read the shop's details when the slip is drawn, but an order's image must never change (plan §4).
+
+**Decision.**
+- **The main use is a photo of the shop's paper slip with form fields on it.** Shapes and text are for small touches and blank designs. Form fields are what most templates need; shapes and text tools matter for blank designs. (The same day the owner chose PRs by area, so the whole studio, S1–S5, is one PR before the owner portal: plan §9.)
+- **The studio is English only:** an exception to the English + Khmer rule, because only the platform uses it. Its strings still go through `en.json` under `studio.*`, so Khmer can be added later; the locale test doesn't require `studio.*` keys in `km.json`, and Khmer falls back to English. The slip itself, its text and the field labels (English and Khmer, both required to publish) are not affected.
+- **Shop info elements stay** (shop name, phone, address, logo), and **each order keeps a copy of the shop's details** (name, phone, address, logo image id, currency, language) when it's saved. The slip is drawn from that copy, so an old slip never changes when the shop does.
+
+**Alternatives.** Build only the drawing tools first (most templates don't need them). Translate the studio (cost with no user who needs it). Drop the shop info elements (a phone change means editing and republishing templates). Draw shop info from the live shop details (old slips would change, against plan §4).
+
+**Consequences.**
+- S2 changes `test/unit/locales.test.ts` to exempt `studio.*` from the key parity check, and `docs/standards/i18n.md` to say so.
+- Step 1's schema gets the copy column on `orders` (plan §7).

@@ -19,11 +19,11 @@ Phone / laptop ──► Nuxt app (SPA screens; /t/** server-rendered)
                      ├──► features ──► D1 (NuxtHub db, Drizzle)
                      └──► Telegram Bot API (after the write commits, via the outbox)
 Telegram ──► POST /api/webhooks/telegram
-Cron ──► Nitro scheduled tasks (outbox delivery, reminders, cleanup)
+Cron ──► Nitro scheduled tasks (outbox delivery from step 4, cleanup)
 ```
 
-- **The server owns every rule:** prices, totals, order state, payment state, permissions, tenancy. The client asks; it never decides.
-- **Rendering (spec T15):** app screens are a SPA. The public ticket page `/t/**` is server-rendered with `no-store`.
+- **The server owns every rule:** order numbers, dates, template versions, order state, paid state, permissions, tenancy, and the check of every slip value against its template version. The client asks; it never decides.
+- **Rendering (spec T15):** app screens are a SPA. Server rendering stays on for a future public page (`/t/**` keeps its rule).
 - **No public API for outside clients.** A native app or outside client would need its own decision (spec T16).
 
 ## Surfaces and routes
@@ -34,16 +34,15 @@ Cron ──► Nitro scheduled tasks (outbox delivery, reminders, cleanup)
 | Me | `/api/me` | Signed in | `requireSignedIn` |
 | Shop | `/api/shop/**` | The owner (staff in Phase 2) | `requireShopPermission` |
 | Platform | `/api/platform/**` | Super admin | `requirePlatformPermission` |
-| Public | `/api/public/**` | Anyone with a ticket token | none; rate-limited |
 | Webhook | `/api/webhooks/telegram` | Telegram | secret-token header |
 | Health | `/api/health` | Anyone | none |
 
 Rules:
 - **No shop id or slug in shop paths.** The shop comes from the session (spec T3).
-- **Resources are plural kebab-case nouns:** `/api/shop/price-items`. Nest only for ownership, at most two levels (`/orders/:id/payment`).
-- **CRUD maps to methods:** `GET` list/read, `POST` create, `PATCH` partial update, `DELETE` archive (only where the spec says so: service types, price items).
-- **Business actions are `POST` verbs:** `/orders/:id/start`, `/ready`, `/rework`, `/collect`, `/cancel`. Never change state through `PATCH status`.
-- **File layout mirrors the URL:** `server/api/shop/orders/[id]/ready.post.ts`.
+- **Resources are plural kebab-case nouns:** `/api/shop/orders`. Nest only for ownership, at most two levels (`/orders/:id/payment`).
+- **CRUD maps to methods:** `GET` list/read, `POST` create, `PATCH` partial update, `DELETE` only where nothing is lost (detaching a template from a shop). Templates are archived with a `POST` verb.
+- **Business actions are `POST` verbs:** `/orders/:id/payment`, `/pick-up`, `/cancel`; `/templates/:id/publish`, `/archive`. Never change state through `PATCH status`.
+- **File layout mirrors the URL:** `server/api/shop/orders/[id]/cancel.post.ts`.
 - A route test (`server/tests/routes.test.ts`) fails when a `/api/shop` or `/api/platform` route calls no access helper.
 
 ## Features
@@ -55,16 +54,12 @@ Server code is organized by feature, one business area each:
 | `identity` | Better Auth config, permissions, access decisions, owner accounts, password rules, session lifetimes and revocation |
 | `platform` | audit events, idempotency keys, job runs |
 | `shops` | shop settings, suspend/resume |
-| `pricing` | service types, price items |
-| `customers` | customers, phone normalization, anonymize |
-| `orders` | orders, lines, events, counters, state machine, payment, today view |
-| `templates` | slip templates (D25) |
-| `receipts` | a shop's receipt design, rendering a receipt PNG (D28) |
-| `notifications` | who hears about an order (Telegram links), the outbox and its delivery rules (D28) |
-| `telegram` | the counter's QR, the webhook and phone check, the Bot API, message texts (D28) |
-| `tickets` | batches, tickets, binding, public lookup (not built: D28 replaced it for now) |
+| `templates` | templates, versions, attachments to shops, images; the slip renderer and its fonts (D31, D32; code from S1) |
+| `orders` | orders and their counters: create, mark paid, pick up, cancel (code from step 3) |
+| `notifications` | which chats get an order's slip (Telegram links), the outbox and its delivery rules (D28) |
+| `telegram` | the Bot API, the webhook's secret check; the QR and the scan from step 4 (D28) |
 
-Dependencies point one way: `telegram` → `receipts` → `orders` → `notifications`. `notifications` knows nothing about Telegram: `deliverDue` takes the channel's `send`, so the outbox rules (claim, backoff, give up) stay in one place and the channel in another.
+Dependencies point one way: `telegram` → `orders` → `templates`, and `telegram` → `notifications`. `notifications` knows nothing about Telegram: `deliverDue` takes the channel's `send`, so the outbox rules (claim, backoff, give up) stay in one place and the channel in another.
 
 ```text
 server/
@@ -99,7 +94,7 @@ A big feature splits each layer by aggregate with the same suffixes (`orders/pay
 1. Dependencies point one way: **route → service → repository → schema**. Types and errors are used by all of them.
 2. **Routes:** access helper → validate params, body, query → **one** service call. No SQL, no rules.
 3. **Only a feature's repository writes its tables.** Repositories never throw business errors.
-4. **Features talk through `index.ts` only.** A write that spans features stays atomic: the owner of the action asks the other feature for its **statements** and runs one batch. Example: `orders.markReady` calls `notifications.enqueueStatements(...)` and puts them in its own batch.
+4. **Features talk through `index.ts` only.** A write that spans features stays atomic: the owner of the action asks the other feature for its **statements** and runs one batch. Example: `shops.updateSettings` asks `identity` for `renameShopStatement(...)` and `platform` for `auditStatement(...)`, and runs them in its own batch.
 5. **Services and repositories take `db` (and `actor`) as parameters** with explicit imports, no Nitro auto-imports, so tests run against plain SQLite.
 6. **Nothing in a feature knows about HTTP,** except by throwing from `*.errors.ts`.
 7. **Every file carries its feature name** (`orders.service.ts`).
@@ -110,7 +105,7 @@ A big feature splits each layer by aggregate with the same suffixes (`orders/pay
 | Target | Import |
 |---|---|
 | Server util or another server directory | `#server/utils/batch` |
-| Another feature | `#server/features/customers` (its `index.ts`) |
+| Another feature | `#server/features/shops` (its `index.ts`) |
 | Shared contract | `#shared/contracts/orders` |
 | Sibling file in the same directory | `./orders.repository` |
 | Parent directory | Never `../`: use `#server/` or `#shared/` |
@@ -120,17 +115,18 @@ ESLint enforces these. A schema file may import another feature's `*.schema.ts` 
 ## Anatomy of a route
 
 ```ts
-// server/api/shop/orders/[id]/ready.post.ts
-import { orderActionInput } from '#shared/contracts/orders'
-import { orders } from '#server/features/orders'
+// server/api/shop/settings.patch.ts
+import { updateShopSettingsSchema } from '#shared/contracts/shop-settings'
+import { updateSettings } from '#server/features/shops'
 
 export default defineEventHandler(async (event) => {
-  const actor = await requireShopPermission(event, { order: ['transition'] }) // 1. who, allowed, which shop
-  const orderId = readIdParam(event, 'id')                                    // 2. validate params
-  const input = await readValidBody(event, orderActionInput)                 //    and body ({ version })
-  return orders.markReady({ db: useDb(), actor, orderId, input })            // 3. one service call
+  const actor = await requireShopPermission(event, { shop: ['update'] }) // 1. who, allowed, which shop
+  const input = await readValidBody(event, updateShopSettingsSchema)    // 2. validate the body (with its version)
+  return updateSettings(useDb(), actor, input)                          // 3. one service call
 })
 ```
+
+A route on one record also reads its id with `readIdParam(event, 'id')` before the body.
 
 The actor (`{ userId, shopId, statements }`) comes from the session; `shopId` is never read from the request.
 
@@ -141,12 +137,12 @@ The actor (`{ userId, shopId, statements }`) comes from the session; `shopId` is
 | **Ids** | UUID v7 for our tables, generated in the app. Better Auth tables keep Better Auth's ids. Ids are opaque. |
 | **Money** (T12) | Integer minor units + a currency code next to every amount. KHR = riel, USD = cents. Never floats. Rounding only in `orders.rules.ts`. |
 | **Weight** (T13) | Integer grams. |
-| **Time** (T14) | Stored as UTC; sent as ISO 8601. "Today", reports and reminders use `Asia/Phnom_Penh`, computed on the server. |
+| **Time** (T14) | Stored as UTC; sent as ISO 8601. "Today" and an order's date use `Asia/Phnom_Penh`, computed on the server. |
 | **Names** | Tables `snake_case` plural; columns `snake_case` in SQL, `camelCase` in TypeScript and JSON (`casing: 'snake_case'`). Enum values lower `snake_case` with a `CHECK`. |
 | **Booleans** | Named as facts (`verifiedPhone`). Never nullable. |
 | **Responses** | The resource itself, no envelope. Nullable fields always present (`null`). Never a raw row: map it, so internal columns can't leak. |
 | **Lists** | `?page=1&pageSize=20` (max 100) → `{ items, page, pageSize, total }`. |
-| **Filters** | Query params named after fields (`?status=ready&payment=unpaid`), `search` for text. Unknown params rejected. |
+| **Filters** | Query params named after fields (`?status=open&paid=false`), `search` for text. Unknown params rejected. |
 
 ## Writing data
 
@@ -167,10 +163,8 @@ The order state machine (spec §7) lives in `orders.rules.ts`, pure and unit-tes
 |---|---|
 | Shop | Suspended |
 | Owner user | Banned / password reset |
-| Customer | Anonymized: name and phone cleared, Telegram links revoked; orders kept |
-| Service type, price item | Archived; order lines keep their snapshot |
+| Template | Archived; its versions and their orders stay |
 | Order | Cancelled |
-| Ticket | Voided if lost before binding |
 
 Only `notifications` (sent/skipped after 90 days) and `idempotency_keys` (after 24 h) are purged, by scheduled jobs.
 
@@ -183,7 +177,7 @@ D1 has no interactive transactions (spec T9). A write touching several rows is *
 
 ### Idempotency
 
-Order create and payment record take an **`Idempotency-Key` header** (a UUID the client makes per user action, spec T10):
+Order create and mark paid take an **`Idempotency-Key` header** (a UUID the client makes per user action, spec T10):
 - First call: the key, a hash of the request and the id of the record it made or changed are stored **in the same batch** as the action.
 - Same key, same request: 200 with that record as it is now ([D24](../decisions.md#d24-orders)). The work doesn't run again.
 - Same key, different request: **`422 IDEMPOTENCY_MISMATCH`**.
@@ -192,11 +186,11 @@ Order create and payment record take an **`Idempotency-Key` header** (a UUID the
 - The record's id must be known before the batch runs: generate ids up front.
 - API: [reference/idempotency.md](../reference/idempotency.md).
 
-Internal effects use a deterministic key with a unique index instead (the outbox `dedupe_key`: `ready:{orderId}:{version}`, `reminder:{orderId}:{day}`).
+Internal effects use a deterministic key with a unique index instead (the outbox row's id: `slip:{orderId}:{chatId}`).
 
 ### Audit
 
-Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.cancel`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data). An order's own history is `order_events` (every action, with its actor); of order actions, only the owner-only cancel also writes an audit row ([D24](../decisions.md#d24-orders)).
+Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.cancel`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data).
 
 ## Errors
 
@@ -218,7 +212,7 @@ HTTP 409
 | 401 | No session (or expired, revoked) | `UNAUTHENTICATED` |
 | 403 | Signed in, not allowed | `FORBIDDEN`, `PASSWORD_CHANGE_REQUIRED`, `NO_SHOP`, `SHOP_SUSPENDED` |
 | 404 | Not found, **or another shop's** | `NOT_FOUND` |
-| 409 | Stale version, wrong state, already used | `VERSION_CONFLICT`, `INVALID_STATE`, feature codes (`TICKET_ALREADY_BOUND`, `PHONE_TAKEN`) |
+| 409 | Stale version, wrong state, already used | `VERSION_CONFLICT`, `INVALID_STATE`, feature codes (`USERNAME_TAKEN`, `SLUG_TAKEN`) |
 | 422 | Refused by a business rule | `IDEMPOTENCY_MISMATCH`, feature codes |
 | 429 | Rate limited | `RATE_LIMITED` |
 | 5xx | Our fault | `INTERNAL` |
@@ -227,14 +221,14 @@ HTTP 409
 
 - Every input is validated with **Valibot** before any logic: params, query and body. Schemas the app also uses live in `shared/contracts/<domain>.ts`.
 - Objects are **strict** on writes (unknown keys rejected). Strings trimmed and length-bounded; numbers and arrays bounded. JSON bodies have a byte limit.
-- Validation checks shape. **Business rules live in the service and `*.rules.ts`** ("this price item belongs to this shop and is active").
+- Validation checks shape. **Business rules live in the service and `*.rules.ts`** ("this value belongs to a field of the order's template version, in its range").
 
 ## Side effects
 
 Anything outside the database (Telegram) happens **after** the batch commits, never inside it (spec T11, [D28](../decisions.md#d28-the-receipt-on-telegram)):
-- The action writes **outbox rows** (`notifications`) in its own batch: one per chat linked to the order, the row's id its dedupe key.
-- Right after the commit, the route asks to deliver this order's rows with `event.waitUntil`, so the message goes at once without delaying the response. A link sends its receipt the same way, inside the webhook.
-- The `notifications:deliver` job (every minute) sends anything still due, with backoff (1, 5, 15, 60 min); after 5 attempts a row is `failed`.
+- The action writes **outbox rows** (`notifications`) in its own batch, the row's id its dedupe key.
+- Right after the commit, the webhook asks to deliver this order's rows with `event.waitUntil`, so the slip goes at once without delaying the response (step 4).
+- A `notifications:deliver` job (every minute, back in step 4) sends anything still due, with backoff (1, 5, 15, 60 min); after 5 attempts a row is `failed`.
 - A blocked bot (`403`) or a deleted chat marks the row `skipped` and revokes every link to that chat.
 - **Order actions never fail because of Telegram** (spec §16): sending happens after the response, and its failures stay in the outbox.
 - Delivery is at least once: rows are claimed with a conditional update before sending, and a send can repeat only if a run dies mid-send.

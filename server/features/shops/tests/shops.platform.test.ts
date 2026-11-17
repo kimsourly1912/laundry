@@ -181,15 +181,15 @@ describe('suspendShop and resumeShop (spec §5)', () => {
     const suspended = await suspendShop(db, actor, a.id, { version: 1 })
     expect(suspended).toMatchObject({ status: 'suspended', version: 2 })
 
-    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(a.owner!.id), permissions: { order: ['read'] } }))).toBe('403 SHOP_SUSPENDED')
-    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(b.owner!.id), permissions: { order: ['read'] } }))).toBe('allowed')
+    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(a.owner!.id), permissions: { shop: ['read'] } }))).toBe('403 SHOP_SUSPENDED')
+    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(b.owner!.id), permissions: { shop: ['read'] } }))).toBe('allowed')
     // Signed in, so the app can show the notice.
     expect(await sessionCount(a.owner!.id)).toBe(2)
     expect((await me(db, await sessionUserOf(a.owner!.id))).shop?.status).toBe('suspended')
 
     const resumed = await resumeShop(db, actor, a.id, { version: 2 })
     expect(resumed).toMatchObject({ status: 'active', version: 3 })
-    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(a.owner!.id), permissions: { order: ['read'] } }))).toBe('allowed')
+    expect(await refusal(authorizeShop({ db, user: await sessionUserOf(a.owner!.id), permissions: { shop: ['read'] } }))).toBe('allowed')
     expect((await auditOf(a.id)).map(row => row.action)).toEqual(['shop.create', 'shop.suspend', 'shop.resume'])
     expect((await auditOf(b.id)).map(row => row.action)).toEqual(['shop.create'])
   })

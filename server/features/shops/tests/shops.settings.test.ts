@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { UpdateShopSettingsInput } from '#shared/contracts/shop-settings'
 import { authorizeShop } from '#server/features/identity'
 import type { ShopActor } from '#server/features/identity'
-import { archivePriceItem, createPriceItem, createServiceType } from '#server/features/pricing'
 import { getSettings, suspendShop, updateSettings } from '#server/features/shops'
 import { auditEvents } from '#server/features/platform/platform.schema'
 import type { Db } from '#server/utils/batch'
@@ -35,16 +34,13 @@ const input = (extra: Partial<UpdateShopSettingsInput> = {}): UpdateShopSettings
   phone: '012 345 678',
   address: 'St 271, Phnom Penh',
   currency: 'KHR',
-  policyTextKm: null,
-  policyTextEn: 'Clothes left over 30 days are donated.',
-  reminderAfterDays: 3,
   language: 'km',
   ...extra,
 })
 
 describe('shop settings', () => {
   it('reads the actor\'s own shop, with its defaults', async () => {
-    expect(await getSettings(db, a)).toMatchObject({ name: 'Shop A', currency: 'KHR', reminderAfterDays: 3, language: 'en', currencyLocked: false, version: 1 })
+    expect(await getSettings(db, a)).toMatchObject({ name: 'Shop A', currency: 'KHR', language: 'en', version: 1 })
     expect((await getSettings(db, b)).name).toBe('Shop B')
   })
 
@@ -54,7 +50,7 @@ describe('shop settings', () => {
     expect(await getSettings(db, b)).toMatchObject({ name: 'Shop B', currency: 'KHR', version: 1 })
     const [row] = await db.select().from(auditEvents).where(eq(auditEvents.action, 'shop.settings.update'))
     expect(row).toMatchObject({ shopId: a.shopId, targetId: a.shopId })
-    expect((row!.data as { fields: string[] }).fields.sort()).toEqual(['address', 'currency', 'language', 'name', 'phone', 'policyTextEn'])
+    expect((row!.data as { fields: string[] }).fields.sort()).toEqual(['address', 'currency', 'language', 'name', 'phone'])
   })
 
   it('409 VERSION_CONFLICT when stale, also after the platform suspended and resumed it', async () => {
@@ -66,15 +62,8 @@ describe('shop settings', () => {
     expect((await getSettings(db, a)).name).toBe('Shop A')
   })
 
-  it('the currency changes only while the price list is empty, archived items included (D22)', async () => {
-    const type = await createServiceType(db, a, { nameEn: 'Wash', nameKm: null })
-    const item = await createPriceItem(db, a, { serviceTypeId: type.id, nameEn: 'Shirt', nameKm: null, unit: 'piece', price: 2000 })
-    expect((await getSettings(db, a)).currencyLocked).toBe(true)
-    expect(await refusal(updateSettings(db, a, input({ currency: 'USD' })))).toBe('409 CURRENCY_LOCKED')
-    await archivePriceItem(db, a, item.id, 1)
-    expect(await refusal(updateSettings(db, a, input({ currency: 'USD' })))).toBe('409 CURRENCY_LOCKED')
-    // Everything else still saves; the other shop's empty list lets it change.
-    expect(await refusal(updateSettings(db, a, input({ phone: '099 999 999' })))).toBe('allowed')
-    expect(await refusal(updateSettings(db, b, input({ name: 'Shop B', currency: 'USD' })))).toBe('allowed')
+  it('the currency may change at any time: orders keep a copy of it (D33)', async () => {
+    expect((await updateSettings(db, a, input({ currency: 'USD' }))).currency).toBe('USD')
+    expect((await updateSettings(db, a, input({ version: 2, currency: 'KHR' }))).currency).toBe('KHR')
   })
 })

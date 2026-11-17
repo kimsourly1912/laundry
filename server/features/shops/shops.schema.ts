@@ -1,28 +1,28 @@
 import { sql } from 'drizzle-orm'
 import { check, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
-import { schema as authSchema } from '#auth/schema'
+import { nowMs, shopId, timestamp } from '#server/db/columns'
+import { images } from '#server/features/templates/templates.schema'
 
-/** A shop is a Better Auth organization (spec T2); every shop table points at it, restrict. */
-export const shopId = () => text().notNull().references(() => authSchema!.organization.id, { onDelete: 'restrict' })
-
-/** The shop's own settings and status, one row per shop (spec §6, docs/server/data-model.md). */
+/**
+ * The shop's own details and status, one row per shop (plan §7, docs/server/data-model.md). The
+ * shop's name is the organization's. An order keeps a copy of these details when it's saved
+ * (D33), so changing them never changes an old slip.
+ */
 export const shopSettings = sqliteTable('shop_settings', {
   shopId: shopId().primaryKey(),
   phone: text(),
   address: text(),
+  /** For the slip's Shop info logo (plan §5.4.4). */
+  logoImageId: text().references(() => images.id, { onDelete: 'restrict' }),
   currency: text({ enum: ['KHR', 'USD'] }).notNull().default('KHR'),
-  policyTextKm: text(),
-  policyTextEn: text(),
-  reminderAfterDays: integer().notNull().default(3),
-  // Customer-facing language: Telegram messages and the ticket page (D6).
+  // Customer-facing language: Telegram messages (D6).
   language: text({ enum: ['en', 'km'] }).notNull().default('en'),
   status: text({ enum: ['active', 'suspended'] }).notNull().default('active'),
   version: integer().notNull().default(1),
-  createdAt: integer({ mode: 'timestamp_ms' }).notNull().default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
-  updatedAt: integer({ mode: 'timestamp_ms' }).notNull().default(sql`(cast(unixepoch('subsecond') * 1000 as integer))`),
+  createdAt: timestamp().notNull().default(nowMs),
+  updatedAt: timestamp().notNull().default(nowMs),
 }, table => [
   check('shop_settings_currency_check', sql`${table.currency} in ('KHR', 'USD')`),
   check('shop_settings_language_check', sql`${table.language} in ('en', 'km')`),
   check('shop_settings_status_check', sql`${table.status} in ('active', 'suspended')`),
-  check('shop_settings_reminder_check', sql`${table.reminderAfterDays} between 1 and 30`),
 ])

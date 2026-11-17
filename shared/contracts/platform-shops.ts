@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { idSchema, nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
+import { nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
 import { passwordSchema, usernameSchema } from './identity'
 import type { Currency } from './shop-settings'
 
@@ -37,8 +37,6 @@ export const createShopSchema = v.strictObject({
     /** Temporary: the owner must change it at the first sign-in. */
     password: passwordSchema,
   }),
-  /** The slip template to copy the price list and currency from (D25); none: an empty price list in riel. */
-  templateId: v.optional(idSchema),
 })
 export type CreateShopInput = v.InferOutput<typeof createShopSchema>
 
@@ -56,16 +54,6 @@ export type ShopStatusChangeInput = v.InferOutput<typeof shopStatusChangeSchema>
 /** `POST …/owner/reset-password`: a new temporary password; every owner session ends. */
 export const resetOwnerPasswordSchema = v.strictObject({ password: passwordSchema })
 export type ResetOwnerPasswordInput = v.InferOutput<typeof resetOwnerPasswordSchema>
-
-/**
- * `POST …/apply-template`: copies an active template's price list and currency into a shop whose
- * price list is still empty (D30), at the version the admin saw.
- */
-export const applyTemplateSchema = v.strictObject({
-  version: versionSchema,
-  templateId: idSchema,
-})
-export type ApplyTemplateInput = v.InferOutput<typeof applyTemplateSchema>
 
 /** `GET /api/platform/shops?status=&search=&page=&pageSize=`: search is the name or short name. */
 export const shopListQuerySchema = v.object({
@@ -94,14 +82,11 @@ export interface PlatformShop {
   createdAt: string
   /** Send it back with every change (409 when someone changed the shop meanwhile). */
   version: number
-  /** The shop's prices are in this currency (shown with its price list, D26). */
+  /** The shop's amounts are in this currency. */
   currency: Currency
   /** `null` only if the shop lost its owner (never by our routes). */
   owner: ShopOwner | null
 }
 
-/** One shop (`GET /api/platform/shops/:shopId` and every change to it). */
-export interface PlatformShopDetail extends PlatformShop {
-  /** No service type or price item yet, archived included: a template can still be applied (D30). */
-  priceListEmpty: boolean
-}
+/** One shop (`GET /api/platform/shops/:shopId` and every change to it). Step 2 adds its templates. */
+export type PlatformShopDetail = PlatformShop

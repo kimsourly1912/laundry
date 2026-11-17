@@ -50,25 +50,8 @@
       "NO_SHOP": "This account doesn't belong to a shop.",
       "PASSWORD_CHANGE_REQUIRED": "Change your temporary password to continue.",
       "FORBIDDEN": "You don't have permission to do this.",
-      "CURRENCY_LOCKED": "The currency can't change once the price list has items.",
-      "SERVICE_TYPE_IN_USE": "Archive this service type's price items first.",
-      "SERVICE_TYPE_UNAVAILABLE": "Choose an active service type.",
-      "PRICE_LIST_FULL": "The price list is full. Archive some entries first.",
       "INVALID_STATE": "This was already changed. Reload to see it.",
-      "PHONE_TAKEN": "Another customer already has this phone number.",
-      "CUSTOMER_UNAVAILABLE": "This customer can no longer be chosen. Choose another.",
-      "PRICE_ITEM_UNAVAILABLE": "This price is no longer offered. Remove the line or choose another.",
-      "ORDER_PAID": "This order is paid, so its lines can't change.",
-      "ORDER_UNPAID": "This order isn't paid yet.",
-      "ALREADY_PAID": "This order is already paid.",
-      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
-      "TEMPLATE_NAME_TAKEN": "Another template has this name.",
-      "TEMPLATE_UNAVAILABLE": "This template is archived. Choose another.",
-      "TEMPLATE_LIST_FULL": "Too many active templates. Archive some first.",
-      "RECEIPT_IMAGE_INVALID": "Upload a PNG or JPEG image of at most 1 MB.",
-      "RECEIPT_IMAGE_SIZE": "The image must be between 200 and 2000 pixels on each side.",
-      "TELEGRAM_OFF": "Telegram isn't set up yet. Ask support.",
-      "PRICE_LIST_NOT_EMPTY": "This shop already has a price list. Edit it on its price list page."
+      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again."
     }
   },
   "account": {
@@ -119,33 +102,6 @@
     "tooHigh": "Too high",
     "phoneNumber": "Not a valid phone number"
   },
-  "customers": {
-    "nav": "Customers",
-    "title": "Customers",
-    "new": "New customer",
-    "search": "Search name or phone",
-    "empty": "No customers yet",
-    "emptyDescription": "Customers are added here or while taking an order.",
-    "noMatch": "No customers match your search",
-    "noPhone": "No phone",
-    "back": "Customers",
-    "notFound": "This customer doesn't exist.",
-    "name": "Name",
-    "phone": "Phone",
-    "phoneHelp": "Optional. Any format: 012 345 678 or +855 12 345 678.",
-    "note": "Note",
-    "create": "Add customer",
-    "saved": "Customer saved.",
-    "phoneTakenBy": "{name} already has this phone number.",
-    "openExisting": "Open {name}",
-    "former": "Former customer",
-    "formerDescription": "This customer was anonymized: their name, phone and note were removed. Their orders are kept.",
-    "anonymize": "Anonymize",
-    "anonymizeConfirm": "Anonymize {name}?",
-    "anonymizeDescription": "Their name, phone and note are removed for good. Their orders are kept and show \"Former customer\". This can't be undone.",
-    "anonymizedDone": "The customer was anonymized.",
-    "chooseExisting": "Choose {name}"
-  },
   "settings": {
     "nav": "Settings",
     "title": "Shop settings",
@@ -155,10 +111,9 @@
     "phone": "Phone",
     "phoneHelp": "Shown to customers on their ticket page.",
     "address": "Address",
-    "pricesSection": "Prices",
+    "pricesSection": "Currency",
     "currency": "Currency",
-    "currencyHelp": "Every price and total is in this currency.",
-    "currencyLocked": "Can't change once the price list has items.",
+    "currencyHelp": "Amounts on new orders are in this currency.",
     "currencies": {
       "KHR": "Riel (៛)",
       "USD": "US dollar ($)"
@@ -169,62 +124,11 @@
     "languages": {
       "en": "English",
       "km": "Khmer"
-    },
-    "reminderAfterDays": "Reminder after (days)",
-    "reminderHelp": "Remind customers this many days after their order is ready ({min}–{max}).",
-    "policyTextKm": "Shop policy (Khmer)",
-    "policyTextEn": "Shop policy (English)",
-    "policyHelp": "Shown on the ticket page. At most {max} characters."
-  },
-  "pricing": {
-    "nav": "Prices",
-    "title": "Price list",
-    "tabs": {
-      "active": "Active",
-      "archived": "Archived"
-    },
-    "newItem": "New price",
-    "editItem": "Edit price",
-    "newServiceType": "New service type",
-    "editServiceType": "Edit",
-    "editServiceTypeNamed": "Edit {name}",
-    "empty": "No prices yet",
-    "emptyDescription": "Start with a service type, like \"Wash & iron\", then add its prices.",
-    "emptyArchived": "Nothing archived",
-    "archived": "Archived",
-    "noItems": "No prices in this service type yet.",
-    "units": {
-      "piece": "piece",
-      "kg": "kg"
-    },
-    "unitChoices": {
-      "piece": "Per piece",
-      "kg": "Per kg"
-    },
-    "back": "Price list",
-    "notFound": "This isn't in the price list.",
-    "nameEn": "Name (English)",
-    "nameKm": "Name (Khmer)",
-    "create": "Add",
-    "archive": "Archive",
-    "saved": "Price list saved.",
-    "archivedDone": "Archived.",
-    "archiveServiceTypeConfirm": "Archive {name}?",
-    "archiveServiceTypeDescription": "It won't be offered for new orders. Archive its prices first.",
-    "archiveItemConfirm": "Archive {name}?",
-    "archiveItemDescription": "It won't be offered for new orders. Past orders keep their prices.",
-    "serviceType": "Service type",
-    "chooseServiceType": "Choose a service type",
-    "unit": "Priced",
-    "pricePerPiece": "Price per piece, in {currency}",
-    "pricePerKg": "Price per kg, in {currency}",
-    "priceChangeHelp": "A new price applies to new orders only.",
-    "needServiceType": "Add a service type first"
+    }
   },
   "platform": {
     "nav": {
-      "shops": "Shops",
-      "templates": "Templates"
+      "shops": "Shops"
     },
     "shops": {
       "title": "Shops",
@@ -258,11 +162,7 @@
       "username": "Username",
       "password": "Temporary password",
       "submit": "Create shop",
-      "created": "{shop} was created.",
-      "priceSection": "Price list",
-      "priceSectionDescription": "The shop starts with its own copy of a template's services, items and prices, in the template's currency. You can change the shop's prices later.",
-      "template": "Template",
-      "noTemplate": "No template: an empty price list"
+      "created": "{shop} was created."
     },
     "shop": {
       "title": "Shop",
@@ -291,285 +191,20 @@
       "resume": "Resume shop",
       "resumeDescription": "The owner can use the shop again.",
       "resumed": "The shop was resumed.",
-      "notFound": "This shop doesn't exist.",
-      "priceList": "Price list",
-      "priceListDescription": "Its services and prices, in {currency}. The owner sees them; only the platform changes them.",
-      "openPriceList": "Open the price list",
-      "applyTemplate": "Start from a template",
-      "applyTemplateDescription": "The price list is empty. Copy a template’s services, items and prices into this shop; its currency becomes the template’s. You can change them afterwards.",
-      "applyTemplateButton": "Copy into this shop",
-      "templateApplied": "Template copied into the shop’s price list.",
-      "noTemplates": "No active template yet. Make one under Templates.",
-      "receipt": "Receipt",
-      "receiptDescription": "The image a customer gets on Telegram: the shop's own slip, filled in with the order.",
-      "openReceipt": "Design the receipt"
-    },
-    "templates": {
-      "title": "Templates",
-      "new": "New template",
-      "back": "Templates",
-      "tabs": {
-        "active": "Active",
-        "archived": "Archived"
-      },
-      "empty": "No templates yet",
-      "emptyDescription": "A template is a ready-made price list: its services, its clothing items and their prices. Pick one when you create a shop.",
-      "noArchived": "No archived templates",
-      "counts": "{services} services · {items} items",
-      "updated": "Updated {date}",
-      "notFound": "This template doesn't exist.",
-      "description": "List the services and clothing items in the order the shop's paper slip has them, then give each item a price in each service it's offered in. A new shop gets its own copy: changing this template later doesn't change shops already made from it.",
-      "archivedNotice": "This template is archived: it isn't offered when creating a shop. Restore it to change it.",
-      "name": "Template name",
-      "currency": "Currency",
-      "currencyHelp": "The new shop's currency.",
-      "services": "Services",
-      "servicesHelp": "Like wash & iron, dry clean, iron only. Staff choose one per line.",
-      "items": "Clothing items",
-      "itemsHelp": "The rows of the slip, like shirt, pants, coat. Choose kg for items weighed.",
-      "nameEn": "English name",
-      "nameKm": "Khmer name",
-      "serviceNameEn": "Service {n}, English name",
-      "serviceNameKm": "Service {n}, Khmer name",
-      "itemNameEn": "Item {n}, English name",
-      "itemNameKm": "Item {n}, Khmer name",
-      "unit": "Unit of {name}",
-      "unnamed": "#{n}",
-      "moveUp": "Move {name} up",
-      "moveDown": "Move {name} down",
-      "remove": "Remove {name}",
-      "addService": "Add a service",
-      "addItem": "Add an item",
-      "prices": "Prices",
-      "pricesHelp": "In {currency}, per piece or per kg. Leave a cell empty where the item isn't offered.",
-      "item": "Item",
-      "priceOf": "Price of {item}, {service}",
-      "needService": "Add at least one service",
-      "needItem": "Add at least one item",
-      "needPrice": "Give at least one price",
-      "saved": "The template was saved.",
-      "archive": "Archive",
-      "archiveConfirm": "Archive {name}?",
-      "archiveDescription": "It won't be offered when creating a shop. Shops already made from it keep their prices. You can restore it later.",
-      "archivedDone": "The template was archived.",
-      "restore": "Restore",
-      "restoredDone": "The template was restored."
+      "notFound": "This shop doesn't exist."
     }
   },
-  "orders": {
-    "nav": "Orders",
-    "listTitle": "Orders",
-    "new": "New order",
-    "back": "Orders",
-    "backToOrder": "Back to the order",
-    "search": "Search number, phone or name",
-    "noMatch": "No orders match your search",
-    "status": {
-      "received": "Received",
-      "in_progress": "In progress",
-      "ready": "Ready",
-      "collected": "Collected",
-      "cancelled": "Cancelled"
-    },
-    "payment": {
-      "unpaid": "Unpaid",
-      "paid": "Paid"
-    },
-    "unit": {
-      "piece": "pcs",
-      "kg": "kg"
-    },
-    "lines": {
-      "required": "Add at least one line",
-      "invalidPieces": "Enter a whole number from 1 to 9999",
-      "invalidKg": "Enter the weight in kg, like 2.5",
-      "remove": "Remove {name}",
-      "pieces": "Pieces",
-      "kg": "Weight (kg)",
-      "add": "Add a line",
-      "search": "Search prices",
-      "noPrices": "The price list is empty.",
-      "openPrices": "Add prices"
-    },
-    "total": "Total",
-    "customer": "Customer",
-    "note": "Note",
-    "view": "View order",
-    "title": "Order #{number}",
-    "titleLoading": "Order",
-    "edit": "Edit",
-    "editTitle": "Edit order #{number}",
-    "notFound": "This order doesn't exist.",
-    "saved": "Order saved.",
-    "notEditable": "This order can no longer be edited: it's ready, collected or cancelled.",
-    "paidLocked": "This order is paid, so its lines stay as they are. You can still change the note.",
-    "history": "History",
-    "event": {
-      "created": "Created",
-      "updated": "Edited",
-      "started": "Started",
-      "ready": "Ready",
-      "rework": "Back to work",
-      "collected": "Collected",
-      "cancelled": "Cancelled",
-      "payment_recorded": "Payment recorded",
-      "ticket_bound": "Slip attached"
-    },
-    "action": {
-      "cancel": "Cancel order",
-      "rework": "Back to work",
-      "start": "Start",
-      "payment": "Record payment",
-      "ready": "Mark ready",
-      "collect": "Collected",
-      "collectUnpaid": "Hand over unpaid"
-    },
-    "confirm": {
-      "paymentTitle": "Record payment of {total}?",
-      "paymentDescription": "Record it once the customer has paid the full amount.",
-      "cancelTitle": "Cancel order #{number}?",
-      "cancelDescription": "The order stays in the list as cancelled. This can't be undone.",
-      "cancelPaidDescription": "This order is paid: give any refund outside the app. The order stays in the list as cancelled. This can't be undone.",
-      "collectUnpaidTitle": "Not paid yet",
-      "collectUnpaidDescription": "The customer hasn't paid {total}. Hand the order over anyway?"
-    },
-    "done": {
-      "received": "Order #{number} saved.",
-      "in_progress": "Order #{number} is in progress.",
-      "ready": "Order #{number} is ready.",
-      "collected": "Order #{number} collected.",
-      "cancelled": "Order #{number} cancelled."
-    },
-    "paymentRecorded": "Payment recorded.",
-    "customerHistory": "Orders",
-    "customerNone": "No orders yet.",
-    "customerMore": "And {count} more in the orders list.",
-    "more": "More actions",
-    "walkIn": "Walk-in",
-    "slip": {
-      "nothing": "Fill in at least one item",
-      "tooMany": "At most {max} items on one order",
-      "saved": "Order saved. Write this number on the bag:",
-      "next": "Next order",
-      "noPrices": "No prices yet",
-      "noPricesDescription": "The shop's price list is set up by the platform. Contact support to add your prices.",
-      "phone": "Phone",
-      "name": "Name",
-      "less": "One fewer {name}",
-      "more": "One more {name}",
-      "pieces": "Pieces of {name}",
-      "kg": "Kilograms of {name}",
-      "save": "Save order"
-    },
-    "board": {
-      "waiting": "Waiting",
-      "ready": "Ready",
-      "done": "Done",
-      "empty": {
-        "waiting": "Nothing waiting",
-        "ready": "Nothing ready for pickup",
-        "done": "Nothing collected yet"
-      },
-      "paidAndCollected": "Paid now and collected",
-      "unpaidDescription": "{total} isn't paid yet. Did the customer pay now?"
-    },
-    "receipt": {
-      "open": "Receipt",
-      "title": "Receipt for order {number}",
-      "description": "What the customer gets on Telegram.",
-      "alt": "Receipt for order {number}",
-      "missing": "Your shop's receipt isn't designed yet. Ask support to set it up."
-    },
-    "telegram": {
-      "title": "Updates on Telegram",
-      "help": "Ask the customer to scan this with their phone's camera. They get the receipt now, and a message when the order is ready.",
-      "qr": "QR code for updates on Telegram",
-      "open": "Telegram QR",
-      "modalTitle": "Order {number} on Telegram",
-      "off": "Telegram isn't set up yet. Ask support.",
-      "statusTitle": "Telegram",
-      "notLinked": "The customer isn't getting this order on Telegram yet.",
-      "linked": "{count} chat gets updates about this order. | {count} chats get updates about this order.",
-      "kind": {
-        "receipt": "Receipt",
-        "ready": "Ready",
-        "collected": "Collected",
-        "reminder": "Reminder"
-      },
-      "state": {
-        "pending": "Sending",
-        "sent": "Sent",
-        "skipped": "Not sent",
-        "failed": "Failed"
-      }
-    }
+  "overview": {
+    "nav": "Overview",
+    "title": "Overview",
+    "comingTitle": "Orders are coming soon",
+    "comingDescription": "Your shop's own slip and its orders arrive in the next update. Your shop's settings and account are under More."
   },
   "more": {
     "nav": "More",
     "title": "More",
     "support": "Need a change or help?",
-    "supportDescription": "New prices, new items, a problem: message us and we'll set it up for you.",
+    "supportDescription": "A change to your slip, a problem: message us and we'll set it up for you.",
     "contactSupport": "Contact support"
-  },
-  "receipts": {
-    "title": "Receipt",
-    "titleFor": "Receipt · {shop}",
-    "back": "Back to the shop",
-    "empty": "No receipt design yet",
-    "emptyDescription": "Upload a photo or scan of the shop's paper slip (PNG or JPEG, up to 1 MB, 200 to 2000 pixels a side). Then place the order's details on it.",
-    "upload": "Upload the slip",
-    "replace": "Replace the image",
-    "saveBeforeReplace": "Save your changes first.",
-    "chooseImage": "Choose the slip image",
-    "uploaded": "The image was saved.",
-    "tooBig": "This image is over 1 MB. Make it smaller and try again.",
-    "imageSize": "{width} × {height} pixels",
-    "canvas": "The receipt",
-    "canvasHelp": "Drag a field to move it, or select it and use the arrow keys (Shift for bigger steps). Text sits on its dot.",
-    "add": "Add a field",
-    "addHelp": "It appears in the middle; drag it into place.",
-    "addPlaceholder": "Choose what to show",
-    "search": "Search",
-    "full": "At most {max} fields.",
-    "fields": "Fields ({count})",
-    "noFields": "No fields yet. Add the order's details from the list above.",
-    "x": "Across (px)",
-    "y": "Down (px)",
-    "fontSize": "Text size (px)",
-    "tickSize": "Tick size (px)",
-    "color": "Colour",
-    "align": "Text runs",
-    "aligns": {
-      "start": "Right from the dot",
-      "middle": "Centred on the dot",
-      "end": "Left from the dot"
-    },
-    "bold": "Bold",
-    "remove": "Remove the field",
-    "preview": "Preview",
-    "previewTitle": "Preview",
-    "previewDescription": "Made by the server with made-up values, exactly as a customer gets it on Telegram.",
-    "previewAlt": "The receipt with made-up values",
-    "saved": "The receipt design was saved.",
-    "conflict": "This design was changed in another tab. Reload to see it; your unsaved changes here will be lost.",
-    "paidTick": "Tick: paid",
-    "unpaidTick": "Tick: not paid",
-    "serviceTick": "Tick: {service}",
-    "removedEntry": "An item no longer in the price list",
-    "sources": {
-      "shopName": "Shop name",
-      "number": "Order number",
-      "date": "Date and time",
-      "customer": "Customer",
-      "phone": "Phone",
-      "total": "Total",
-      "payment": "Paid or not paid",
-      "note": "Note"
-    },
-    "sample": {
-      "customer": "Sok Dara",
-      "paid": "Paid",
-      "note": "White shirt: no dryer"
-    }
   }
 }

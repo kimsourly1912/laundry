@@ -1,16 +1,12 @@
-import { MAX_RECEIPT_IMAGE_BYTES } from '#shared/contracts/receipts'
 import { MAX_JSON_BYTES } from './validation'
-
-/** The one upload: a shop's receipt background (D28). */
-const RECEIPT_BACKGROUND_PATH = /^\/api\/platform\/shops\/[^/]+\/receipt\/background$/
 
 /**
  * The largest body the Worker accepts for a path, or `undefined` for no cap (not an API path).
- * API routes take JSON (64 KB), but the receipt background upload (1 MB).
+ * API routes take JSON (64 KB). The studio's image upload (plan S1) adds its own path and limit.
  */
 export function workerBodyLimit(path: string): number | undefined {
   if (!path.startsWith('/api/')) return undefined
-  return RECEIPT_BACKGROUND_PATH.test(path) ? MAX_RECEIPT_IMAGE_BYTES : MAX_JSON_BYTES
+  return MAX_JSON_BYTES
 }
 
 function refuse(): Response {

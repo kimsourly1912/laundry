@@ -25,27 +25,27 @@ function refusal(promise: Promise<unknown> | (() => unknown)) {
 describe('authorizeShop (spec §12, in order)', () => {
   it('returns the actor with the shop from the membership and the granted statements', async () => {
     const owner = await createOwner(db)
-    const actor = await authorizeShop({ db, user: sessionOf(owner.userId), permissions: { order: ['transition'] } })
+    const actor = await authorizeShop({ db, user: sessionOf(owner.userId), permissions: { shop: ['read'] } })
     expect(actor).toMatchObject({ userId: owner.userId, shopId: owner.shopId, role: 'owner' })
-    expect(actor.statements).toContain('order:transition')
+    expect(actor.statements).toContain('shop:update')
   })
 
   it('401 without a session, or for a banned user', async () => {
     const owner = await createOwner(db)
-    expect(await refusal(authorizeShop({ db, user: null, permissions: { order: ['read'] } }))).toBe('401 UNAUTHENTICATED')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId, { banned: true }), permissions: { order: ['read'] } }))).toBe('401 UNAUTHENTICATED')
+    expect(await refusal(authorizeShop({ db, user: null, permissions: { shop: ['read'] } }))).toBe('401 UNAUTHENTICATED')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId, { banned: true }), permissions: { shop: ['read'] } }))).toBe('401 UNAUTHENTICATED')
   })
 
   it('403 PASSWORD_CHANGE_REQUIRED before anything else', async () => {
     const owner = await createOwner(db, { status: 'suspended' })
-    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId, { mustChangePassword: true }), permissions: { order: ['read'] } }))).toBe('403 PASSWORD_CHANGE_REQUIRED')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId, { mustChangePassword: true }), permissions: { shop: ['read'] } }))).toBe('403 PASSWORD_CHANGE_REQUIRED')
   })
 
   it('403 NO_SHOP without a membership, a super admin included', async () => {
     const loner = await createTestUser(db)
     const admin = await createTestUser(db, { role: 'superadmin' })
-    expect(await refusal(authorizeShop({ db, user: sessionOf(loner.userId), permissions: { order: ['read'] } }))).toBe('403 NO_SHOP')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(admin.userId, { role: 'superadmin' }), permissions: { order: ['read'] } }))).toBe('403 NO_SHOP')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(loner.userId), permissions: { shop: ['read'] } }))).toBe('403 NO_SHOP')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(admin.userId, { role: 'superadmin' }), permissions: { shop: ['read'] } }))).toBe('403 NO_SHOP')
   })
 
   it('403 NO_SHOP for a super admin even with a membership row (the platform never acts in a shop)', async () => {
@@ -59,7 +59,7 @@ describe('authorizeShop (spec §12, in order)', () => {
     const shop = await createTestShop(db, { settings: false })
     const owner = await createTestUser(db)
     await addMember(db, shop.shopId, owner.userId)
-    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId), permissions: { order: ['read'] } }))).toBe('403 NO_SHOP')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId), permissions: { shop: ['read'] } }))).toBe('403 NO_SHOP')
   })
 
   it('403 SHOP_SUSPENDED for every statement of a suspended shop', async () => {
@@ -71,21 +71,21 @@ describe('authorizeShop (spec §12, in order)', () => {
     const shop = await createTestShop(db)
     const staff = await createTestUser(db)
     await addMember(db, shop.shopId, staff.userId, 'staff')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { order: ['cancel'] } }))).toBe('403 FORBIDDEN')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { order: ['read', 'cancel'] } }))).toBe('403 FORBIDDEN')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { order: ['transition'] } }))).toBe('allowed')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['update'] } }))).toBe('403 FORBIDDEN')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['read', 'update'] } }))).toBe('403 FORBIDDEN')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['read'] } }))).toBe('allowed')
   })
 
   it('treats an unknown statement as a bug (an internal error), not a refusal', async () => {
     const owner = await createOwner(db)
-    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId), permissions: { order: ['explode'] } as never }))).toMatch(/^error: Unknown permission statement/)
+    expect(await refusal(authorizeShop({ db, user: sessionOf(owner.userId), permissions: { shop: ['explode'] } as never }))).toMatch(/^error: Unknown permission statement/)
   })
 
   it('acts in each user\'s own shop: two shops never mix', async () => {
     const a = await createOwner(db)
     const b = await createOwner(db)
-    expect((await authorizeShop({ db, user: sessionOf(a.userId), permissions: { order: ['read'] } })).shopId).toBe(a.shopId)
-    expect((await authorizeShop({ db, user: sessionOf(b.userId), permissions: { order: ['read'] } })).shopId).toBe(b.shopId)
+    expect((await authorizeShop({ db, user: sessionOf(a.userId), permissions: { shop: ['read'] } })).shopId).toBe(a.shopId)
+    expect((await authorizeShop({ db, user: sessionOf(b.userId), permissions: { shop: ['read'] } })).shopId).toBe(b.shopId)
   })
 })
 
@@ -128,7 +128,7 @@ describe('me', () => {
     const owner = await createOwner(db, { name: 'Linda Laundry' })
     const answer = await me(db, sessionOf(owner.userId, { name: 'Linda', username: owner.username }))
     expect(answer).toMatchObject({ user: { id: owner.userId, name: 'Linda', username: owner.username }, mustChangePassword: false, platformRole: null, shop: { id: owner.shopId, name: 'Linda Laundry', status: 'active' } })
-    expect(answer.statements).toContain('order:cancel')
+    expect(answer.statements).toContain('shop:update')
   })
 
   it('answers on a temporary password, saying so', async () => {

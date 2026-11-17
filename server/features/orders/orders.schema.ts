@@ -1,104 +1,73 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-import { schema as authSchema } from '#auth/schema'
-import { customers } from '#server/features/customers/customers.schema'
-import { priceItems } from '#server/features/pricing/pricing.schema'
-import { shopId } from '#server/features/shops/shops.schema'
-import { ORDER_EVENT_TYPES, ORDER_STATUSES, PAYMENT_STATUSES } from '#shared/contracts/orders'
-import { PRICE_UNITS } from '#shared/contracts/pricing'
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
+import { templateVersions } from '#server/features/templates/templates.schema'
 
 /**
- * A shop's orders (spec §6, §7, docs/server/data-model.md → orders). Never deleted: cancelled.
- * Lines copy their names and prices from the price list, so a later price change never changes an
- * old order (spec §16).
+ * A shop's orders (D31, plan §4, §7; docs/server/data-model.md → orders): a filled slip. Never
+ * deleted: cancelled. The order keeps the template version it was made on and a copy of the shop's
+ * details (D33), so its slip never changes.
  */
 
-const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`
-const timestamp = () => integer({ mode: 'timestamp_ms' })
-const inList = (values: readonly string[]) => sql.raw(values.map(value => `'${value}'`).join(', '))
+export const ORDER_STATUSES = ['open', 'picked_up', 'cancelled'] as const
+export type OrderStatus = typeof ORDER_STATUSES[number]
+
+/** The shop's details as they were when the order was saved (D33): what the slip draws. */
+export interface OrderShopCopy {
+  name: string
+  phone: string | null
+  address: string | null
+  logoImageId: string | null
+  currency: 'KHR' | 'USD'
+  language: 'en' | 'km'
+}
 
 /** The last order number each shop gave out: raised and used in the order's own batch. */
 export const orderCounters = sqliteTable('order_counters', {
   shopId: shopId().primaryKey(),
   lastNumber: integer().notNull(),
-})
+}, table => [
+  check('order_counters_last_number_check', sql`${table.lastNumber} >= 0`),
+])
 
 export const orders = sqliteTable('orders', {
   id: text().primaryKey(),
   shopId: shopId(),
   number: integer().notNull(),
-  customerId: text().notNull(),
-  status: text({ enum: ORDER_STATUSES }).notNull().default('received'),
-  paymentStatus: text({ enum: PAYMENT_STATUSES }).notNull().default('unpaid'),
-  /** Minor units of `currency`, computed by the server from the lines. */
-  total: integer().notNull(),
-  /** The shop's currency when the order was made. */
-  currency: text({ enum: ['KHR', 'USD'] }).notNull(),
-  note: text(),
-  readyAt: timestamp(),
-  collectedAt: timestamp(),
+  /** The shop's day the order was made (`YYYY-MM-DD`, the shop's time zone), set by the server. */
+  date: text().notNull(),
+  templateVersionId: text().notNull().references(() => templateVersions.id, { onDelete: 'restrict' }),
+  /** The owner's values by element id, checked against the template version by the server. */
+  values: text({ mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  shop: text({ mode: 'json' }).$type<OrderShopCopy>().notNull(),
+  /** E.164, from the Phone field; `null` when the order has none. */
+  phone: text(),
+  /** Minor units of the shop copy's currency, as the owner typed it; `null` when the slip has no Amount. */
+  amount: integer(),
+  paid: integer({ mode: 'boolean' }).notNull().default(false),
+  status: text({ enum: ORDER_STATUSES }).notNull().default('open'),
   paidAt: timestamp(),
+  pickedUpAt: timestamp(),
   cancelledAt: timestamp(),
   version: integer().notNull().default(1),
-  createdBy: text().notNull().references(() => authSchema!.user.id, { onDelete: 'restrict' }),
+  createdBy: createdBy(),
   createdAt: timestamp().notNull().default(nowMs),
   updatedAt: timestamp().notNull().default(nowMs),
 }, table => [
-  // Same shop, by construction: (shop_id, customer_id) must name a customer of this shop.
-  foreignKey({ columns: [table.shopId, table.customerId], foreignColumns: [customers.shopId, customers.id], name: 'orders_customer_fk' }).onDelete('restrict'),
   uniqueIndex('orders_shop_number_unique').on(table.shopId, table.number),
-  // The target of the lines' and events' composite foreign keys.
+  // The target of the Telegram tables' composite foreign keys: a row there names an order of its own shop.
   uniqueIndex('orders_shop_id_id_unique').on(table.shopId, table.id),
-  // Status tabs and Today, newest first.
-  index('orders_shop_status_created_idx').on(table.shopId, table.status, table.createdAt),
-  // The full list, newest first; a customer's orders.
+  // Overview (today's orders) and the list, newest first.
+  index('orders_shop_date_idx').on(table.shopId, table.date, table.createdAt),
   index('orders_shop_created_idx').on(table.shopId, table.createdAt),
-  index('orders_shop_customer_idx').on(table.shopId, table.customerId, table.createdAt),
   check('orders_status_check', sql`${table.status} in (${inList(ORDER_STATUSES)})`),
-  check('orders_payment_status_check', sql`${table.paymentStatus} in (${inList(PAYMENT_STATUSES)})`),
-  check('orders_currency_check', sql`${table.currency} in ('KHR', 'USD')`),
-  check('orders_total_check', sql`${table.total} >= 0`),
   check('orders_number_check', sql`${table.number} >= 1`),
-  // Paid means a payment time; unpaid means none.
-  check('orders_paid_at_check', sql`(${table.paymentStatus} = 'paid') = (${table.paidAt} is not null)`),
-])
-
-export const orderLines = sqliteTable('order_lines', {
-  id: text().primaryKey(),
-  shopId: shopId(),
-  orderId: text().notNull(),
-  /** Where the line was priced from; `null` if that item is ever gone (a safety net: items are archived). */
-  priceItemId: text().references(() => priceItems.id, { onDelete: 'set null' }),
-  serviceNameEn: text().notNull(),
-  serviceNameKm: text(),
-  itemNameEn: text().notNull(),
-  itemNameKm: text(),
-  unit: text({ enum: PRICE_UNITS }).notNull(),
-  /** Pieces, or grams for a per-kg item (spec T13). */
-  quantity: integer().notNull(),
-  unitPrice: integer().notNull(),
-  lineTotal: integer().notNull(),
-  sort: integer().notNull(),
-}, table => [
-  foreignKey({ columns: [table.shopId, table.orderId], foreignColumns: [orders.shopId, orders.id], name: 'order_lines_order_fk' }).onDelete('cascade'),
-  index('order_lines_order_idx').on(table.shopId, table.orderId, table.sort),
-  check('order_lines_unit_check', sql`${table.unit} in ('piece', 'kg')`),
-  check('order_lines_quantity_check', sql`${table.quantity} >= 1`),
-  check('order_lines_amounts_check', sql`${table.unitPrice} >= 0 and ${table.lineTotal} >= 0`),
-])
-
-/** An order's history (spec §6): one row per action, in the action's batch. Append-only. */
-export const orderEvents = sqliteTable('order_events', {
-  id: text().primaryKey(),
-  shopId: shopId(),
-  orderId: text().notNull(),
-  type: text({ enum: ORDER_EVENT_TYPES }).notNull(),
-  /** Plain text, no FK, like the audit trail. */
-  actorUserId: text().notNull(),
-  data: text({ mode: 'json' }).$type<Record<string, unknown>>(),
-  createdAt: timestamp().notNull().default(nowMs),
-}, table => [
-  foreignKey({ columns: [table.shopId, table.orderId], foreignColumns: [orders.shopId, orders.id], name: 'order_events_order_fk' }).onDelete('cascade'),
-  index('order_events_order_idx').on(table.shopId, table.orderId, table.createdAt),
-  check('order_events_type_check', sql`${table.type} in (${inList(ORDER_EVENT_TYPES)})`),
+  check('orders_date_check', sql`${table.date} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),
+  check('orders_amount_check', sql`${table.amount} is null or ${table.amount} >= 0`),
+  check('orders_values_check', sql`json_valid(${table.values})`),
+  check('orders_shop_check', sql`json_valid(${table.shop})`),
+  // Each time is there exactly when its state is.
+  check('orders_paid_at_check', sql`${table.paid} = (${table.paidAt} is not null)`),
+  check('orders_picked_up_at_check', sql`(${table.status} = 'picked_up') = (${table.pickedUpAt} is not null)`),
+  check('orders_cancelled_at_check', sql`(${table.status} = 'cancelled') = (${table.cancelledAt} is not null)`),
 ])

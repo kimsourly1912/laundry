@@ -54,4 +54,4 @@ Definition of done for every step:
 - Contracts are in `shared/contracts`; strings in `en.json` + `km.json`.
 - Docs updated: the owning standard or `reference/` page (examples must compile), `data-model.md` for schema changes, `decisions.md` for an architecture choice, `current-state.md` for status.
 
-Group consecutive small and medium plan steps into **one PR, one commit per step** (owner's choice); a large step may be its own PR. Stop for review after each PR. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.
+PRs follow the groups in [plan → Steps](docs/plan.md#9-steps): **one PR per area, one commit per step** (owner's choice). Stop for review after each PR. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.

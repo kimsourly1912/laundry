@@ -235,14 +235,14 @@ describe('revocation (spec §12): each takes effect on the next request', () => 
     const headers = await signIn(auth, 'sokha', TEST_PASSWORD)
     await db.update(user).set({ banned: true }).where(eq(user.id, owner.userId))
     const current = await getSession(headers)
-    await expect(authorizeShop({ db, user: (current?.user ?? null) as SessionUser | null, permissions: { order: ['read'] } })).rejects.toMatchObject({ statusCode: 401 })
+    await expect(authorizeShop({ db, user: (current?.user ?? null) as SessionUser | null, permissions: { shop: ['read'] } })).rejects.toMatchObject({ statusCode: 401 })
   })
 
   it('a suspended shop keeps the session but refuses the shop API', async () => {
     const owner = await createOwner(db, { username: 'sokha', status: 'suspended' })
     const current = await getSession(await signIn(auth, 'sokha', TEST_PASSWORD))
     expect(current).not.toBeNull()
-    await expect(authorizeShop({ db, user: current!.user as SessionUser, permissions: { order: ['read'] } })).rejects.toMatchObject({ statusCode: 403, data: { code: 'SHOP_SUSPENDED' } })
+    await expect(authorizeShop({ db, user: current!.user as SessionUser, permissions: { shop: ['read'] } })).rejects.toMatchObject({ statusCode: 403, data: { code: 'SHOP_SUSPENDED' } })
     expect(await sessionCount(owner.userId)).toBe(1)
   })
 })

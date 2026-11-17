@@ -1,9 +1,11 @@
-import { createTelegramBot, handleUpdate, telegramUpdateSchema, webhookSecretMatches } from '#server/features/telegram'
+import { telegramUpdateSchema, webhookSecretMatches } from '#server/features/telegram'
 
 /**
- * Telegram's webhook (D28, spec §8.2): authenticated by the secret given to `setWebhook`, never by
- * a session; rate-limited per address (server/middleware/20.rate-limit.ts). A 200 tells Telegram
- * the update was handled; an error makes it send the update again later.
+ * Telegram's webhook (D28): authenticated by the secret given to `setWebhook`, never by a session;
+ * rate-limited per address (server/middleware/20.rate-limit.ts). A 200 tells Telegram the update was
+ * handled; an error makes it send the update again later.
+ *
+ * Until step 4 builds the order-only flow (plan §8), a valid update is accepted and ignored.
  */
 export default defineEventHandler(async (event) => {
   const { botToken, webhookSecret } = useRuntimeConfig(event).telegram
@@ -11,7 +13,6 @@ export default defineEventHandler(async (event) => {
   if (!botToken || !webhookSecretMatches(webhookSecret, getHeader(event, 'x-telegram-bot-api-secret-token'))) {
     throw apiError(404, ErrorCodes.NOT_FOUND, 'Not found.')
   }
-  const update = await readValidBody(event, telegramUpdateSchema)
-  await handleUpdate(useDb(), update, { bot: createTelegramBot(botToken) })
+  await readValidBody(event, telegramUpdateSchema)
   return { ok: true }
 })
