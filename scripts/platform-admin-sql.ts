@@ -13,7 +13,7 @@
 import { hashPassword } from 'better-auth/crypto'
 import { v7 } from 'uuid'
 
-const MIN_PASSWORD_LENGTH = 10
+const MIN_PASSWORD_LENGTH = 6
 
 const username = (process.env.NUXT_PLATFORM_ADMIN_USERNAME ?? '').trim().toLowerCase()
 const password = process.env.NUXT_PLATFORM_ADMIN_PASSWORD ?? ''

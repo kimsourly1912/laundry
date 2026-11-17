@@ -15,10 +15,10 @@ interface TestAuthOptions {
   rateLimit?: boolean
 }
 
-/** Our Better Auth configuration on a test database (no leaked-password lookups). */
+/** Our Better Auth configuration on a test database. */
 export function createTestAuth(db: Db, options: TestAuthOptions = {}) {
   const { rateLimit = false } = options
-  const config = identityAuthOptions({ siteUrl: TEST_SITE, checkLeakedPasswords: false })
+  const config = identityAuthOptions({ siteUrl: TEST_SITE })
   return betterAuth({
     ...config,
     rateLimit: { ...config.rateLimit, enabled: rateLimit },

@@ -218,7 +218,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Decision.**
 - The **shops** feature owns the use cases (`shops.service.ts`). It asks **identity** for the organization and owner statements (Better Auth's tables are identity's) and **platform** for the audit row, and runs one batch.
 - A platform action's audit row has `shop_id` **null** and the shop as its target (`target_type: 'shop'`). A shop's own history (M2) will have its `shop_id`.
-- The super admin types the owner's **temporary password** (spec §4 screen). It's hashed on the server with Better Auth's `hashPassword`, never logged or audited, and must be changed at the first sign-in, where Better Auth's leaked-password check applies.
+- The super admin types the owner's **temporary password** (spec §4 screen). It's hashed on the server with Better Auth's `hashPassword`, never logged or audited, and must be changed at the first sign-in (password rules: D29).
 - Versions: `shop_settings.version` is the shop's version for every platform change (rename, suspend, resume). The batch's `requireOneChange` decides a stale write; there is no separate early check.
 - `authorizeShop` refuses a super admin with `403 NO_SHOP` **even if a membership row exists**, and the owner lookups skip super admins, so a stray row can't let the platform act in a shop.
 
@@ -361,3 +361,13 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Satori (no Khmer shaping). HarfBuzz in WebAssembly for text (harfbuzzjs builds its callbacks with runtime WebAssembly compilation, which Workers forbid). A fixed receipt layout with the shop's colours (no shop's own look). Browser Rendering (a headless Chrome per receipt: a paid add-on, slower, and a second code path for tests). The background in R2 (another binding and an orphaned-file problem for a file read whole on every render). Pre-printed QR slips first (printing and stock to manage before any shop asked).
 
 **Consequences.** Spec steps M3.1–M4.2 are replaced: no ticket batches, no `/t/:token` page yet. M4.3 follows the spec: reminders (§8.5) through the same outbox, and the order page shows whether the customer is on Telegram and what was sent. A shop without a receipt design still gets text receipts. A verified link follows the customer, not the phone: a later phone change on the customer doesn't move it. Text on the canvas in the browser and in the PNG can differ slightly in Latin letters (the designer falls back to the app's sans font); Preview is the reference.
+
+## D29. A 6-character password, nothing else
+
+**Context.** Spec §12 asked for at least 10 characters and a leaked-password check (Better Auth's `haveIBeenPwned`). The owner chose a shorter, free password (2026-11-17): staff sign in on a shared counter phone, and the check refused short, easy passwords that shops want to use.
+
+**Decision.** A password is **6–128 characters, any characters**: `MIN_PASSWORD_LENGTH = 6` in `shared/contracts/identity.ts`, the one rule for the app's forms, the contracts, Better Auth (`minPasswordLength`), the seed task and `pnpm admin:sql`. The `haveIBeenPwned` plugin is removed, so sign-in and password changes call no outside service.
+
+**Alternatives.** Keep 10 characters with the check (the spec). Keep the check with 6 characters (it would still refuse `123456` and most short passwords people choose).
+
+**Consequences.** Weaker passwords, accepted by the owner. What still protects accounts: sign-in limits per address and per username (D18), the platform admin can sign an owner out everywhere and reset the password, and a super admin's session is short (D14). Revisit with the first real shop, or if an account is taken over.

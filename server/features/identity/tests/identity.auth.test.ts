@@ -189,10 +189,17 @@ describe('revocation (spec §12): each takes effect on the next request', () => 
     expect(row?.mustChangePassword).toBe(true)
   })
 
-  it('a new password needs at least 10 characters', async () => {
+  it('a new password needs at least 6 characters', async () => {
     await createOwner(db, { username: 'sokha' })
     const headers = await signIn(auth, 'sokha', TEST_PASSWORD)
-    await expect(auth.api.changePassword({ body: { currentPassword: TEST_PASSWORD, newPassword: 'short1234' }, headers })).rejects.toThrow()
+    await expect(auth.api.changePassword({ body: { currentPassword: TEST_PASSWORD, newPassword: '12345' }, headers })).rejects.toThrow()
+  })
+
+  it('any 6 characters make a password: no character rules, no leaked-password check (D29)', async () => {
+    await createOwner(db, { username: 'sokha' })
+    const headers = await signIn(auth, 'sokha', TEST_PASSWORD)
+    await auth.api.changePassword({ body: { currentPassword: TEST_PASSWORD, newPassword: '123456' }, headers })
+    expect(await signIn(auth, 'sokha', '123456')).toBeTruthy()
   })
 
   it('"sign out other devices" ends the others and keeps this one', async () => {

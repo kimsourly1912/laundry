@@ -3,7 +3,7 @@ import { MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH } from '#shared/contracts/iden
 
 /**
  * The account forms (docs/standards/forms.md): Valibot schemas with the user's language, never
- * looser than the server (Better Auth checks the password again, plus leaked passwords).
+ * looser than the server (Better Auth checks the password length again).
  */
 
 type Translate = (key: string, params?: Record<string, unknown>) => string

@@ -42,7 +42,6 @@
     "code": {
       "INVALID_USERNAME_OR_PASSWORD": "Wrong username or password.",
       "INVALID_PASSWORD": "The current password is wrong.",
-      "PASSWORD_COMPROMISED": "This password appears in a list of leaked passwords. Choose another one.",
       "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
       "VERSION_CONFLICT": "Someone else changed this meanwhile. Reload to see the change, then try again.",
       "USERNAME_TAKEN": "This username is already used by another account.",

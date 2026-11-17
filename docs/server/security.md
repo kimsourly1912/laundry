@@ -18,7 +18,6 @@ Use these; don't rebuild them. Check each against its docs for the installed ver
 | Shop = organization, membership | Better Auth `organization` plugin |
 | Permission statements | Better Auth `createAccessControl` |
 | Rate limit of auth routes | Better Auth `rateLimit` |
-| Leaked-password check | Better Auth `haveIBeenPwned` plugin (NUK's range API pattern) |
 | Security headers | Nitro `routeRules` headers (`nuxt.config.ts`, production builds) |
 | Backups | D1 Time Travel |
 
@@ -111,7 +110,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 
 ## Passwords
 
-- Minimum 10 characters; checked against the leaked-password list.
+- At least 6 characters, at most 128; nothing else: any characters, no leaked-password check ([D29](../decisions.md#d29-a-6-character-password-nothing-else)). Spaces count; never trimmed.
 - The admin sets a temporary password; the owner must change it at first sign-in. A forgotten password → the admin resets it. No email or SMS.
 - Sign-in is rate-limited per IP and per username.
 

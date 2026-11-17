@@ -52,7 +52,6 @@ Vitest projects (`vitest.config.ts`):
 
 - **Browser:** the machine's Google Chrome (`channel: 'chrome'`), or `E2E_CHROMIUM=<path to chrome>`. GitHub's runners have Chrome.
 - **Faster while writing tests:** `E2E_SKIP_BUILD=1 pnpm test:e2e` reuses the last e2e build (rebuild after changing app or server code).
-- **Leaked-password check** (Better Auth → api.pwnedpasswords.com) is answered locally by `fake-password-ranges.mjs`: the suite needs no outside service.
 - A failing test saves screenshots in `test-results/` (`screenshotOnFailure`).
 - Sign-in is rate-limited in production builds: give each test its own account, or sign in once per test.
 

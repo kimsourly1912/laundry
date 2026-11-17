@@ -20,6 +20,7 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 | New flow B: the owner's two pages | Done: the paper-slip order form (phone optional, walk-ins), the orders board (Waiting / Ready / Done, one big button, paid and collected), More with contact support, shop screens at 640px; the wizard, order list and Today removed. D27 |
 | New flow C: receipt to Telegram | Done: receipt designs (`receipt_designs`, migration `0007`; designer with drag, arrow keys and the server's preview; the owner sees an order's receipt), rendering with resvg + Noto Sans Khmer one word per element; the counter's QR, the webhook with the phone check, the outbox (`telegram_links`, `notifications`, `telegram_invites`, `telegram_pending`, migration `0008`), ready / collected messages, `notifications:deliver` (every minute) and `notifications:purge` (daily). D28 |
 | Reminders + Telegram on the order page | Done: `orders:remind-uncollected` at 09:00 Phnom Penh (spec §8.5: after the shop's days, once a day, 3 per chat), kind `reminder` (migration `0009`); the order page says whether the customer is on Telegram and what was sent. Spec M4.3 |
+| Password rule | Done: at least 6 characters, any characters, no leaked-password check (owner's choice over spec §12). D29 |
 | Next | **Owner:** set up the bot on staging (below) and try it with a real phone. Then what the first shop asks for |
 
 ## The new flow (D25–D28), replacing spec §18

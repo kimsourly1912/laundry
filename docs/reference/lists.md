@@ -35,7 +35,7 @@ return toPage(items, query, total)
 | `versionSchema` | An integer ≥ 1: the version an edit sends back |
 | `nameSchema(max, label)` | Required, trimmed text; the empty message names the field ("Shop name is required") |
 | `usernameSchema` | Trimmed, lowercase, 3–32 of `a-z 0-9 _ .` (D15) |
-| `passwordSchema` | 10–128 characters, never trimmed |
+| `passwordSchema` | 6–128 characters, any characters, never trimmed (D29) |
 | `optionalTextSchema(max)` | Trimmed text; blank becomes `null`, so clearing a field clears the stored value |
 | `idSchema` | A UUID |
 | `deleteVersionQuerySchema` | `?version=` for a `DELETE` (Workers forward no body on DELETE) |
