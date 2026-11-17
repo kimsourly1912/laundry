@@ -164,10 +164,8 @@ On paper, a tick or a number sits **inside a box printed on the slip**. A form f
    - so what you design is what the customer gets.
 
    Not Fabric or Konva: they mean two drawing paths that drift apart.
-3. **Khmer:** the shared function measures text through a measuring function it's given. The browser measures with its own text engine; the server measures with resvg and keeps the one-word-per-`<text>` fix from D28 (resvg drops spaces after Khmer vowel signs and misshapes Khmer after Latin text in one run).
-   **🤖 Spike result (2026-11-17):** resvg misshapes common Khmer words even one at a time. Proposed instead: fontkit 3 shapes the text in the shared builder and writes glyph paths, so the studio and the server draw the same SVG. See [D32 (proposed)](decisions.md#d32-studio-canvas-and-slip-text-proposed-from-the-studio-spike), waiting for the owner (Q13).
-4. **Handles, snapping, rotation and selecting several elements:** use a ready-made library instead of writing them. **🤖 Claude Code:** Moveable (daybrush) is the likely candidate. Check its docs for the version you install, and test it with Khmer text and SVG elements in a small spike before committing to it. Record the choice as a decision.
-   **🤖 Spike result (2026-11-17):** Moveable + Selecto work over the SVG canvas at any zoom (16 checks pass); both are unmaintained since 2023. Proposed in [D32](decisions.md#d32-studio-canvas-and-slip-text-proposed-from-the-studio-spike) (Q13).
+3. **Text is shaped by fontkit 3 and drawn as glyph paths** ([D32](decisions.md#d32-studio-canvas-and-slip-text)). The shared function shapes each line with fontkit and writes `<path>`s, so the SVG holds no `<text>` and resvg only rasterises. The studio and the server load the same font files and build the same SVG. Lines wrap only at spaces and new lines (Q14). fontkit is pinned and checked against HarfBuzz by a test.
+4. **Handles, snapping, rotation and selecting several elements: Moveable + Selecto** ([D32](decisions.md#d32-studio-canvas-and-slip-text)), pinned. They drive transparent boxes over the SVG and only write x, y, w, h and rotation into the design; the SVG is rebuilt from it. Konva is the fallback for this layer only.
 5. **Undo and redo:** a history of design snapshots (a design is small).
 6. **The studio is desktop only.** The owner's screens are mobile first (content up to 640 px wide).
 7. **Fonts:** Noto Sans Khmer (regular and bold) for Khmer and Latin.
@@ -234,12 +232,12 @@ Each step includes:
 
 **🤖 Claude Code:** ask the owner about these before the step that needs them, and record each answer here and in `decisions.md` if it's an architecture choice.
 
+Answered: **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text), 2026-11-17.
+
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
 | Q9 | Keep the **Shop info** elements, now that templates belong to particular shops? | Keep them: they're cheap and let one design serve several shops | S4 |
 | Q10 | Does the **studio** need English **and Khmer** like every other screen, or English only? Only the platform uses it | The owner decides. English only needs an exception recorded in `decisions.md` (AGENTS.md requires both) | S2 |
 | Q11 | Telegram: keep the **phone check** when the customer scans, or send the slip right after the scan? | Send right after the scan (simpler, order-only) | Step 4 |
 | Q12 | The studio details (§5): the element list, toolbars, presets and wireframes still need the owner's review | Plan them with the owner first | S2 |
-| Q13 | Adopt the spike's proposal ([D32](decisions.md#d32-studio-canvas-and-slip-text-proposed-from-the-studio-spike)): text shaped by fontkit 3 and drawn as paths (replacing resvg's text and D28's fix), and Moveable + Selecto for the canvas? | Adopt both: resvg draws Khmer wrong, and fontkit makes the studio and the PNG identical | S1 |
-| Q14 | Khmer has no spaces between words. Wrap long Khmer text only where the designer puts a space or a new line, or also inside words? | Spaces and new lines only for now: every runtime splits Khmer words differently, so automatic breaks could differ between the studio and the PNG | S3 |
 | Q7 | (Older) Is "cancel and make a new order" enough for mistakes, or is editing a saved order needed? | Cancel and remake for the first version (§4) | Step 3 |
