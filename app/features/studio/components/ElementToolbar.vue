@@ -6,9 +6,11 @@
 import type { SlipElement } from '#shared/contracts/slip-design'
 import type { StudioEditor } from '../composables/useStudioEditor'
 import { roundBox, updateElements } from '../utils/design-ops'
+import DrawingSettings from './DrawingSettings.vue'
 import FieldSettings from './FieldSettings.vue'
 
 const props = defineProps<{ editor: StudioEditor }>()
+const emit = defineEmits<{ editText: [id: string] }>()
 const { t } = useI18n()
 const { editor } = props
 
@@ -55,6 +57,11 @@ function setOpacity(value: number | null | undefined) {
       <FieldSettings
         :editor="editor"
         :element="element"
+      />
+      <DrawingSettings
+        :editor="editor"
+        :element="element"
+        @edit-text="emit('editText', $event)"
       />
       <USeparator
         orientation="vertical"

@@ -1,5 +1,7 @@
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { newKey } from '#shared/slip/elements'
+import { textHeight } from '#shared/slip/svg'
+import type { SlipText } from '#shared/slip/text'
 
 /**
  * What the studio does to a design (plan §5.1, §5.3, §5.7), as plain functions: each returns a new
@@ -123,4 +125,25 @@ export function placeInFillOrder(order: readonly string[], key: string, index: n
   const rest = order.filter(item => item !== key)
   rest.splice(Math.max(0, Math.min(rest.length, index)), 0, key)
   return rest
+}
+
+// --- Text boxes (plan §5.6): the height always fits the text ---
+
+/** Every text element's height set to its lines (`textHeight`); the same design when none changed. */
+export function fitTextHeights(design: SlipDesign, text: SlipText): SlipDesign {
+  let changed = false
+  const elements = design.elements.map((element) => {
+    if (element.type !== 'text') return element
+    const h = roundBox(Math.max(1, textHeight(element, text)))
+    if (h === element.h) return element
+    changed = true
+    return { ...element, h }
+  })
+  return changed ? { ...design, elements } : design
+}
+
+/** An uploaded image's size on the slip: in proportion, at most half the canvas each way. */
+export function placedSize(image: { width: number, height: number }, canvas: { width: number, height: number }): { w: number, h: number } {
+  const scale = Math.min(1, canvas.width / 2 / image.width, canvas.height / 2 / image.height)
+  return { w: Math.round(image.width * scale), h: Math.round(image.height * scale) }
 }

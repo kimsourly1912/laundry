@@ -6,14 +6,18 @@
  */
 import type { TemplateDetail } from '#shared/contracts/templates'
 import { sampleData, SAMPLE_SHOP } from '#shared/slip/fields'
+import { CANVAS_MAX_SIDE, CANVAS_MIN_SIDE } from '#shared/contracts/slip-design'
 import { publishProblems } from '#shared/slip/checks'
 import { emptyFill, fillData, SlipFiller, SlipSvg, useSlipText } from '~/features/slip-fill'
 import type { SlipFill } from '#shared/slip/values'
 import { useStudioEditor } from '../composables/useStudioEditor'
 import { useTemplateDraft } from '../composables/useTemplateDraft'
 import { useWideScreen } from '../composables/useWideScreen'
+import { fitTextHeights } from '../utils/design-ops'
 import ElementToolbar from './ElementToolbar.vue'
+import DrawingPanels from './DrawingPanels.vue'
 import FormPanel from './FormPanel.vue'
+import UploadsPanel from './UploadsPanel.vue'
 import ShopInfoPanel from './ShopInfoPanel.vue'
 import LayersPanel from './LayersPanel.vue'
 import StudioCanvas from './StudioCanvas.vue'
@@ -25,6 +29,10 @@ const toast = useToast()
 const wide = useWideScreen()
 const { text, failed: fontsFailed, reload: reloadFonts } = useSlipText()
 const fontError = new ApiError({ kind: 'network', status: 0 })
+// Text boxes keep their height fitted to their text (plan §5.6) once the fonts are in.
+watch(text, (shaper) => {
+  if (shaper) editor.setNormalize(next => fitTextHeights(next, shaper))
+}, { immediate: true })
 const draft = useTemplateDraft(props.template)
 const editor = useStudioEditor(props.template.design, draft)
 const { status, saved } = draft
@@ -34,7 +42,10 @@ const design = editor.design
 
 const TABS = [
   { key: 'form', icon: 'i-lucide-square-check' },
+  { key: 'text', icon: 'i-lucide-type' },
+  { key: 'elements', icon: 'i-lucide-shapes' },
   { key: 'shop', icon: 'i-lucide-store' },
+  { key: 'uploads', icon: 'i-lucide-upload' },
   { key: 'layers', icon: 'i-lucide-layers' },
 ] as const
 type Tab = typeof TABS[number]['key']
@@ -76,6 +87,25 @@ async function openPreview() {
 onBeforeUnmount(() => {
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
+
+const canvas = ref<InstanceType<typeof StudioCanvas>>()
+
+// --- Resize the canvas (plan §5.1): 200–2000 px a side; the PNG is this size ---
+
+const resizeOpen = ref(false)
+const resizeTo = reactive({ width: 0, height: 0 })
+const resizeValid = computed(() => [resizeTo.width, resizeTo.height].every(side => Number.isInteger(side) && side >= CANVAS_MIN_SIDE && side <= CANVAS_MAX_SIDE))
+function openResize() {
+  resizeTo.width = design.value.width
+  resizeTo.height = design.value.height
+  resizeOpen.value = true
+}
+function applyResize() {
+  if (!resizeValid.value) return
+  editor.apply({ ...design.value, width: resizeTo.width, height: resizeTo.height })
+  resizeOpen.value = false
+  void nextTick(() => canvas.value?.fit())
+}
 
 // --- Try it (plan §5.4.5): the owner's form in a phone-sized frame; nothing is saved ---
 
@@ -210,6 +240,13 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
         :disabled="!editor.canRedo.value"
         @click="editor.redo()"
       />
+      <UButton
+        :label="t('studio.resize.open')"
+        icon="i-lucide-scaling"
+        color="neutral"
+        variant="ghost"
+        @click="openResize"
+      />
 
       <div class="ms-auto flex items-center gap-2">
         <span
@@ -289,13 +326,25 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           v-else-if="tab === 'shop'"
           :editor="editor"
         />
+        <DrawingPanels
+          v-else-if="tab === 'text' || tab === 'elements'"
+          :editor="editor"
+          :tab="tab"
+        />
+        <UploadsPanel
+          v-else-if="tab === 'uploads'"
+          :editor="editor"
+        />
         <LayersPanel
           v-else-if="tab === 'layers'"
           :editor="editor"
         />
       </aside>
       <div class="flex min-w-0 flex-1 flex-col">
-        <ElementToolbar :editor="editor" />
+        <ElementToolbar
+          :editor="editor"
+          @edit-text="canvas?.startEditing($event)"
+        />
         <PageLoadError
           v-if="fontsFailed"
           :error="fontError"
@@ -310,6 +359,7 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
         </div>
         <StudioCanvas
           v-else
+          ref="canvas"
           :editor="editor"
           :data="data"
           :text="text"
@@ -342,6 +392,49 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           >
             {{ t('studio.preview.failed') }}
           </p>
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="resizeOpen"
+      :title="t('studio.resize.title')"
+      :description="t('studio.resize.description')"
+    >
+      <template #body>
+        <div class="flex gap-3">
+          <UFormField
+            :label="t('studio.new.width')"
+            :error="resizeValid ? undefined : t('studio.new.sizeRange', { min: CANVAS_MIN_SIDE, max: CANVAS_MAX_SIDE })"
+          >
+            <UInputNumber
+              v-model="resizeTo.width"
+              :min="CANVAS_MIN_SIDE"
+              :max="CANVAS_MAX_SIDE"
+            />
+          </UFormField>
+          <UFormField :label="t('studio.new.height')">
+            <UInputNumber
+              v-model="resizeTo.height"
+              :min="CANVAS_MIN_SIDE"
+              :max="CANVAS_MAX_SIDE"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            :label="t('common.actions.cancel')"
+            color="neutral"
+            variant="ghost"
+            @click="resizeOpen = false"
+          />
+          <UButton
+            :label="t('studio.resize.apply')"
+            :disabled="!resizeValid"
+            @click="applyResize"
+          />
         </div>
       </template>
     </UModal>

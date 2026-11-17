@@ -19,6 +19,12 @@ export function useStudioEditor(initial: SlipDesign, draft: TemplateDraft) {
   /** What handles act on: selected, shown and not locked. */
   const movable = computed(() => selected.value.filter(element => !element.locked && !element.hidden))
 
+  /** Applied to the design before each commit (the text boxes' heights, once the fonts are in). */
+  let normalize: (next: SlipDesign) => SlipDesign = next => next
+  function setNormalize(fn: (next: SlipDesign) => SlipDesign) {
+    normalize = fn
+  }
+
   function syncFlags() {
     canUndo.value = history.canUndo()
     canRedo.value = history.canRedo()
@@ -26,6 +32,8 @@ export function useStudioEditor(initial: SlipDesign, draft: TemplateDraft) {
 
   /** Ends a change: a new undo step and a save, unless nothing changed. */
   function commit() {
+    const normal = normalize(design.value)
+    if (normal !== design.value) design.value = normal
     const snapshot = JSON.stringify(design.value)
     if (history.commit(snapshot)) draft.saveDesign(JSON.parse(snapshot))
     syncFlags()
@@ -62,6 +70,7 @@ export function useStudioEditor(initial: SlipDesign, draft: TemplateDraft) {
     canRedo: computed(() => canRedo.value),
     element,
     select,
+    setNormalize,
     commit,
     apply,
     undo: () => restore(history.undo()),

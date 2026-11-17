@@ -18,6 +18,7 @@ import type { StudioEditor } from '../composables/useStudioEditor'
 import { duplicateElements, moveLayers, nudgeElements, removeElements, roundBox, updateElements } from '../utils/design-ops'
 import type { LayerMove } from '../utils/design-ops'
 import { isTyping, shortcutOf } from '../utils/shortcuts'
+import { textHeight } from '#shared/slip/svg'
 import { SlipSvg } from '~/features/slip-fill'
 
 const props = defineProps<{
@@ -153,6 +154,8 @@ watch([zoom, pan], updateRect, { deep: true })
 // --- Moveable: one element ("frame" pattern: start from the design's values) ---
 
 const keepRatio = ref(false)
+/** A text box's width and font size when its resize started: corners scale the text (plan §5.6). */
+const textStart = new Map<string, { w: number, size: number, corner: boolean }>()
 
 function onDragStart(e: OnDragStart) {
   gesturing.value = true
@@ -172,6 +175,7 @@ function onResizeStart(e: OnResizeStart) {
   const element = elementOf(e.target)
   const corner = Boolean(e.direction[0] && e.direction[1])
   keepRatio.value = corner && editor.movable.value.length === 1 && KEEP_RATIO_TYPES.has(element.type)
+  if (element.type === 'text') textStart.set(element.id, { w: element.w, size: element.size, corner })
   e.setOrigin(['%', '%'])
   e.setMin([MIN_SIDE, MIN_SIDE])
   if (e.dragStart) e.dragStart.set([element.x, element.y])
@@ -181,6 +185,13 @@ function onResize(e: OnResize) {
   const element = elementOf(e.target)
   element.w = roundBox(Math.max(MIN_SIDE, e.width))
   element.h = roundBox(Math.max(MIN_SIDE, e.height))
+  const start = element.type === 'text' ? textStart.get(element.id) : undefined
+  if (element.type === 'text' && start) {
+    // Side handles rewrap the text at the new width; corners scale its size with the box. Either
+    // way the height is the text's own.
+    if (start.corner) element.size = Math.round(Math.min(400, Math.max(6, start.size * element.w / start.w)) * 10) / 10
+    element.h = roundBox(Math.max(1, textHeight(element, props.text)))
+  }
   element.x = roundBox(e.drag.beforeTranslate[0]!)
   element.y = roundBox(e.drag.beforeTranslate[1]!)
   applyBox(e.target, element)
@@ -243,6 +254,7 @@ function onRotateGroup(e: OnRotateGroup) {
 
 function onGestureEnd() {
   gesturing.value = false
+  textStart.clear()
   editor.commit()
 }
 
@@ -334,6 +346,43 @@ const toolbarAt = computed(() => {
   return { left: pan.value.x + (left + right) / 2 * zoom.value, top: pan.value.y + top * zoom.value - 56 }
 })
 
+// --- Editing text on the canvas (plan §5.6, D32): an editor in the same font over the box ---
+
+const editing = ref<string>()
+const editText = ref('')
+const textArea = ref<HTMLTextAreaElement>()
+const editingElement = computed(() => {
+  const element = editing.value ? editor.element(editing.value) : undefined
+  return element?.type === 'text' ? element : undefined
+})
+
+function startEditing(id: string) {
+  const element = editor.element(id)
+  if (element?.type !== 'text' || element.locked) return
+  editing.value = id
+  editText.value = element.text
+  editor.select([])
+  void nextTick(() => {
+    textArea.value?.focus()
+    textArea.value?.select()
+  })
+}
+
+/** Esc or a click outside finishes; the text changes as one step. */
+function finishEditing() {
+  const id = editing.value
+  if (!id) return
+  editing.value = undefined
+  const value = editText.value.slice(0, 2000)
+  editor.apply(updateElements(design.value, [id], element => (element.type === 'text' ? { ...element, text: value } : element)))
+  editor.select([id])
+}
+
+function onDoubleClick(event: MouseEvent) {
+  const box = (event.target as HTMLElement).closest<HTMLElement>('.studio-box')
+  if (box?.dataset.id) startEditing(box.dataset.id)
+}
+
 // --- Keyboard (plan §5.7): never while typing in a field ---
 
 function onKeyDown(event: KeyboardEvent) {
@@ -403,7 +452,7 @@ onBeforeUnmount(() => {
   observer?.disconnect()
 })
 
-defineExpose({ fit, zoomTo })
+defineExpose({ fit, zoomTo, startEditing })
 </script>
 
 <template>
@@ -412,6 +461,7 @@ defineExpose({ fit, zoomTo })
     class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-elevated select-none"
     :class="{ 'cursor-grab': spaceHeld }"
     data-testid="studio-viewport"
+    @dblclick="onDoubleClick"
     @pointerdown.capture="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
@@ -447,6 +497,27 @@ defineExpose({ fit, zoomTo })
         :data-id="element.id"
         :data-testid="`box-${element.id}`"
         :style="boxStyle(element)"
+      />
+      <textarea
+        v-if="editingElement"
+        ref="textArea"
+        v-model="editText"
+        class="absolute top-0 left-0 resize-none overflow-hidden bg-white/95 p-0 outline-2 outline-primary"
+        :style="{
+          ...boxStyle(editingElement),
+          height: `${Math.max(editingElement.h, editingElement.size * editingElement.lineHeight)}px`,
+          fontFamily: '\'Noto Sans Khmer\', sans-serif',
+          fontSize: `${editingElement.size}px`,
+          fontWeight: editingElement.bold ? 700 : 400,
+          lineHeight: editingElement.lineHeight,
+          color: editingElement.color,
+          textAlign: editingElement.align,
+        }"
+        :aria-label="t('studio.text.editing')"
+        data-testid="text-editor"
+        @keydown.esc.prevent="finishEditing"
+        @blur="finishEditing"
+        @pointerdown.stop
       />
     </div>
 

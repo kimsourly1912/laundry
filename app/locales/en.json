@@ -310,7 +310,10 @@
     "tabs": {
       "layers": "Layers",
       "form": "Form",
-      "shop": "Shop info"
+      "shop": "Shop info",
+      "text": "Text",
+      "elements": "Elements",
+      "uploads": "Uploads"
     },
     "layers": {
       "title": "Layers",
@@ -422,6 +425,55 @@
       "check": "Check like Save",
       "checked": "The slip can be saved.",
       "reset": "Start again"
+    },
+    "text": {
+      "heading": "Heading",
+      "subheading": "Subheading",
+      "body": "Body text",
+      "hint": "Khmer and English in the same box. Lines break at spaces and new lines only: put a space where a long Khmer line may break. Double-click a text to edit it.",
+      "edit": "Edit text",
+      "editing": "Text",
+      "lineSpacing": "Line spacing"
+    },
+    "elements": {
+      "line": "Line",
+      "dashedLine": "Dashed line",
+      "rect": "Rectangle",
+      "roundedRect": "Rounded rectangle",
+      "circle": "Circle",
+      "triangle": "Triangle",
+      "tick": "Tick",
+      "star": "Star"
+    },
+    "uploads": {
+      "upload": "Upload a PNG or JPEG (up to 1 MB, 200–2000 px a side)",
+      "empty": "No images yet.",
+      "add": "Add to the slip",
+      "setBackground": "Set as background",
+      "removeBackground": "Remove the background image"
+    },
+    "shape": {
+      "style": "Style",
+      "fill": "Fill",
+      "border": "Border",
+      "lineColor": "Line colour",
+      "width": "Width",
+      "radius": "Corner radius",
+      "dashed": "Dashed"
+    },
+    "image": {
+      "replace": "Replace"
+    },
+    "color": {
+      "none": "None",
+      "pick": "Pick {label}",
+      "hex": "{label} as hex"
+    },
+    "resize": {
+      "open": "Resize",
+      "title": "Canvas size",
+      "description": "The customer's picture is this size. Elements keep their places.",
+      "apply": "Resize"
     }
   },
   "slipFill": {
