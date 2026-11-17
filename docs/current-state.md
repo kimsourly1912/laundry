@@ -6,7 +6,7 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
-- **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). **Before it deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
+- **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). Staging's database was emptied on 2026-11-17 ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the first platform admin must be created again.
 - **PR B, the studio: done, waiting for the owner's review** (branch `claude/affectionate-ritchie-mtyfdr`, one commit per step):
   - **S1 done:** the design format (`shared/contracts/slip-design.ts`), the shared SVG builder with fontkit text and its HarfBuzz test ([reference/slip.md](reference/slip.md)), `/api/platform/templates` (list, create from a photo, blank or a copy, autosave at `version`, publish, preview PNG), `/api/platform/images` (upload, list, bytes), the templates list, New template, and the studio page (the slip at Fit, rename, save status, Preview, Publish). The spike is deleted.
   - **S2 done:** the canvas (Moveable + Selecto over transparent boxes, D32): zoom 10–400% and Fit, pan, select (click, Shift, box), press-and-drag, resize, rotate (snaps 45° within 3°), snapping (Alt off), the keyboard of plan §5.7 but copy and paste (S5), undo / redo of the last 100 changes, the floating toolbar, position and size, and the Layers tab. Logic in `app/features/studio/utils` (history, design operations, shortcuts) with unit tests; e2e in `test/e2e/studio-canvas.test.ts`.
@@ -72,4 +72,4 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 
 ## Blockers
 
-None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password). **Its database must be emptied before PR A deploys** ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)).
+None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password). **Its database was emptied for the reset on 2026-11-17: create the first platform admin again** ([operations → First platform admin](server/operations.md#first-platform-admin)).
