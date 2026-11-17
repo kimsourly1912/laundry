@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import type { CreateShopInput } from '#shared/contracts/platform-shops'
 import type { TemplateDefinition } from '#shared/contracts/templates'
 import type { PlatformActor } from '#server/features/identity'
-import { createServiceType, listPriceItems, listServiceTypes } from '#server/features/pricing'
-import { createShop, platformShopActor } from '#server/features/shops'
+import { archiveServiceType, createServiceType, listPriceItems, listServiceTypes } from '#server/features/pricing'
+import { applyTemplate, createShop, getShop, platformShopActor } from '#server/features/shops'
 import { archiveTemplate, createTemplate, updateTemplate } from '#server/features/templates'
 import { priceItems, serviceTypes } from '#server/features/pricing/pricing.schema'
 import { auditEvents } from '#server/features/platform/platform.schema'
 import { organization } from '#server/db/tables'
+import { shopSettings } from '#server/features/shops/shops.schema'
 import type { Db } from '#server/utils/batch'
 import { createTestDb } from '#server/tests/support/db'
 import { createTestUser } from '#server/tests/support/auth'
@@ -130,5 +131,69 @@ describe('the platform keeps a shop\'s price list (D26)', () => {
 
   it('answers 404 for a shop that doesn\'t exist', async () => {
     expect(await refusal(platformShopActor(db, actor, '01900000-0000-7000-8000-000000000000'))).toBe('404 NOT_FOUND')
+  })
+})
+
+describe('applyTemplate to an existing shop (D30)', () => {
+  it('copies the price list and currency into an empty shop, audited, and leaves the other shop alone', async () => {
+    const template = await createTemplate(db, actor, { name: 'Standard', currency: 'USD', definition })
+    const a = await createShop(db, actor, input())
+    const b = await createShop(db, actor, input())
+    expect(a.priceListEmpty).toBe(true)
+    const applied = await applyTemplate(db, actor, a.id, { version: a.version, templateId: template.id })
+    expect(applied).toMatchObject({ currency: 'USD', priceListEmpty: false, version: a.version + 1 })
+    expect(await listOf(a.id)).toEqual(['1. Wash & iron: Shirt 100/piece, Mixed 250/kg', '2. Iron only: Pants 50/piece'])
+    expect(await listOf(b.id)).toEqual([])
+    expect(await getShop(db, b.id)).toMatchObject({ currency: 'KHR', priceListEmpty: true, version: b.version })
+    const audits = await db.select().from(auditEvents).where(eq(auditEvents.targetId, a.id))
+    expect(audits.find(row => row.action === 'shop.apply-template')).toMatchObject({ shopId: null, actorUserId: actor.userId, data: { templateId: template.id } })
+  })
+
+  it('refuses a shop that has anything in its price list, even one archived service, and writes nothing', async () => {
+    const template = await createTemplate(db, actor, { name: 'Standard', currency: 'USD', definition })
+    const shop = await createShop(db, actor, input())
+    const scope = await platformShopActor(db, actor, shop.id)
+    const type = await createServiceType(db, scope, { nameEn: 'Dry clean', nameKm: null })
+    await archiveServiceType(db, scope, type.id, type.version)
+    expect((await getShop(db, shop.id)).priceListEmpty).toBe(false)
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version, templateId: template.id }))).toBe('409 PRICE_LIST_NOT_EMPTY')
+    expect(await db.$count(priceItems, eq(priceItems.shopId, shop.id))).toBe(0)
+    expect((await getShop(db, shop.id)).currency).toBe('KHR')
+  })
+
+  it('a price added between the read and the batch stops the copy (the guard is in the batch)', async () => {
+    const template = await createTemplate(db, actor, { name: 'Standard', currency: 'USD', definition })
+    const shop = await createShop(db, actor, input())
+    beforeNextBatch(async () => createServiceType(db, await platformShopActor(db, actor, shop.id), { nameEn: 'Dry clean', nameKm: null }))
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version, templateId: template.id }))).toBe('409 PRICE_LIST_NOT_EMPTY')
+    expect(await listOf(shop.id)).toEqual(['1. Dry clean: '])
+  })
+
+  it('refuses a stale version with 409 VERSION_CONFLICT', async () => {
+    const template = await createTemplate(db, actor, { name: 'Standard', currency: 'USD', definition })
+    const shop = await createShop(db, actor, input())
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version + 1, templateId: template.id }))).toBe('409 VERSION_CONFLICT')
+    expect(await db.$count(serviceTypes, eq(serviceTypes.shopId, shop.id))).toBe(0)
+    const [settings] = await db.select({ version: shopSettings.version }).from(shopSettings).where(eq(shopSettings.shopId, shop.id))
+    expect(settings?.version).toBe(shop.version)
+  })
+
+  it('refuses an archived template, also one archived between the read and the batch', async () => {
+    const shop = await createShop(db, actor, input())
+    const old = await createTemplate(db, actor, { name: 'Old', currency: 'USD', definition })
+    await archiveTemplate(db, actor, old.id, { version: 1 })
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version, templateId: old.id }))).toBe('409 TEMPLATE_UNAVAILABLE')
+    const racing = await createTemplate(db, actor, { name: 'Racing', currency: 'USD', definition })
+    beforeNextBatch(() => archiveTemplate(db, actor, racing.id, { version: 1 }))
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version, templateId: racing.id }))).toBe('409 TEMPLATE_UNAVAILABLE')
+    expect(await db.$count(serviceTypes, eq(serviceTypes.shopId, shop.id))).toBe(0)
+  })
+
+  it('answers 404 for a shop or a template that doesn\'t exist', async () => {
+    const template = await createTemplate(db, actor, { name: 'Standard', currency: 'USD', definition })
+    const shop = await createShop(db, actor, input())
+    const missing = '01900000-0000-7000-8000-000000000000'
+    expect(await refusal(applyTemplate(db, actor, missing, { version: 1, templateId: template.id }))).toBe('404 NOT_FOUND')
+    expect(await refusal(applyTemplate(db, actor, shop.id, { version: shop.version, templateId: missing }))).toBe('404 NOT_FOUND')
   })
 })

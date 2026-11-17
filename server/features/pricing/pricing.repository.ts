@@ -121,6 +121,16 @@ export function requireNoPriceItems(db: Db, shopId: string): Statement {
   return requireCount(db, sql`${db.$count(priceItems, eq(priceItems.shopId, shopId))}`, 0)
 }
 
+/** The shop has nothing in its price list: no service type and no price item, archived included. */
+export async function hasPriceList(db: Db, shopId: string): Promise<boolean> {
+  return (await db.$count(serviceTypes, eq(serviceTypes.shopId, shopId))) > 0 || hasPriceItems(db, shopId)
+}
+
+/** Guards copying a template into a shop (D30): its price list is still empty, archived included. */
+export function requireNoPriceList(db: Db, shopId: string): Statement {
+  return requireCount(db, sql`${db.$count(serviceTypes, eq(serviceTypes.shopId, shopId))} + ${db.$count(priceItems, eq(priceItems.shopId, shopId))}`, 0)
+}
+
 // --- Write statements ---
 
 /** Next in list order: after the shop's last one, computed in the insert itself. */

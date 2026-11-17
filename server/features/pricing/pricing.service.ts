@@ -172,6 +172,16 @@ export function hasPriceItems(db: Db, shopId: string): Promise<boolean> {
   return repo.hasPriceItems(db, shopId)
 }
 
+/** Whether the shop has any service type or price item, archived included (D30). */
+export function hasPriceList(db: Db, shopId: string): Promise<boolean> {
+  return repo.hasPriceList(db, shopId)
+}
+
+/** Guards copying a template into an existing shop: its price list is still empty (D30). */
+export function requireNoPriceListStatement(db: Db, shopId: string): Statement {
+  return repo.requireNoPriceList(db, shopId)
+}
+
 // --- For the orders feature ---
 
 export type LinePriceItem = Awaited<ReturnType<typeof repo.priceItemsForLines>>[number]

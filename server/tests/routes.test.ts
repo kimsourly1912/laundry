@@ -57,6 +57,7 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/shops/[shopId].patch.ts': `{ shop: ['update'] }`,
   'platform/shops/[shopId]/suspend.post.ts': `{ shop: ['suspend'] }`,
   'platform/shops/[shopId]/resume.post.ts': `{ shop: ['suspend'] }`,
+  'platform/shops/[shopId]/apply-template.post.ts': `{ price: ['write'], template: ['read'] }`,
   'platform/shops/[shopId]/owner/reset-password.post.ts': `{ owner: ['reset-password'] }`,
   'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
   'platform/shops/[shopId]/service-types/index.get.ts': `{ price: ['read'] }`,

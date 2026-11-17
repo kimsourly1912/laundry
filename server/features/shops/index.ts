@@ -3,7 +3,7 @@ import type { Db } from '#server/utils/batch'
 import { findShopProfile, findShopStatus } from './shops.repository'
 
 /** The shops feature's public API (docs/server/architecture.md → Features). */
-export { createShop, getShop, listShops, platformShopActor, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from './shops.service'
+export { applyTemplate, createShop, getShop, listShops, platformShopActor, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from './shops.service'
 export { getSettings, updateSettings } from './shops.settings.service'
 
 /**

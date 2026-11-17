@@ -232,7 +232,7 @@ Rules (service, inside the batch):
 | `id` | text PK | UUID v7 |
 | `shop_id` | text null | FK → `organization.id`, restrict. The shop the action happened **in**; `null` for a platform action, whose shop is the target ([D19](../decisions.md#d19-platform-actions-and-their-audit-rows)) |
 | `actor_user_id` | text | Plain text, no FK: the trail outlives account changes |
-| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `owner.reset-password`, `owner.revoke-sessions` |
+| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `shop.apply-template` (D30), `owner.reset-password`, `owner.revoke-sessions` |
 | `target_type`, `target_id` | text | `shop` + the shop's id |
 | `data` | json null | Which fields changed, ids; never passwords or personal values |
 | `request_id` | text null | Leads to the request's log lines (not in the spec's list; added for support) |

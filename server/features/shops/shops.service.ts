@@ -1,6 +1,6 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { CreateShopInput, PlatformShop, ResetOwnerPasswordInput, ShopListQuery, ShopStatus, ShopStatusChangeInput, UpdateShopInput } from '#shared/contracts/platform-shops'
+import type { ApplyTemplateInput, CreateShopInput, PlatformShop, PlatformShopDetail, ResetOwnerPasswordInput, ShopListQuery, ShopStatus, ShopStatusChangeInput, UpdateShopInput } from '#shared/contracts/platform-shops'
 import type { Db, Statement } from '#server/utils/batch'
 import { isStaleWrite, isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
@@ -8,10 +8,10 @@ import { auditStatement } from '#server/features/platform'
 import type { AuditEntry } from '#server/features/platform'
 import { newShopStatements, ownerPasswordResetStatements, renameShopStatement, requireShopNamesAvailable, revokeSessionsStatements, shopOwner, shopOwners } from '#server/features/identity'
 import type { PlatformActor } from '#server/features/identity'
-import { newPriceListStatements } from '#server/features/pricing'
+import { hasPriceList, newPriceListStatements, requireNoPriceListStatement } from '#server/features/pricing'
 import type { PriceActor } from '#server/features/pricing'
 import { requireActiveTemplateStatement, templateForNewShop } from '#server/features/templates'
-import { alreadySuspended, notSuspended, ownerNotFound, shopChanged, shopNotFound } from './shops.errors'
+import { alreadySuspended, notSuspended, ownerNotFound, priceListNotEmpty, shopChanged, shopNotFound } from './shops.errors'
 import * as repo from './shops.repository'
 import type { ShopRow } from './shops.repository'
 
@@ -43,9 +43,9 @@ async function loadShop(db: Db, shopId: string): Promise<ShopRow> {
   return row
 }
 
-export async function getShop(db: Db, shopId: string): Promise<PlatformShop> {
+export async function getShop(db: Db, shopId: string): Promise<PlatformShopDetail> {
   const [shop] = await toPlatformShops(db, [await loadShop(db, shopId)])
-  return shop!
+  return { ...shop!, priceListEmpty: !await hasPriceList(db, shopId) }
 }
 
 /**
@@ -54,7 +54,7 @@ export async function getShop(db: Db, shopId: string): Promise<PlatformShop> {
  * 409 `USERNAME_TAKEN` / `SLUG_TAKEN` name the field; `TEMPLATE_UNAVAILABLE` when the template was
  * archived, even between the read and the batch (its guard is in the batch).
  */
-export async function createShop(db: Db, actor: PlatformActor, input: CreateShopInput, now = new Date()): Promise<PlatformShop> {
+export async function createShop(db: Db, actor: PlatformActor, input: CreateShopInput, now = new Date()): Promise<PlatformShopDetail> {
   const { name, slug, owner, templateId } = input
   const shopId = newId()
   const template = templateId ? await templateForNewShop(db, templateId) : undefined
@@ -85,8 +85,39 @@ export async function platformShopActor(db: Db, actor: PlatformActor, shopId: st
   return { userId: actor.userId, shopId, requestId: actor.requestId }
 }
 
+/**
+ * Copies an active template's price list and currency into an existing shop (D30), like a new
+ * shop gets one (D25), but only while the shop's price list is empty, archived included: a copy
+ * never overwrites the shop's own prices. One batch with its guards: the shop's version, the empty
+ * list and the template still active; when one stops it, the error says which.
+ */
+export async function applyTemplate(db: Db, actor: PlatformActor, shopId: string, input: ApplyTemplateInput, now = new Date()): Promise<PlatformShopDetail> {
+  const { version, templateId } = input
+  await loadShop(db, shopId)
+  const template = await templateForNewShop(db, templateId)
+  if (await hasPriceList(db, shopId)) throw priceListNotEmpty()
+  try {
+    await db.batch([
+      repo.updateSettingsAtVersion(db, { shopId, version, now, currency: template.currency }),
+      requireOneChange(db),
+      requireNoPriceListStatement(db, shopId),
+      requireActiveTemplateStatement(db, templateId),
+      ...newPriceListStatements(db, { shopId, definition: template.definition, now }),
+      audit(db, actor, shopId, { action: 'shop.apply-template', data: { templateId } }, now),
+    ])
+  }
+  catch (error) {
+    if (!isStaleWrite(error)) throw error
+    // Something changed since the read: the template, the price list, else the shop's version.
+    await templateForNewShop(db, templateId)
+    if (await hasPriceList(db, shopId)) throw priceListNotEmpty()
+    throw shopChanged()
+  }
+  return getShop(db, shopId)
+}
+
 /** Renames the shop, at the version the admin saw (409 when stale: the batch's guard decides). */
-export async function updateShop(db: Db, actor: PlatformActor, shopId: string, input: UpdateShopInput, now = new Date()): Promise<PlatformShop> {
+export async function updateShop(db: Db, actor: PlatformActor, shopId: string, input: UpdateShopInput, now = new Date()): Promise<PlatformShopDetail> {
   const { version, name } = input
   await loadShop(db, shopId)
   await runBatch(db, [
@@ -105,7 +136,7 @@ interface StatusChange {
   wrongState: () => Error
 }
 
-async function changeStatus(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, change: StatusChange, now: Date): Promise<PlatformShop> {
+async function changeStatus(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, change: StatusChange, now: Date): Promise<PlatformShopDetail> {
   const { version } = input
   const { from, to, action, wrongState } = change
   const shop = await loadShop(db, shopId)
@@ -122,11 +153,11 @@ async function changeStatus(db: Db, actor: PlatformActor, shopId: string, input:
  * Suspends the shop (spec §5): its owner can still sign in and sees the notice, every shop API
  * answers 403 `SHOP_SUSPENDED`, its ticket pages say "unavailable". Nothing is deleted.
  */
-export function suspendShop(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, now = new Date()): Promise<PlatformShop> {
+export function suspendShop(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, now = new Date()): Promise<PlatformShopDetail> {
   return changeStatus(db, actor, shopId, input, { from: 'active', to: 'suspended', action: 'shop.suspend', wrongState: alreadySuspended }, now)
 }
 
-export function resumeShop(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, now = new Date()): Promise<PlatformShop> {
+export function resumeShop(db: Db, actor: PlatformActor, shopId: string, input: ShopStatusChangeInput, now = new Date()): Promise<PlatformShopDetail> {
   return changeStatus(db, actor, shopId, input, { from: 'suspended', to: 'active', action: 'shop.resume', wrongState: notSuspended }, now)
 }
 

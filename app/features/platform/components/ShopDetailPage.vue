@@ -1,10 +1,12 @@
 <script setup lang="ts">
 /**
- * One shop, as the platform sees it (spec §4 → settings pattern): profile and rename, the owner
- * (reset password, sign out everywhere), suspend or resume. Each change sends the version shown.
+ * One shop, as the platform sees it (spec §4 → settings pattern): profile and rename, its price
+ * list (a template copied in while it's empty, D30), the owner (reset password, sign out
+ * everywhere), suspend or resume. Each change sends the version shown.
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
-import type { PlatformShop } from '#shared/contracts/platform-shops'
+import type { PlatformShopDetail } from '#shared/contracts/platform-shops'
+import type { TemplateList } from '#shared/contracts/templates'
 import { MIN_PASSWORD_LENGTH } from '#shared/contracts/identity'
 import * as v from 'valibot'
 import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop-form'
@@ -12,7 +14,7 @@ import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop
 const props = defineProps<{ id: string }>()
 const { t, locale } = useI18n()
 const { can } = useSession()
-const shop = useApiQuery(() => `platform:shop:${props.id}`, () => apiFetch<PlatformShop>(`/platform/shops/${props.id}`))
+const shop = useApiQuery(() => `platform:shop:${props.id}`, () => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}`))
 const current = computed(() => shop.data.value)
 const missing = computed(() => shop.error.value?.kind === 'not_found')
 
@@ -25,13 +27,34 @@ watch(current, (value) => {
   if (value) renameState.name = value.name
 }, { immediate: true })
 const renameDirty = computed(() => current.value != null && renameState.name.trim() !== current.value.name)
-const rename = useMutation((name: string) => apiFetch<PlatformShop>(`/platform/shops/${props.id}`, { method: 'PATCH', body: { version: current.value!.version, name } }), {
+const rename = useMutation((name: string) => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}`, { method: 'PATCH', body: { version: current.value!.version, name } }), {
   invalidate: ['platform'],
   success: () => t('platform.shop.renamed'),
 })
 function onRename(event: FormSubmitEvent<{ name: string }>) {
   return rename.execute(event.data.name)
 }
+
+// --- Price list: start from a template while it's empty (D30) ---
+const canApplyTemplate = computed(() => current.value?.priceListEmpty === true && can('price:write') && can('template:read'))
+// Asked for only while a template can be applied: a shop with prices never loads the list.
+const templates = useApiQuery(
+  () => (canApplyTemplate.value ? 'platform:templates:active' : 'platform:templates:unused'),
+  () => (canApplyTemplate.value ? apiFetch<TemplateList>('/platform/templates') : Promise.resolve(null)),
+)
+const templateOptions = computed(() => (templates.data.value?.items ?? []).map(template => ({
+  label: `${template.name} (${t(`settings.currencies.${template.currency}`)})`,
+  description: t('platform.templates.counts', { services: template.serviceCount, items: template.itemCount }),
+  value: template.id,
+})))
+const templateId = ref('')
+watch(templateOptions, (options) => {
+  if (!options.some(option => option.value === templateId.value)) templateId.value = options[0]?.value ?? ''
+}, { immediate: true })
+const applyTemplate = useMutation((id: string) => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}/apply-template`, { method: 'POST', body: { version: current.value!.version, templateId: id } }), {
+  invalidate: ['platform', 'pricing'],
+  success: () => t('platform.shop.templateApplied'),
+})
 
 // --- Owner: reset password ---
 const resetSchema = computed(() => v.object({ password: temporaryPasswordFormSchema(t) }))
@@ -55,7 +78,7 @@ const confirming = ref<'revoke' | 'suspend' | null>(null)
 const revoke = useMutation(() => apiFetch(`/platform/shops/${props.id}/owner/revoke-sessions`, { method: 'POST', body: {} }), {
   success: () => t('platform.shop.sessionsRevoked'),
 })
-const setStatus = useMutation((action: 'suspend' | 'resume') => apiFetch<PlatformShop>(`/platform/shops/${props.id}/${action}`, { method: 'POST', body: { version: current.value!.version } }), {
+const setStatus = useMutation((action: 'suspend' | 'resume') => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}/${action}`, { method: 'POST', body: { version: current.value!.version } }), {
   invalidate: ['platform'],
   success: shop => t(shop.status === 'suspended' ? 'platform.shop.suspended' : 'platform.shop.resumed'),
 })
@@ -66,7 +89,7 @@ async function confirm() {
 }
 const confirmText = computed(() => (confirming.value === 'revoke' ? t('platform.shop.revokeSessionsConfirm') : t('platform.shop.suspendConfirm', { shop: current.value?.name })))
 const confirmLabel = computed(() => (confirming.value === 'revoke' ? t('platform.shop.revokeSessions') : t('platform.shop.suspend')))
-const conflict = computed(() => [rename.error.value, setStatus.error.value].some(error => error?.code === 'VERSION_CONFLICT'))
+const conflict = computed(() => [rename.error.value, setStatus.error.value, applyTemplate.error.value].some(error => error?.code === 'VERSION_CONFLICT'))
 </script>
 
 <template>
@@ -192,6 +215,48 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
                 :to="`/platform/shops/${current.id}/prices`"
               />
             </div>
+            <template v-if="canApplyTemplate">
+              <USeparator />
+              <div class="space-y-1">
+                <h3 class="text-sm font-medium text-highlighted">
+                  {{ t('platform.shop.applyTemplate') }}
+                </h3>
+                <p class="text-sm text-muted">
+                  {{ t('platform.shop.applyTemplateDescription') }}
+                </p>
+              </div>
+              <p
+                v-if="templates.data.value && !templateOptions.length"
+                class="text-sm text-muted"
+              >
+                {{ t('platform.shop.noTemplates') }}
+              </p>
+              <div
+                v-else
+                class="flex flex-col gap-3 sm:flex-row sm:items-start"
+              >
+                <UFormField
+                  :label="t('platform.newShop.template')"
+                  class="flex-1"
+                >
+                  <USelect
+                    v-model="templateId"
+                    :items="templateOptions"
+                    :loading="templates.loading.value"
+                    :disabled="applyTemplate.pending.value"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UButton
+                  :label="t('platform.shop.applyTemplateButton')"
+                  icon="i-lucide-copy"
+                  :loading="applyTemplate.pending.value"
+                  :disabled="!templateId"
+                  class="sm:mt-6"
+                  @click="applyTemplate.execute(templateId)"
+                />
+              </div>
+            </template>
           </UPageCard>
 
           <UPageCard

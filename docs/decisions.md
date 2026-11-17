@@ -326,7 +326,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - **The rule narrows, it doesn't go:** a super admin still never reads a shop's orders or customers, and `/api/shop/**` still answers them `403 NO_SHOP`. A price list is configuration the platform sets, not the shop's customers' data.
 - The app shows the same price list pages in both places; a scope (`providePlatformPriceScope`) says where they read, write and link.
 
-**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes).
+**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes). D30 allows a copy only into an empty price list, where there are no changes to lose.
 
 **Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
 
@@ -371,3 +371,17 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Keep 10 characters with the check (the spec). Keep the check with 6 characters (it would still refuse `123456` and most short passwords people choose).
 
 **Consequences.** Weaker passwords, accepted by the owner. What still protects accounts: sign-in limits per address and per username (D18), the platform admin can sign an owner out everywhere and reset the password, and a super admin's session is short (D14). Revisit with the first real shop, or if an account is taken over.
+
+## D30. A template into an existing shop, while its price list is empty
+
+**Context.** D25 copies a template only when a shop is created. A shop created without one (or before its slip's template existed) could only be filled item by item. D26 rejected copying a template again because it would overwrite the shop's own changes.
+
+**Decision.**
+- `POST /api/platform/shops/:shopId/apply-template` `{ version, templateId }` (platform `price: ['write'], template: ['read']`) copies an active template's price list and currency into the shop, exactly as a new shop gets them (`newPriceListStatements`).
+- **Only while the price list is empty:** no service type and no price item, archived included. Otherwise `409 PRICE_LIST_NOT_EMPTY`. Nothing is ever replaced or merged.
+- One batch with its guards: the shop's version (`shop_settings.version`, D19), the empty list and the template still active, so a price or an archive landing between the read and the write stops it. Audit `shop.apply-template` in the platform's rows (D19), the template id in `data`.
+- The shop's detail (`PlatformShopDetail`) says `priceListEmpty`; the shop page offers the template picker only then.
+
+**Alternatives.** Replace or merge into an existing list (loses the shop's changes, and orders' lines keep the old price items). Only on the price list page (shared with the owner's read-only view, D26).
+
+**Consequences.** A shop's price list starts from at most one template; after that it's edited by hand. The currency follows the template, which is allowed because the list is empty (D22).
