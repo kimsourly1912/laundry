@@ -10,7 +10,7 @@ import type { FillProblem, FillProblems, SlipFill } from '#shared/slip/values'
 import { checkFill } from '#shared/slip/values'
 import { fillData, fillSteps, problemKey, stepOf } from '../utils/fill'
 import type { FillStep } from '../utils/fill'
-import SlipSvg from './SlipSvg.vue'
+import { SlipSvg } from './slip-svg'
 
 const props = defineProps<{
   design: SlipDesign

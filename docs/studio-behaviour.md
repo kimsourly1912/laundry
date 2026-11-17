@@ -230,7 +230,7 @@ Not taken from OT: tool keys (T, R, C, L…), groups (Ctrl+G), flip, find, comma
 
 ## 17. Questions for the owner
 
-Answered 2026-11-17: **Q-S1–Q-S5 all as recommended.** Q-S6 and Q-S7 came from the open-pencil study and are open.
+Answered 2026-11-17: **Q-S1–Q-S5 all as recommended.** Q-S6 (yes) and Q-S7 (no) came from the open-pencil study, answered the same day as recommended.
 
 | # | Question | Answer | Why |
 |---|---|---|---|
@@ -239,8 +239,8 @@ Answered 2026-11-17: **Q-S1–Q-S5 all as recommended.** Q-S6 and Q-S7 came from
 | **Q-S3** | Corner handles: keep proportions for images, icons, text; free for shapes and fields; **Shift switches**? | Yes | Same as opentempl. The plan had the per-type rule without Shift; Figma uses Shift to keep proportions |
 | **Q-S4** | Extras from opentempl: layer previews (Y4), right-click menu (B3), field labels on hover (F2). Include in the rebuild, or later? | Include B3 and F2; Y4 later | B3 and F2 are cheap and help on a busy photo; Y4 is cosmetic |
 | **Q-S5** | Single-key tools (T for text, R for rectangle) like opentempl? | Later | Our main use is fields on a photo; buttons in the Form tab are enough for now |
-| **Q-S6** | **Text box sizing:** add Figma's **auto width** (a new text grows sideways on one line as you type; dragging a side handle turns it into fixed width that wraps)? Today a text always has a fixed width and wraps | **Yes** (open; asked 2026-11-17) | Labels like "Shirt" or "អាវ" are short: a fixed width wraps them when the platform types a longer word. One flag on the text element; the server keeps drawing from the stored width |
-| **Q-S7** | **Auto layout** (padding, gap, hug, fill) like Figma? | **No, not in the first version** (open; asked 2026-11-17) | Fields sit over printed boxes on a photo, so positions are absolute. Auto layout needs frames in the design and a layout engine on the server too. Equal-gap guides and Spread evenly cover even spacing |
+| **Q-S6** | **Text box sizing:** add Figma's **auto width** (a new text grows sideways on one line as you type; dragging a side handle turns it into fixed width that wraps)? Today a text always has a fixed width and wraps | **Yes** (owner, 2026-11-17) | Labels like "Shirt" or "អាវ" are short: a fixed width wraps them when the platform types a longer word. One flag on the text element; the server keeps drawing from the stored width |
+| **Q-S7** | **Auto layout** (padding, gap, hug, fill) like Figma? | **No, not in the first version** (owner, 2026-11-17) | Fields sit over printed boxes on a photo, so positions are absolute. Auto layout needs frames in the design and a layout engine on the server too. Equal-gap guides and Spread evenly cover even spacing |
 
 ## 17b. From open-pencil (Figma's behaviour): what we take and what we don't
 

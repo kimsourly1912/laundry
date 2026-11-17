@@ -212,7 +212,12 @@ function groupMark(design: SlipDesign, element: ElementOf<'option'>): Mark {
   return design.groups.find(group => group.id === element.group)?.mark ?? 'tick'
 }
 
-function elementBody(element: SlipElement, options: SlipSvgOptions): string {
+/**
+ * An element's drawing in its own box (0, 0 to w, h), before its position, rotation and opacity
+ * (`elementPlacement`). It reads none of those, so a move never redraws it: the studio draws each
+ * element as its own piece and redraws only the ones whose drawing changed (D34).
+ */
+export function elementBodySvg(element: SlipElement, options: SlipSvgOptions): string {
   const { design, data, text, imageHref, idPrefix = '' } = options
   const clipId = `${idPrefix}clip-${element.id}`
   const value = (wrap = false) => 'size' in element && 'align' in element
@@ -244,23 +249,37 @@ function elementBody(element: SlipElement, options: SlipSvgOptions): string {
   }
 }
 
+/** Where an element's drawing goes: the `transform` and `opacity` of its `<g>` (no opacity at 1). */
+export function elementPlacement(element: SlipElement): { transform: string, opacity: string | undefined } {
+  const rotate = element.rotation ? ` rotate(${round(element.rotation)} ${round(element.w / 2)} ${round(element.h / 2)})` : ''
+  return {
+    transform: `translate(${round(element.x)} ${round(element.y)})${rotate}`,
+    opacity: element.opacity < 1 ? String(round(element.opacity)) : undefined,
+  }
+}
+
 function elementSvg(element: SlipElement, options: SlipSvgOptions): string {
   if (element.hidden) return ''
-  const body = elementBody(element, options)
+  const body = elementBodySvg(element, options)
   if (!body) return ''
-  const rotate = element.rotation ? ` rotate(${round(element.rotation)} ${round(element.w / 2)} ${round(element.h / 2)})` : ''
-  const opacity = element.opacity < 1 ? ` opacity="${round(element.opacity)}"` : ''
-  return `<g transform="translate(${round(element.x)} ${round(element.y)})${rotate}"${opacity}>${body}</g>`
+  const { transform, opacity } = elementPlacement(element)
+  return `<g transform="${transform}"${opacity === undefined ? '' : ` opacity="${opacity}"`}>${body}</g>`
+}
+
+/** The slip's background: its colour, then its image (a photo of the paper slip) when it has one. */
+export function backgroundSvg(design: SlipDesign, imageHref: SlipSvgOptions['imageHref']): string {
+  const { width, height, background } = design
+  return `<rect width="${width}" height="${height}" fill="${escapeXml(background.color)}"/>`
+    + (background.imageId ? imageSvg(imageHref(background.imageId), { w: width, h: height }, 'none') : '')
 }
 
 /** The whole slip as an SVG document at the canvas's size: the PNG the customer gets is this size. */
 export function slipSvg(options: SlipSvgOptions): string {
   const { design, imageHref } = options
-  const { width, height, background } = design
+  const { width, height } = design
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
-    `<rect width="${width}" height="${height}" fill="${escapeXml(background.color)}"/>`,
-    background.imageId ? imageSvg(imageHref(background.imageId), { w: width, h: height }, 'none') : '',
+    backgroundSvg(design, imageHref),
     ...design.elements.map(element => elementSvg(element, options)),
     '</svg>',
   ].join('')

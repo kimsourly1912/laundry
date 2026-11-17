@@ -7,6 +7,7 @@
 import type { TemplateDetail } from '#shared/contracts/templates'
 import { sampleData, SAMPLE_SHOP } from '#shared/slip/fields'
 import { CANVAS_MAX_SIDE, CANVAS_MIN_SIDE } from '#shared/contracts/slip-design'
+import type { SlipData } from '#shared/contracts/slip-design'
 import { publishProblems } from '#shared/slip/checks'
 import { emptyFill, fillData, SlipFiller, SlipSvg, useSlipText } from '~/features/slip-fill'
 import type { SlipFill } from '#shared/slip/values'
@@ -71,7 +72,14 @@ function finishRename() {
 
 /** The studio draws the slip with sample values, so fields show where their values go. */
 const today = new Date().toISOString().slice(0, 10)
-const data = computed(() => sampleData(design.value, { date: today }))
+// The same object while the sample values stay the same: each element redraws when its data
+// changes, and a commit (a new design) mostly leaves them as they were (D34).
+let lastData: SlipData | undefined
+const data = computed(() => {
+  const next = sampleData(design.value, { date: today })
+  if (!lastData || JSON.stringify(next) !== JSON.stringify(lastData)) lastData = next
+  return lastData
+})
 
 // --- Preview: the server's PNG of the design on screen ---
 
