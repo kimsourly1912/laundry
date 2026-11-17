@@ -3,13 +3,14 @@ import { isMarked, valueText } from './fields'
 import type { SlipText, TextStyle } from './text'
 
 /**
- * One function draws a slip as SVG (plan §6.2, D32): the studio shows it on screen and the server
- * hands it to resvg for the customer's PNG, so what the platform designs is what the customer gets.
- * Text is drawn as glyph paths (`./text`), so the SVG holds no `<text>`.
+ * One function draws a slip as SVG (plan §6.2, D32, D35): the artwork, then each field's value. The
+ * studio shows it on screen and the server hands it to resvg for the customer's PNG, so what the
+ * platform sees is what the customer gets. Values are drawn as glyph paths (`./text`), so the SVG
+ * holds no `<text>`.
  *
- * Every element is drawn in its own box: moved to (x, y), rotated about its centre, at its opacity.
- * Values never spill out of their box: a value wider than its box shrinks, down to half its font
- * size, and is clipped after that (plan §5.4.1).
+ * Every field is drawn in its own box, moved to (x, y). Values never spill out of their box: a
+ * value wider than its box shrinks, down to half its font size, and is clipped after that
+ * (plan §5.3.1).
  */
 
 export interface SlipSvgOptions {
@@ -25,7 +26,7 @@ export interface SlipSvgOptions {
   idPrefix?: string
 }
 
-/** The thin box "Draw a border" adds (plan §5.4.1). */
+/** The thin box "Draw a border" adds (plan §5.3.1). */
 export const BORDER_COLOR = '#111827'
 export const BORDER_WIDTH = 2
 /** Space between a value and its box's sides, in px. */
@@ -76,22 +77,6 @@ function alignedX(align: Align, lineWidth: number, boxWidth: number): number {
   return boxWidth - lineWidth
 }
 
-/** A text element's height for its text at its width: the studio keeps `h` at this (plan §5.6). */
-export function textHeight(element: ElementOf<'text'>, slipText: SlipText): number {
-  const style = { size: element.size, bold: element.bold }
-  return wrapLines(element.text, style, element.w, slipText).length * element.size * element.lineHeight
-}
-
-function textSvg(element: ElementOf<'text'>, slipText: SlipText): string {
-  const style = { size: element.size, bold: element.bold }
-  const step = element.size * element.lineHeight
-  const glyphs = wrapLines(element.text, style, element.w, slipText).map((line, index) => {
-    const x = alignedX(element.align, slipText.advance(line, style), element.w)
-    return slipText.paths(line, style, round(x), round(step * index + step / 2 + slipText.centreToBaseline(style)))
-  }).join('')
-  return glyphs ? `<g fill="${escapeXml(element.color)}">${glyphs}</g>` : ''
-}
-
 interface ValueStyle {
   size: number
   bold: boolean
@@ -131,60 +116,12 @@ function valueSvg(text: string, box: { w: number, h: number }, style: ValueStyle
   return `<clipPath id="${clipId}"><rect width="${round(box.w)}" height="${round(box.h)}"/></clipPath><g clip-path="url(#${clipId})" fill="${escapeXml(style.color)}">${glyphs}</g>`
 }
 
-// --- Shapes ---
-
-function strokeAttributes(stroke: string | null, width: number, dashed: boolean): string {
-  if (!stroke || width <= 0) return ''
-  const dash = dashed ? ` stroke-dasharray="${round(width * 3)} ${round(width * 2)}"` : ''
-  return ` stroke="${escapeXml(stroke)}" stroke-width="${round(width)}"${dash}`
-}
-
-const fillAttribute = (fill: string | null) => `fill="${fill ? escapeXml(fill) : 'none'}"`
-
-/** Borders are drawn inside the box, so the box is what the platform sees and resizes. */
-function rectSvg(element: ElementOf<'rect'>): string {
-  const inset = element.stroke ? element.strokeWidth / 2 : 0
-  const w = Math.max(0, element.w - inset * 2)
-  const h = Math.max(0, element.h - inset * 2)
-  const radius = Math.min(element.radius, w / 2, h / 2)
-  return `<rect x="${round(inset)}" y="${round(inset)}" width="${round(w)}" height="${round(h)}" rx="${round(radius)}" ${fillAttribute(element.fill)}${strokeAttributes(element.stroke, element.strokeWidth, element.dashed)}/>`
-}
-
-function ellipseSvg(element: ElementOf<'ellipse'>): string {
-  const inset = element.stroke ? element.strokeWidth / 2 : 0
-  return `<ellipse cx="${round(element.w / 2)}" cy="${round(element.h / 2)}" rx="${round(Math.max(0, element.w / 2 - inset))}" ry="${round(Math.max(0, element.h / 2 - inset))}" ${fillAttribute(element.fill)}${strokeAttributes(element.stroke, element.strokeWidth, element.dashed)}/>`
-}
-
-function triangleSvg(element: ElementOf<'triangle'>): string {
-  const inset = element.stroke ? element.strokeWidth : 0
-  const points = [[element.w / 2, inset], [element.w - inset, element.h - inset / 2], [inset, element.h - inset / 2]]
-  return `<polygon points="${points.map(([x, y]) => `${round(x!)},${round(y!)}`).join(' ')}" stroke-linejoin="round" ${fillAttribute(element.fill)}${strokeAttributes(element.stroke, element.strokeWidth, element.dashed)}/>`
-}
-
-function lineSvg(element: ElementOf<'line'>): string {
-  const y = round(element.h / 2)
-  return `<line x1="0" y1="${y}" x2="${round(element.w)}" y2="${y}"${strokeAttributes(element.color, element.strokeWidth, element.dashed)}/>`
-}
-
 /** A square of side `size` centred in the box, as a point maker in its 0–1 coordinates. */
 function centredSquare(box: { w: number, h: number }, size: number) {
   return (fx: number, fy: number) => `${round((box.w - size) / 2 + fx * size)} ${round((box.h - size) / 2 + fy * size)}`
 }
 
-const STAR_POINTS = Array.from({ length: 10 }, (_, i) => {
-  const angle = -Math.PI / 2 + i * Math.PI / 5
-  const radius = i % 2 ? 0.2 : 0.5
-  return [0.5 + radius * Math.cos(angle), 0.53 + radius * Math.sin(angle)] as const
-})
-
-function iconSvg(element: ElementOf<'icon'>): string {
-  const size = Math.min(element.w, element.h)
-  const at = centredSquare(element, size)
-  if (element.icon === 'star') return `<path d="M ${STAR_POINTS.map(([x, y]) => at(x, y)).join(' L ')} Z" fill="${escapeXml(element.color)}"/>`
-  return markSvg('tick', element, element.color)
-}
-
-/** A checkbox's, option's or paid spot's mark, in the middle of its box (plan §5.4.2). */
+/** A checkbox's, option's or paid spot's mark, in the middle of its box (plan §5.3.2). */
 function markSvg(mark: Mark, box: { w: number, h: number }, color: string): string {
   const size = Math.min(box.w, box.h)
   const at = centredSquare(box, size)
@@ -212,23 +149,18 @@ function groupMark(design: SlipDesign, element: ElementOf<'option'>): Mark {
   return design.groups.find(group => group.id === element.group)?.mark ?? 'tick'
 }
 
-function elementBody(element: SlipElement, options: SlipSvgOptions): string {
-  const { design, data, text, imageHref, idPrefix = '' } = options
+/**
+ * A field's drawing in its own box (0, 0 to w, h), before its position (`elementPlacement`). It
+ * reads neither x nor y, so a move never redraws it: the studio draws each field as its own piece
+ * and redraws only the ones whose drawing changed (D34, D35).
+ */
+export function elementBodySvg(element: SlipElement, options: SlipSvgOptions): string {
+  const { design, data, text, idPrefix = '' } = options
   const clipId = `${idPrefix}clip-${element.id}`
   const value = (wrap = false) => 'size' in element && 'align' in element
     ? valueSvg(valueText(element, data), element, element, { wrap, slipText: text, clipId })
     : ''
   switch (element.type) {
-    case 'text': return textSvg(element, text)
-    case 'rect': return rectSvg(element)
-    case 'ellipse': return ellipseSvg(element)
-    case 'triangle': return triangleSvg(element)
-    case 'line': return lineSvg(element)
-    case 'icon': return iconSvg(element)
-    case 'image': return imageSvg(imageHref(element.imageId), element, 'none')
-    case 'shopInfo':
-      if (element.info === 'logo') return imageSvg(data.shop.logoImageId ? imageHref(data.shop.logoImageId) : undefined, element, 'xMidYMid meet')
-      return value()
     case 'textField': return borderSvg(element) + value(true)
     case 'number':
     case 'orderNo':
@@ -244,35 +176,36 @@ function elementBody(element: SlipElement, options: SlipSvgOptions): string {
   }
 }
 
+/** Where a field's drawing goes: the `transform` of its `<g>`. */
+export function elementPlacement(element: SlipElement): string {
+  return `translate(${round(element.x)} ${round(element.y)})`
+}
+
 function elementSvg(element: SlipElement, options: SlipSvgOptions): string {
-  if (element.hidden) return ''
-  const body = elementBody(element, options)
-  if (!body) return ''
-  const rotate = element.rotation ? ` rotate(${round(element.rotation)} ${round(element.w / 2)} ${round(element.h / 2)})` : ''
-  const opacity = element.opacity < 1 ? ` opacity="${round(element.opacity)}"` : ''
-  return `<g transform="translate(${round(element.x)} ${round(element.y)})${rotate}"${opacity}>${body}</g>`
+  const body = elementBodySvg(element, options)
+  return body ? `<g transform="${elementPlacement(element)}">${body}</g>` : ''
+}
+
+/** The slip's background: its colour, then the artwork (D35) when it has one. */
+export function backgroundSvg(design: SlipDesign, imageHref: SlipSvgOptions['imageHref']): string {
+  const { width, height, background } = design
+  return `<rect width="${width}" height="${height}" fill="${escapeXml(background.color)}"/>`
+    + (background.imageId ? imageSvg(imageHref(background.imageId), { w: width, h: height }, 'none') : '')
 }
 
 /** The whole slip as an SVG document at the canvas's size: the PNG the customer gets is this size. */
 export function slipSvg(options: SlipSvgOptions): string {
   const { design, imageHref } = options
-  const { width, height, background } = design
+  const { width, height } = design
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
-    `<rect width="${width}" height="${height}" fill="${escapeXml(background.color)}"/>`,
-    background.imageId ? imageSvg(imageHref(background.imageId), { w: width, h: height }, 'none') : '',
+    backgroundSvg(design, imageHref),
     ...design.elements.map(element => elementSvg(element, options)),
     '</svg>',
   ].join('')
 }
 
-/** Every image a design draws (background, images, and the shop's logo when it has a logo element). */
-export function imagesOf(design: SlipDesign, shop?: { logoImageId: string | null }): string[] {
-  const ids = new Set<string>()
-  if (design.background.imageId) ids.add(design.background.imageId)
-  for (const element of design.elements) {
-    if (element.type === 'image') ids.add(element.imageId)
-    if (element.type === 'shopInfo' && element.info === 'logo' && shop?.logoImageId) ids.add(shop.logoImageId)
-  }
-  return [...ids]
+/** The images a design draws: its artwork (D35). */
+export function imagesOf(design: SlipDesign): string[] {
+  return design.background.imageId ? [design.background.imageId] : []
 }

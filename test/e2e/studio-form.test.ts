@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, inject, it, onTestFailed } from 'vitest'
 import type { Browser, Page } from 'playwright-core'
 import type { TemplateDetail } from '#shared/contracts/templates'
+import { createTemplateWithArtwork } from './support/templates'
 import { launchBrowser, newDevice, screenshotOnFailure, signIn } from './support/browser'
 
 // Form fields (plan §5.4, S3): add fields, label them in both languages, the publish checks, the
@@ -40,7 +41,7 @@ describe('studio form fields', () => {
     await page.waitForURL(/\/sign-in/)
     await signIn(page, accounts.admin.username, accounts.admin.password)
     await page.waitForURL(`${host}/platform/templates`)
-    const created = await page.evaluate(async () => (await fetch('/api/platform/templates', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Form test', start: { kind: 'blank', width: 1200, height: 800 } }) })).json()) as TemplateDetail
+    const created = await createTemplateWithArtwork(page, { name: 'Form test', width: 1200, height: 800 })
     await page.goto(`${host}/platform/templates/${created.id}`)
 
     await page.getByRole('button', { name: 'Order No.' }).click()

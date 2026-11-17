@@ -414,6 +414,8 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - A shop with no attached template can't take orders, so the platform attaches one when it creates the shop.
 
 ## D32. Studio canvas and slip text
+**Partly replaced by D34:** the canvas no longer uses Moveable + Selecto; the fontkit text stays.
+
 **Accepted by the owner 2026-11-17 (plan Q13, Q14).** Replaces D28's Khmer fix (one `<text>` per word) and settles plan §6.3–6.4.
 
 **Context.** Plan §6.4 asked for a spike before choosing the studio's interaction library, and §6.3 kept D28's Khmer fix (resvg, one `<text>` per word). The spike (`app/spike-studio`, `shared/spike-studio`, `server/spike-studio`; page `/spike/studio` on the dev server only; deleted in S1, still in git history at commit `20ac250`) built a small studio on the plan's design: one JSON design, one shared SVG builder, Moveable + Selecto over the SVG, and the same SVG rendered by resvg on the server. Findings:
@@ -452,3 +454,73 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.**
 - S2 changes `test/unit/locales.test.ts` to exempt `studio.*` from the key parity check, and `docs/standards/i18n.md` to say so.
 - Step 1's schema gets the copy column on `orders` (plan §7).
+
+## D34. The studio canvas: our own interaction layer
+**Owner, 2026-11-17.** Replaces D32's choice of Moveable + Selecto (the fontkit part of D32 stays).
+
+**Mostly superseded by D35** the same day: with AI-made artwork and fields only, the canvas keeps Moveable + Selecto. What stays from D34: each element drawn as its own piece (R1), the behaviour spec (cut to fields), and our own interaction layer as the fallback.
+
+**Context.** The owner tested the studio built in PR B and found it worked badly. Measured with the CPU slowed 4× (a normal laptop) on a 50-element slip: frames of 150–200 ms while dragging, and a group drag blocked for 24 s. Causes:
+- every pointer move rebuilt the whole slip SVG and re-shaped every text with fontkit;
+- the SVG was re-parsed each time;
+- Moveable re-measured every element to snap.
+
+Other problems:
+- Moveable and Selecto needed workarounds to hand a gesture from one to the other, and the press-and-drag bugs came from there;
+- a CSS `scale()` made outlines thick when zoomed in;
+- zoom jumped about 170% per wheel notch;
+- neither library has had a release since 2023.
+
+The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) as the reference. It draws with SVG too (one renderer for screen and export), and handles interaction in its own HTML overlay with no canvas library. The owner first asked for Konva. Konva would draw the screen with a second painter, beside the SVG the server rasterises, which is the drift D31 rejected.
+
+**Decision.**
+- **Each element is its own memoised SVG component**, built from the same per-element output as the server's `slipSvg`, so a move redraws only what moved. Shaped text is cached.
+- **The slip is drawn at the zoomed size** (no CSS scale). An **HTML overlay in screen pixels** holds the hover outline, the selection box and handles, the box select, the snap guides and the text editor. It is our own code, modelled on opentempl's `SelectionOverlay`, `transform.ts` and `snap.ts` (MIT notice kept on anything copied).
+- **Behaviour is specified first:** [`studio-behaviour.md`](studio-behaviour.md), with a source and a test for every rule (Phase 0). The owner accepted its recommendations (Q-S1–Q-S5).
+- **A performance budget is tested:** the spec's P4.
+- **The server is unchanged:** the design JSON, saving, publishing, and `slipSvg` → resvg.
+
+**Alternatives.**
+- **Keep Moveable + Selecto and only fix the redraw:** faster, but it keeps the fragile hand-off and two unmaintained libraries.
+- **Konva for the screen, with a shared layout feeding both painters:** possible, but it adds a painter and a pixel-parity test to keep the two from drifting.
+- **Konva's own text:** different Khmer from the customer's PNG.
+- **Polotno:** commercial, React.
+
+**Consequences.**
+- About 1,000 lines of interaction code are ours: geometry with unit tests, against a spec.
+- `vue3-moveable` and `vue3-selecto` are removed in R3.
+- The canvas e2e tests drive the overlay's own elements.
+- New canvas behaviour is added to `studio-behaviour.md` first, then built.
+
+## D35. AI-made artwork and fields only
+**Owner, 2026-11-17.** Replaces the Canva-like studio of D31 and plan §5; D33's main use (a slip with fields on it) becomes the only use.
+
+**Context.** The studio was being rebuilt as a full design editor (D34): text, shapes, icons, images, rotation, snapping and text editing, with a spec of about 110 rules. The owner observed that AI tools now design a slip, or redesign a photo of a shop's paper slip, faster and better than a hand-made editor would let the platform do. The app only needs to say **where the owner's values go** on that slip.
+
+**Decision.**
+- **The slip's look is artwork made outside the app** (AI or any design tool) and uploaded. It carries everything printed: the shop's name, contact details, labels, boxes and lines.
+- **The studio only places form fields** on the artwork: the field types of plan §5.3, choice groups, fixed-meaning fields, the fill order, Try it, publish checks. No text, shapes, lines, icons, images, shop info elements or rotation; the design's elements are fields only.
+- **Artwork formats:**
+  - **PNG and JPEG** are stored as uploaded.
+  - **SVG is drawn to a PNG in the platform's browser** at upload; only the PNG is stored. The browser shapes Khmer correctly and, drawing an SVG as an image, runs no scripts and fetches nothing. The server's resvg would draw an SVG's `<text>` with wrong Khmer and no fonts (D32), and an SVG would need cleaning before it could be trusted. The platform sees the PNG before saving.
+  - **Over 1 MB:** re-encoded in the browser as JPEG to fit the existing limit (D28).
+- **Size:** the canvas, and the customer's PNG, take the artwork's size (200–2000 px a side).
+- **AI stays outside the app** for now: no API keys, no cost per design, no prompts to maintain.
+- **Kept:**
+  - the server: templates, versions, publish, attach, the PNG through the shared SVG builder and resvg;
+  - fontkit for the values (text fields can hold Khmer, the amount shows ៛);
+  - the canvas's Moveable + Selecto (D32), with rotation turned off;
+  - each element drawn as its own piece (R1).
+
+**Alternatives.**
+- **The Canva-like studio** (D31, D34): far more code and edge cases for what an AI tool does better.
+- **An AI button inside the app:** cost and keys now; later, once we know which tool makes good slips.
+- **Storing the SVG and drawing it with resvg:** wrong Khmer, missing fonts, and SVG cleaning.
+- **PNG and JPEG only:** simpler still, but AI tools often give SVG.
+
+**Consequences.**
+- **Element types removed** from the design schema: text, rect, ellipse, triangle, line, icon, image, shopInfo. **Base fields removed:** rotation, opacity, locked, hidden, name. The staging database has test data only; templates made before this must be made again.
+- **Templates start** from an artwork or a copy (no blank canvas).
+- **Studio code removed:** the Text, Elements, Shop info, Uploads and Layers tabs and the Resize dialog.
+- **The behaviour spec is cut** to the rules that apply to fields.
+- The shop's logo and the Shop info preview (plan §5.4.4 before) are dropped; the order still keeps a copy of the shop's details for its currency and language (D33).

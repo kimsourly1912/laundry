@@ -22,6 +22,7 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) â†
 |---|---|
 | [`current-state.md`](current-state.md) | Where the project is, the next step, open questions, blockers. Short |
 | [`plan.md`](plan.md) | **The work plan (D31):** the slip studio, the owner's portal, data, steps, open questions |
+| [`studio-behaviour.md`](studio-behaviour.md) | **Studio behaviour spec (draft):** every canvas tool's rules and edge cases, with sources, for the studio rebuild |
 | [`decisions.md`](decisions.md) | Decisions: context, decision, alternatives, consequences |
 | [`standards/ui.md`](standards/ui.md) | Visual rules: Nuxt UI first, tokens, type, touch, actions, status, accessibility, expected behavior |
 | [`standards/page-patterns.md`](standards/page-patterns.md) | Resource index, settings, detail/editor, task flow, dashboard, page states |

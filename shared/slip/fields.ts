@@ -4,7 +4,7 @@ import { formatPhone } from '#shared/contracts/phone'
 import { formatMoney } from '#shared/format'
 
 /**
- * What a slip's fields mean (plan §5.4): which elements the owner fills, in which order, and the
+ * What a slip's fields mean (plan §5.3): which elements the owner fills, in which order, and the
  * text each value is drawn as. Shared by the studio, the owner's form (step 3), the server's check
  * of an order's values and the SVG builder.
  */
@@ -14,7 +14,7 @@ export const OWNER_FIELD_TYPES = ['number', 'textField', 'checkbox', 'phone', 'a
 export type OwnerFieldType = typeof OWNER_FIELD_TYPES[number]
 export type OwnerField = ElementOf<OwnerFieldType>
 
-/** Fixed-meaning fields: at most one of each per template (plan §5.4.3). */
+/** Fixed-meaning fields: at most one of each per template (plan §5.3.3). */
 export const FIXED_TYPES = ['orderNo', 'date', 'phone', 'amount'] as const
 
 export function isOwnerField(element: SlipElement): element is OwnerField {
@@ -22,10 +22,9 @@ export function isOwnerField(element: SlipElement): element is OwnerField {
 }
 
 /**
- * The keys the owner fills, in the design's fill order (plan §5.4.5): its owner fields, its choice
+ * The keys the owner fills, in the design's fill order (plan §5.3.4): its owner fields, its choice
  * groups, and `paid` when it has a Paid / Not paid spot. Keys in `fillOrder` that no longer exist
- * are skipped; fields missing from it go last, in layer order. Hidden elements still count: hiding
- * is for the studio's canvas, not the owner's form.
+ * are skipped; fields missing from it go last, in layer order.
  */
 export function fillOrderOf(design: SlipDesign): string[] {
   const keys = new Set<string>()
@@ -44,7 +43,7 @@ export function formatNumber(value: number, decimals: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: decimals, useGrouping: false }).format(value)
 }
 
-/** `17/11/2026` from the shop's day `2026-11-17` (plan §5.4.3). */
+/** `17/11/2026` from the shop's day `2026-11-17` (plan §5.3.3). */
 export function formatSlipDate(date: string): string {
   const [year, month, day] = date.split('-')
   return `${day}/${month}/${year}`
@@ -72,18 +71,9 @@ export function valueText(element: SlipElement, data: SlipData): string {
       return order.phone === null ? '' : formatPhone(order.phone)
     case 'amount':
       return order.amount === null ? '' : formatMoney(order.amount, shop.currency, shop.language)
-    case 'shopInfo':
-      return shopInfoText(element.info, shop)
     default:
       return ''
   }
-}
-
-function shopInfoText(info: ElementOf<'shopInfo'>['info'], shop: SlipShop): string {
-  if (info === 'name') return shop.name
-  if (info === 'phone') return shop.phone ?? ''
-  if (info === 'address') return shop.address ?? ''
-  return ''
 }
 
 /** Whether a checkbox, option or paid spot shows its mark. */
@@ -94,7 +84,7 @@ export function isMarked(element: SlipElement, data: SlipData): boolean {
   return false
 }
 
-/** A sample shop: the studio and Try it show it until a real one is chosen (plan §5.4.4). */
+/** A sample shop for the studio and Try it: its currency and language draw the amount. */
 export const SAMPLE_SHOP: SlipShop = {
   name: 'ហាងបោកអ៊ុត Sample Laundry',
   phone: '012 345 678',

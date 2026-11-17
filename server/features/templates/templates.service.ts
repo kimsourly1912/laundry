@@ -96,17 +96,13 @@ export async function restoreTemplate(db: Db, actor: PlatformActor, templateId: 
 function imageReferences(design: SlipDesign, path: string): Map<string, string> {
   const references = new Map<string, string>()
   if (design.background.imageId) references.set(design.background.imageId, `${path}.background.imageId`)
-  design.elements.forEach((element, index) => {
-    if (element.type === 'image' && !references.has(element.imageId)) references.set(element.imageId, `${path}.elements.${index}.imageId`)
-  })
   return references
 }
 
-/** The first draft of a new template (plan §5.2). */
+/** The first draft of a new template (plan §5.2, D35): an artwork with no fields yet, or a copy. */
 async function startingDesign(db: Db, start: CreateTemplateInput['start']): Promise<SlipDesign> {
-  if (start.kind === 'blank') return blankDesign(start.width, start.height)
-  if (start.kind === 'photo') {
-    // The canvas takes the photo's size; the photo is the background.
+  if (start.kind === 'artwork') {
+    // The canvas takes the artwork's size, which is the customer's PNG's.
     const image = await findImage(db, start.imageId)
     if (!image) throw imageNotFound()
     return { ...blankDesign(image.width, image.height), background: { color: '#ffffff', imageId: image.id } }
@@ -190,5 +186,5 @@ export async function previewTemplate(db: Db, templateId: string, input: Preview
   await loadTemplate(db, templateId)
   await requireImages(db, imageReferences(design, 'design'))
   const data = sampleData(design, { date: shopDate(now) })
-  return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design, data.shop)) })
+  return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design)) })
 }

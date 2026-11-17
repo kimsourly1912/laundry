@@ -84,13 +84,13 @@ Local development: create the first super admin with the seed task; shops and te
 Once per environment, before the first deploy of the reset. It deletes everything in that database: only test data existed. Locally, delete `.data/` and restart the dev server. On staging (the owner runs it; never production without a fresh decision):
 
 1. Record the Time Travel bookmark: `pnpm exec wrangler d1 time-travel info laundry-staging`.
-2. Drop the old tables and the migrations record:
+2. Drop the old tables and the migrations record. NuxtHub records applied migrations in **`_hub_migrations`** (not Wrangler's `d1_migrations`): it must go too, or the new `0001_member_one_shop` is skipped as already applied (the old one had the same name) and the one-shop-per-user index is never made. Check with `SELECT name FROM sqlite_master WHERE type='table'` that only Cloudflare's own tables (`_cf_KV`, `sqlite_sequence`) are left:
 
    ```bash
-   pnpm exec wrangler d1 execute laundry-staging --remote --command "PRAGMA defer_foreign_keys = on; DROP TABLE IF EXISTS telegram_pending; DROP TABLE IF EXISTS telegram_invites; DROP TABLE IF EXISTS notifications; DROP TABLE IF EXISTS telegram_links; DROP TABLE IF EXISTS receipt_designs; DROP TABLE IF EXISTS order_events; DROP TABLE IF EXISTS order_lines; DROP TABLE IF EXISTS orders; DROP TABLE IF EXISTS order_counters; DROP TABLE IF EXISTS customers; DROP TABLE IF EXISTS price_items; DROP TABLE IF EXISTS service_types; DROP TABLE IF EXISTS slip_templates; DROP TABLE IF EXISTS idempotency_keys; DROP TABLE IF EXISTS audit_events; DROP TABLE IF EXISTS shop_settings; DROP TABLE IF EXISTS invitation; DROP TABLE IF EXISTS member; DROP TABLE IF EXISTS organization; DROP TABLE IF EXISTS session; DROP TABLE IF EXISTS account; DROP TABLE IF EXISTS verification; DROP TABLE IF EXISTS rate_limit; DROP TABLE IF EXISTS user; DROP TABLE IF EXISTS d1_migrations;"
+   pnpm exec wrangler d1 execute laundry-staging --remote --command "PRAGMA defer_foreign_keys = on; DROP TABLE IF EXISTS telegram_pending; DROP TABLE IF EXISTS telegram_invites; DROP TABLE IF EXISTS notifications; DROP TABLE IF EXISTS telegram_links; DROP TABLE IF EXISTS receipt_designs; DROP TABLE IF EXISTS order_events; DROP TABLE IF EXISTS order_lines; DROP TABLE IF EXISTS orders; DROP TABLE IF EXISTS order_counters; DROP TABLE IF EXISTS customers; DROP TABLE IF EXISTS price_items; DROP TABLE IF EXISTS service_types; DROP TABLE IF EXISTS slip_templates; DROP TABLE IF EXISTS idempotency_keys; DROP TABLE IF EXISTS audit_events; DROP TABLE IF EXISTS shop_settings; DROP TABLE IF EXISTS invitation; DROP TABLE IF EXISTS member; DROP TABLE IF EXISTS organization; DROP TABLE IF EXISTS session; DROP TABLE IF EXISTS account; DROP TABLE IF EXISTS verification; DROP TABLE IF EXISTS rate_limit; DROP TABLE IF EXISTS user; DROP TABLE IF EXISTS _hub_migrations; DROP TABLE IF EXISTS d1_migrations;"
    ```
 
-3. Merge: the staging deploy applies `0000_init` and `0001_member_one_shop` to the empty database.
+3. Merge (or re-run the failed deploy job): the staging deploy applies `0000_init` and `0001_member_one_shop` to the empty database.
 4. Create the super admin again ([First platform admin](#first-platform-admin)) and the Telegram webhook if it was set.
 
 ## Deploys

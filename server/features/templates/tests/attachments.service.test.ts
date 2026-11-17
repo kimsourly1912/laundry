@@ -1,7 +1,10 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { blankDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
-import { archiveTemplate, attachTemplate, createTemplate, detachTemplate, getTemplate, listTemplates, publishTemplate, restoreTemplate, shopTemplates, templateShops, updateTemplate } from '#server/features/templates'
+import { SAMPLE_SHOP } from '#shared/slip/fields'
+import { archiveTemplate, attachTemplate, createTemplate, detachTemplate, getTemplate, listTemplates, publishTemplate, restoreTemplate, shopTemplates, templateShops, updateTemplate, uploadImage } from '#server/features/templates'
+import { renderSlipPng } from '#server/features/templates/templates.render'
 import { templateShops as templateShopsTable } from '#server/features/templates/templates.schema'
 import { auditEvents } from '#server/features/platform/platform.schema'
 import type { PlatformActor } from '#server/features/identity'
@@ -30,10 +33,16 @@ function refusal(promise: Promise<unknown>) {
     error.statusCode ? `${error.statusCode} ${error.data?.code}` : `error: ${error.message}`)
 }
 
+/** A template's start (D35): an uploaded artwork. */
+async function artwork() {
+  const bytes = await renderSlipPng({ design: blankDesign(800, 500), data: { values: {}, order: { number: null, date: null, phone: null, amount: null, paid: null }, shop: SAMPLE_SHOP }, images: new Map() })
+  return { kind: 'artwork' as const, imageId: (await uploadImage(db, actor, { bytes, name: 'artwork.png' })).id }
+}
+
 let names = 0
 /** A published template (version 1). */
 async function published() {
-  const template = await createTemplate(db, actor, { name: `Template ${++names}`, start: { kind: 'blank', width: 800, height: 500 } })
+  const template = await createTemplate(db, actor, { name: `Template ${++names}`, start: await artwork() })
   const ready = await updateTemplate(db, actor, template.id, { version: 1, design: { ...template.design, elements: [createElement('orderNo', { id: 'no' })] } })
   return publishTemplate(db, actor, template.id, { version: ready.version })
 }
@@ -70,7 +79,7 @@ describe('attachTemplate and detachTemplate', () => {
   })
 
   it('refuses a draft or archived template, and a missing template or shop', async () => {
-    const draft = await createTemplate(db, actor, { name: 'Draft only', start: { kind: 'blank', width: 800, height: 500 } })
+    const draft = await createTemplate(db, actor, { name: 'Draft only', start: await artwork() })
     expect(await refusal(attachTemplate(db, actor, draft.id, { shopId: a.shopId }))).toBe('422 TEMPLATE_NOT_ATTACHABLE')
     const template = await published()
     await archiveTemplate(db, actor, template.id, { version: template.version })
@@ -101,7 +110,7 @@ describe('archiveTemplate and restoreTemplate', () => {
   })
 
   it('restores a template that was never published as a draft', async () => {
-    const draft = await createTemplate(db, actor, { name: 'Never published', start: { kind: 'blank', width: 800, height: 500 } })
+    const draft = await createTemplate(db, actor, { name: 'Never published', start: await artwork() })
     const archived = await archiveTemplate(db, actor, draft.id, { version: 1 })
     expect((await restoreTemplate(db, actor, draft.id, { version: archived.version })).status).toBe('draft')
   })

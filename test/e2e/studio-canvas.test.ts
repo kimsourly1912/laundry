@@ -2,12 +2,12 @@ import { afterAll, beforeAll, describe, expect, inject, it, onTestFailed } from 
 import type { Browser, Page } from 'playwright-core'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import type { TemplateDetail } from '#shared/contracts/templates'
-import { blankDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
+import { createTemplateWithArtwork } from './support/templates'
 import { launchBrowser, newDevice, screenshotOnFailure, signIn } from './support/browser'
 
-// The studio's canvas (plan §5.6, §5.7, S2): select, drag, nudge, delete, undo and redo, Layers,
-// zoom. Elements are added by the tools of S3 and S4; here a template is seeded through the API.
+// The studio's canvas (plan §5.5, D35): select, drag, nudge, delete, undo and redo, zoom, align,
+// copy and paste, on the fields over an artwork. Here a template is seeded through the API.
 
 const host = inject('e2eHost')
 const accounts = inject('e2eAccounts')
@@ -35,18 +35,17 @@ async function openSeeded(page: Page, name: string) {
   await page.waitForURL(/\/sign-in/)
   await signIn(page, accounts.admin.username, accounts.admin.password)
   await page.waitForURL(`${host}/platform/templates`)
-  const created = await api<TemplateDetail>(page, '/platform/templates', { method: 'POST', body: { name, start: { kind: 'blank', width: 1200, height: 800 } } })
+  const created = await createTemplateWithArtwork(page, { name, width: 1200, height: 800 })
   const design: SlipDesign = {
-    ...blankDesign(1200, 800),
+    ...created.design,
     elements: [
-      createElement('rect', { id: 'r1', x: 100, y: 100, w: 200, h: 120, name: 'First box' }),
-      createElement('rect', { id: 'r2', x: 600, y: 400, w: 200, h: 120, name: 'Second box' }, { fill: '#fde68a' }),
+      createElement('number', { id: 'r1', x: 100, y: 100, w: 200, h: 120 }),
+      createElement('number', { id: 'r2', x: 600, y: 400, w: 200, h: 120 }),
     ],
   }
   await api(page, `/platform/templates/${created.id}`, { method: 'PATCH', body: { version: 1, design } })
   await page.goto(`${host}/platform/templates/${created.id}`)
   await page.getByTestId('box-r1').waitFor()
-  await page.getByRole('button', { name: 'Layers', exact: true }).click()
   return created.id
 }
 
@@ -94,15 +93,14 @@ describe('studio canvas', () => {
     await page.keyboard.press('Control+y')
     expect(boxOf(await savedDesign(page, id), 'r1')).toEqual(dragged)
 
-    // Delete removes it; Layers lists what's left, top first, then the background.
+    // Delete removes it.
     await page.keyboard.press('Delete')
     await expect.poll(async () => (await savedDesign(page, id)).elements.map(element => element.id)).toEqual(['r2'])
-    expect((await page.getByTestId('layers').locator('li').allTextContents()).map(text => text.trim())).toEqual(['Second box', 'Background'])
     await page.keyboard.press('Control+z')
     await expect.poll(async () => (await savedDesign(page, id)).elements.map(element => element.id)).toEqual(['r1', 'r2'])
   })
 
-  it('selects with Shift and a box, hides and locks in Layers, and zooms with the keyboard', async () => {
+  it('selects with Shift and a box, and zooms with the keyboard', async () => {
     const page = await newDevice(browser, { width: 1440, height: 900 })
     onTestFailed(screenshotOnFailure('studio-canvas-2', [page]))
     const id = await openSeeded(page, 'Canvas test 2')
@@ -126,13 +124,6 @@ describe('studio canvas', () => {
     expect(canvas.width).toBeGreaterThan(0)
     await page.keyboard.press('ArrowUp')
     expect(boxOf(await savedDesign(page, id), 'r2')).toEqual({ x: 599, y: 399 })
-
-    // Lock in Layers: the canvas can't select it any more.
-    await page.getByRole('button', { name: 'Lock First box' }).click()
-    await savedDesign(page, id)
-    expect(await page.getByTestId('box-r1').evaluate(element => getComputedStyle(element).pointerEvents)).toBe('none')
-    await page.getByRole('button', { name: 'Hide Second box' }).click()
-    expect((await savedDesign(page, id)).elements.find(element => element.id === 'r2')!.hidden).toBe(true)
 
     // Zoom: Ctrl + = zooms in, Ctrl + 0 fits again.
     const fitted = await page.getByTestId('zoom-percent').textContent()

@@ -264,7 +264,7 @@
       "check": "Check these:",
       "confirmAnyway": "Publish version {number} anyway",
       "errors": {
-        "noOrderNo": "Add an Order No. field (Form tab).",
+        "noOrderNo": "Add an Order No. field (Fields panel).",
         "duplicateFixed": "{name} is on the slip twice.",
         "groupTooSmall": "{name} needs at least two options.",
         "missingLabel": "{name} needs a label in English and in Khmer."
@@ -293,66 +293,21 @@
     "new": {
       "title": "New template",
       "start": "Start from",
-      "photo": "A photo of the paper slip",
-      "photoHint": "The canvas takes the photo's size; the photo is the background.",
-      "blank": "A blank canvas",
-      "blankHint": "A preset or a size of your own.",
       "copy": "A copy of a template",
       "copyHint": "The same design, as a new draft.",
-      "choosePhoto": "Choose a photo",
-      "photoRules": "PNG or JPEG, up to 1 MB, 200–2000 pixels a side. Straighten and crop it first.",
-      "photoTooLarge": "The photo is larger than 1 MB.",
-      "uploading": "Uploading…",
-      "photoReady": "Photo uploaded: {width} × {height} px.",
-      "softPhoto": "This photo is under {side} pixels on its long side: the customer's picture will look soft.",
-      "size": "Size",
-      "presets": {
-        "wide": "Wide slip",
-        "narrow": "Narrow receipt",
-        "a6": "A6 portrait",
-        "square": "Square",
-        "custom": "Custom size"
-      },
-      "width": "Width (px)",
-      "height": "Height (px)",
-      "sizeRange": "{min}–{max} pixels a side",
       "copyFrom": "Template to copy",
       "chooseTemplate": "Choose a template",
       "copyName": "Copy of {name}",
-      "create": "Create and open"
+      "create": "Create and open",
+      "artwork": "An artwork",
+      "artworkHint": "The slip's look, made by AI or a designer: PNG, JPEG or SVG. The canvas takes its size."
     },
     "undo": "Undo",
     "redo": "Redo",
-    "rail": "Studio tools",
-    "tabs": {
-      "layers": "Layers",
-      "form": "Form",
-      "shop": "Shop info",
-      "text": "Text",
-      "elements": "Elements",
-      "uploads": "Uploads"
-    },
-    "layers": {
-      "title": "Layers",
-      "empty": "Nothing on the slip yet.",
-      "rename": "Layer name",
-      "show": "Show {name}",
-      "hide": "Hide {name}",
-      "lock": "Lock {name}",
-      "unlock": "Unlock {name}",
-      "background": "Background",
-      "backgroundPhoto": "Background photo"
-    },
     "canvas": {
       "duplicate": "Duplicate",
-      "lock": "Lock",
-      "unlock": "Unlock",
       "delete": "Delete",
       "more": "More",
-      "bringForward": "Bring forward",
-      "sendBackward": "Send backward",
-      "bringToFront": "Bring to front",
-      "sendToBack": "Send to back",
       "zoom": "Zoom",
       "fit": "Fit",
       "copy": "Copy",
@@ -386,8 +341,6 @@
       "fillOrderHint": "Next goes through the fields in this order. Drag to change it.",
       "noFields": "Add a field the owner fills.",
       "paidPair": "Paid / Not paid",
-      "notPaid": "Not paid",
-      "optionName": "Option {n}",
       "types": {
         "number": "Number",
         "textField": "Text",
@@ -399,13 +352,6 @@
         "amount": "Amount",
         "paid": "Paid / Not paid"
       }
-    },
-    "shopInfo": {
-      "hint": "Drawn from the shop's details when each order is saved. The studio shows a sample shop.",
-      "name": "Shop name",
-      "phone": "Shop phone",
-      "address": "Shop address",
-      "logo": "Shop logo"
     },
     "field": {
       "label": "Label",
@@ -456,55 +402,6 @@
       "checked": "The slip can be saved.",
       "reset": "Start again"
     },
-    "text": {
-      "heading": "Heading",
-      "subheading": "Subheading",
-      "body": "Body text",
-      "hint": "Khmer and English in the same box. Lines break at spaces and new lines only: put a space where a long Khmer line may break. Double-click a text to edit it.",
-      "edit": "Edit text",
-      "editing": "Text",
-      "lineSpacing": "Line spacing"
-    },
-    "elements": {
-      "line": "Line",
-      "dashedLine": "Dashed line",
-      "rect": "Rectangle",
-      "roundedRect": "Rounded rectangle",
-      "circle": "Circle",
-      "triangle": "Triangle",
-      "tick": "Tick",
-      "star": "Star"
-    },
-    "uploads": {
-      "upload": "Upload a PNG or JPEG (up to 1 MB, 200–2000 px a side)",
-      "empty": "No images yet.",
-      "add": "Add to the slip",
-      "setBackground": "Set as background",
-      "removeBackground": "Remove the background image"
-    },
-    "shape": {
-      "style": "Style",
-      "fill": "Fill",
-      "border": "Border",
-      "lineColor": "Line colour",
-      "width": "Width",
-      "radius": "Corner radius",
-      "dashed": "Dashed"
-    },
-    "image": {
-      "replace": "Replace"
-    },
-    "color": {
-      "none": "None",
-      "pick": "Pick {label}",
-      "hex": "{label} as hex"
-    },
-    "resize": {
-      "open": "Resize",
-      "title": "Canvas size",
-      "description": "The customer's picture is this size. Elements keep their places.",
-      "apply": "Resize"
-    },
     "shops": {
       "open": "Shops",
       "title": "Shops using this template",
@@ -526,6 +423,29 @@
       "banner": "This template is archived: it can't be changed or attached. Restore it to use it again.",
       "confirmTitle": "Archive this template?",
       "confirmDescription": "It's detached from every shop and hidden from the list. Orders made on it keep their slips."
+    },
+    "artwork": {
+      "choose": "Choose the artwork",
+      "rules": "PNG, JPEG or SVG, 200–2000 pixels a side. An SVG is turned into a PNG in your browser; a file over 1 MB is made smaller.",
+      "preparing": "Preparing and uploading…",
+      "previewAlt": "The artwork as the slip will use it",
+      "ready": "Artwork ready: {width} × {height} px.",
+      "changes": {
+        "fromSvg": "Turned from SVG into PNG in your browser. Check the text looks right.",
+        "scaledDown": "Made smaller to 2000 pixels on its long side.",
+        "reencoded": "Saved as JPEG to stay under 1 MB."
+      },
+      "soft": "This artwork is under {side} pixels on its long side: the customer's picture will look soft.",
+      "problems": {
+        "unsupported": "Choose a PNG, JPEG or SVG file.",
+        "unreadable": "This file couldn't be read as an image.",
+        "tooSmall": "The artwork must be at least 200 pixels on each side.",
+        "tooHeavy": "The artwork is still over 1 MB after making it smaller. Use a simpler design or a smaller size."
+      },
+      "replace": "Replace artwork",
+      "replaceTitle": "Replace the artwork",
+      "replaceDescription": "The canvas takes the new artwork's size. Fields stay where they are; check them afterwards.",
+      "replaceApply": "Use this artwork"
     }
   },
   "slipFill": {

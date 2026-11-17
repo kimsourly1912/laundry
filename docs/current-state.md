@@ -6,7 +6,7 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
-- **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). **Before it deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
+- **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). Staging's database was emptied on 2026-11-17 ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the first platform admin must be created again.
 - **PR B, the studio: done, waiting for the owner's review** (branch `claude/affectionate-ritchie-mtyfdr`, one commit per step):
   - **S1 done:** the design format (`shared/contracts/slip-design.ts`), the shared SVG builder with fontkit text and its HarfBuzz test ([reference/slip.md](reference/slip.md)), `/api/platform/templates` (list, create from a photo, blank or a copy, autosave at `version`, publish, preview PNG), `/api/platform/images` (upload, list, bytes), the templates list, New template, and the studio page (the slip at Fit, rename, save status, Preview, Publish). The spike is deleted.
   - **S2 done:** the canvas (Moveable + Selecto over transparent boxes, D32): zoom 10–400% and Fit, pan, select (click, Shift, box), press-and-drag, resize, rotate (snaps 45° within 3°), snapping (Alt off), the keyboard of plan §5.7 but copy and paste (S5), undo / redo of the last 100 changes, the floating toolbar, position and size, and the Layers tab. Logic in `app/features/studio/utils` (history, design operations, shortcuts) with unit tests; e2e in `test/e2e/studio-canvas.test.ts`.
@@ -14,10 +14,18 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
   - **S4 done:** the Text tab (heading, subheading, body; double-click edits the text in place in the same font; side handles rewrap, corners scale the size; the height always fits the text), the Elements tab (lines, rectangles, circles, triangles, tick, star), the Uploads tab (upload, add in proportion, set as background), their toolbars with the slip's recent colours, and Resize.
   - **S5 done:** align (left, centre, right, top, middle, bottom) and spread evenly for several elements; Copy and Paste (Ctrl+C / Ctrl+V and the ⋯ menu), kept in the browser so a copy can go into another template, checked against the element schema when pasted; options bring their choice group, and a fixed-meaning field the template already has is left out.
   - **Step 2 done:** attach a published template to a shop and detach it (`/api/platform/templates/:id/shops`, `/api/platform/shops/:shopId/templates`; two-shop tests), archive and restore (archive detaches it everywhere), the templates list with thumbnails and shop counts, the studio's Shops dialog and ⋯ menu, the shop page's Templates card, and a template chosen when a shop is created (attached by a second request right after; on failure the shop page offers it).
-  - **Not in PR B:** choosing an attached shop for the studio's Shop info preview (plan §5.4.4) and a shop's logo (the platform sets `logo_image_id`; no screen yet). Both are small and can come with PR C.
+  - **Not in PR B:** a shop's logo and the Shop info preview, both dropped by D35 (the artwork carries the shop's look).
   - **Khmer to review:** `slipFill.*`, `platform.nav.templates`, `platform.shop.templates.*`, `platform.newShop.template`, `templateHelp`, `noTemplates` in `km.json`.
-- **Next: PR C (steps 3, 4)** after the owner reviews PR B. It needs the answers to [Q7 and Q11](plan.md#10-open-questions).
-- **Studio details agreed (2026-11-17):** [plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only), D32, D33. Still open: [Q11 and Q7](plan.md#10-open-questions), needed by steps 4 and 3.
+- **PR B merged (#13).** The owner found the studio's canvas worked badly (measured: 150–200 ms frames on a normal laptop) and then simplified the product ([D35](decisions.md#d35-ai-made-artwork-and-fields-only)): **the slip's look is artwork made by AI or a designer and uploaded; the studio only places form fields on it.**
+- **PR B2, the studio simplified (#14, branch `claude/affectionate-ritchie-mtyfdr`):** R1 (each field drawn as its own piece, equal to the server's SVG) and K1 done:
+  - the drawing element types, rotation, locking and hiding removed from the design, the studio and the server;
+  - New template = an artwork (PNG, JPEG, or SVG drawn to PNG in the browser; `app/features/studio/utils/artwork.ts`) or a copy; **Replace artwork** in the ⋯ menu;
+  - the Fields panel is the only side panel;
+  - Ctrl turns snapping off, Shift keeps proportions, the wheel zooms at Figma's rates.
+
+  **Still to build** (marked in [studio-behaviour.md](studio-behaviour.md)): Shift axis lock and Alt-drag copy, Esc cancels a gesture, thin outlines at any zoom, hover outline and labels, tiny fields, equal-gap snapping.
+- **Staging:** templates made before D35 no longer match the design format: archive them and make them again from an artwork.
+- **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. **Q7 answered: a saved order can be edited**; its rules must be settled before step 3 ([plan §10](plan.md#10-open-questions)).
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
 ## Where we are (before D31)
@@ -72,4 +80,4 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 
 ## Blockers
 
-None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password). **Its database must be emptied before PR A deploys** ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)).
+None. Staging (`laundry-staging.angder.app`) is deployed with its auth secret and its first platform admin (`admin`, on a temporary password). **Its database was emptied for the reset on 2026-11-17: create the first platform admin again** ([operations → First platform admin](server/operations.md#first-platform-admin)).

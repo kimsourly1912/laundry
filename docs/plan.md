@@ -22,7 +22,7 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 
 ## 3. The whole flow
 
-1. **The platform designs a template** in the studio, over a photo of the shop's paper slip or from a blank canvas, and publishes it.
+1. **The platform makes a template:** it has an AI tool (or a designer) make the slip's artwork, uploads it, places the form fields on it in the studio, and publishes it (D35).
 2. **The platform creates a shop**: the shop name, phone, address and currency (៛ or $), plus the owner's username and password. Then it **attaches** one or more templates to the shop.
 3. **The owner opens the portal** on their phone. It has a menu of three items:
    - **Overview:** today's orders and a big **Create order** button (the quick action when a customer arrives).
@@ -40,80 +40,55 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 - **Default template:** the owner chooses one. If none is set, **Create order** first asks the owner to choose, then remembers the choice. If the platform detaches or archives a shop's default, the owner chooses again; old orders are unaffected.
 - **Template versions:** each **Publish** makes a fixed version. New orders use the latest published version. **An order keeps the version it was made on forever**, so a customer's image never changes.
 - **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. There is no "ready" step.
-- **Mistakes:** **Cancel** the order and make a new one, like tearing up a paper slip. There's no edit-after-save in the first version.
+- **Mistakes:** ~~Cancel the order and make a new one; no edit-after-save.~~ **Changed by Q7 (owner, 2026-11-17): a saved order can be edited.** The rules (new image for the customer, template version, paid or picked-up orders, history) are settled before step 3 (§10).
 - **Telegram sends only the slip image** in the first version: no "ready" or "collected" messages, and no reminders.
 - **Never delete** orders (cancel instead), templates (archive instead) or shops (suspend instead).
 - **The platform never reads a shop's orders.** `/api/shop/**` still answers `403` to the super admin.
 
-## 5. The studio (Canva-like, desktop, platform only)
+## 5. The studio (artwork + fields, desktop, platform only)
 
-> **🤖 Claude Code:** agreed with the owner on 2026-11-17 (photo first, Q9, Q10, Q12: the defaults below were accepted as written). Anything this page leaves open goes to §10 Open questions, not a guess.
-
-**Main use (owner, 2026-11-17): a photo of the shop's paper slip, with form fields placed on it.** Shapes and text are for small touches and blank designs. So form fields come before the full drawing tools (§9). The studio's own screens are **English only** (Q10, [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)); the slip, its text and the field labels stay Khmer and English.
+> **Changed by [D35](decisions.md#d35-ai-made-artwork-and-fields-only) (owner, 2026-11-17).** The slip's look is made outside the app, by AI or any design tool, and uploaded as **artwork**. The studio only places **form fields** on it. The Canva-like drawing tools (text, shapes, icons, images, shop info, rotation) are gone. What follows is the agreed studio; the field rules are in [`studio-behaviour.md`](studio-behaviour.md).
 
 ### 5.1 Layout
 
 ```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│ ← Templates │ Linda slip ✎ │ ↶ ↷ │ Resize │      Saved ✓ │ Try it │ Preview │ Publish │
-├─────┬───────────────┬────────────────────────────────────────────────────────────┤
-│ ☑   │ Side panel    │  [ contextual toolbar: changes with the selection ]        │
-│Form │ (tab content) │                                                            │
-│ T   │               │     ┌─[⧉ 🔒 🗑 ⋯]────────────────────────────┐             │
-│Text │               │     │  photo of the paper slip (locked)      │             │
-│ ▦   │               │     │      ┌────┐  ┌────┐                    │             │
-│Elem │               │     │      │ 3  │  │ ✓  │  ← form fields     │             │
-│ 🏪  │               │     │      └────┘  └────┘                    │             │
-│Shop │               │     └────────────────────────────────────────┘             │
-│ ⬆   │               │                                                            │
-│Upld │               │                                                            │
-│ ☰   │               │                                     ─────●───── 78%  ⤢ Fit │
-│Layr │               │                                                            │
-└─────┴───────────────┴────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────┐
+│ ← Templates │ Linda slip ✎ │ ↶ ↷ │      Saved ✓ │ Try it │ Shops │ Preview │ ⋯ │ Publish │
+├───────────────┬────────────────────────────────────────────────────────────────┤
+│ Fields        │  [ toolbar: the selected field's settings, or align for several ] │
+│  Number  Text │                                                                │
+│  Check  Choice│     ┌──────────────────────────────────────┐                   │
+│  Order No. …  │     │  the artwork (never selectable)      │                   │
+│               │     │      ┌────┐  ┌────┐                  │                   │
+│ Fill order    │     │      │ 3  │  │ ✓  │  ← form fields   │                   │
+│  1 Shirt      │     │      └────┘  └────┘                  │                   │
+│  2 Trousers   │     └──────────────────────────────────────┘                   │
+│  …            │                                         ─────●───── 78%  ⤢ Fit │
+└───────────────┴────────────────────────────────────────────────────────────────┘
 ```
 
-- **Top bar:** back to Templates; the template name (click to rename); undo and redo; **Resize** (the canvas size); save status (Saving… / Saved ✓ / Not saved, with Retry); **Try it**; **Preview** (the server's PNG, in a dialog); **Publish**.
-- **Left rail tabs, in this order:** Form, Text, Elements, Shop info, Uploads, Layers. A tab opens its side panel; clicking it again closes the panel for more canvas.
-- **Contextual toolbar:** above the canvas, for what's selected (§5.5).
-- **Floating toolbar:** on the selection: duplicate, lock, delete, and ⋯ (bring forward, send backward, bring to front, send to back, copy, paste).
-- **Canvas:** the slip on a grey workspace. Handles resize and rotate (§5.6); snap lines show while dragging.
-- **One page per template.** No pages or sections like Canva's.
-- **Desktop only:** below 1280 px wide the studio shows "Open the studio on a computer" instead.
+- **Top bar:** back to Templates; the name (click to rename); undo and redo; save status; **Try it**; **Shops**; **Preview** (the server's PNG); ⋯ (**Replace artwork**, archive or restore); **Publish**.
+- **Side panel:** the field types to add, then the **fill order**.
+- **Toolbar** above the canvas: the selected field's settings (§5.4), or align and spread for several.
+- **Floating toolbar** on the selection: duplicate, delete.
+- **Desktop only:** below 1280 px wide the studio shows "Open the studio on a computer".
 
-### 5.2 Starting a template
+### 5.2 Artwork
 
-The Templates list has **New template**, which offers three starts:
+- **Made outside the app.** The platform asks an AI tool (or a designer) for the slip's look: a new design, or a redesign of a photo of the shop's paper slip. The artwork carries everything printed: the shop's name and contact details, labels, boxes, lines.
+- **New template** = a name + an artwork upload, or **a copy** of another template.
+- **Accepted:** PNG, JPEG and SVG, 200–2000 px a side.
+  - **An SVG is drawn to a PNG in the platform's browser** at upload, and only the PNG is stored. The browser draws Khmer correctly and runs no scripts or links inside an image; the server's renderer (resvg) can't shape Khmer and has no fonts, so it never sees an SVG. The platform sees the result before saving.
+  - An image over 1 MB is re-encoded in the browser (JPEG) to fit; the platform sees the result.
+  - Under 1000 px on its long side: a warning that the customer's image will look soft.
+- **The canvas is the artwork's size, and so is the customer's PNG**, pixel for pixel.
+- **Replace artwork** (⋯ menu): a new upload; the canvas takes its size and the fields stay where they are (a field off the canvas is a publish warning).
 
-1. **From a photo of the paper slip** (the main way): upload a PNG or JPEG (≤ 1 MB, 200–2000 px a side). The canvas takes the photo's size and the photo becomes the **background**: always at the bottom, never selectable on the canvas. The platform straightens and crops the photo with the phone's own editor before uploading; the studio has no crop (§5.10). A photo under 1000 px on its long side gets a warning: the customer's image will look soft.
-2. **Blank:** a size preset or a custom size (200–2000 px a side):
+### 5.3 Form fields
 
-   | Preset | Size (px) |
-   |---|---|
-   | Wide slip | 1200 × 800 |
-   | Narrow receipt | 600 × 1000 |
-   | A6 portrait | 827 × 1165 |
-   | Square | 1080 × 1080 |
+On paper, a number or a tick goes **inside a box printed on the slip**. A form field is a box on the artwork where the owner's value is drawn. The box itself draws nothing unless "Draw a border" is on.
 
-3. **Copy a template:** a new draft with the same design and a new name ("Copy of …").
-
-**The PNG the customer gets is the canvas's size,** pixel for pixel.
-
-### 5.3 Left rail tabs
-
-| Tab | Contents |
-|---|---|
-| **Form** | The field types to add (§5.4), then the **fill order** list: every field in the order the owner fills them, dragged to reorder |
-| **Text** | Add Heading, Subheading or Body text. Khmer and English in the same box |
-| **Elements** | Line (solid or dashed), rectangle (with a corner radius), circle, triangle, and two icons: a tick and a star |
-| **Shop info** | Shop name, phone, address, logo (§5.4.4) |
-| **Uploads** | The platform's uploaded images (shared by all templates): upload, click to add, **Set as background**. Each shows its size |
-| **Layers** | Every element, top first, with the background last: drag to reorder, double-click to rename, hide, lock |
-
-### 5.4 Form fields (the part Canva doesn't have)
-
-On paper, a number or a tick goes **inside a box printed on the slip**. A form field is a box on the canvas where the owner's value is drawn. The box itself draws nothing unless "Draw a border" is on (for blank designs).
-
-#### 5.4.1 Every field has
+#### 5.3.1 Every field has
 
 - a **label in English and Khmer** ("Shirt" / "អាវ"): what the owner sees while filling, in the owner's language. Both are required to publish
 - **Required** (on or off): the owner can't save the order without it
@@ -122,7 +97,7 @@ On paper, a number or a tick goes **inside a box printed on the slip**. A form f
 
 A value that's wider than its box **shrinks** to fit, down to half its font size, and is cut off after that. It never spills over the slip.
 
-#### 5.4.2 Field types
+#### 5.3.2 Field types
 
 | Type | The owner enters | Drawn as | Settings |
 |---|---|---|---|
@@ -131,7 +106,7 @@ A value that's wider than its box **shrinks** to fit, down to half its font size
 | **Checkbox** | A tick | ✓, ✗, a filled dot or a filled box | The mark |
 | **Choice** | One option of a group | the mark on the chosen option's spot | The group's label; its options, **each placed separately** on the canvas with its own label ("Washing iron", "Dry", "Iron"); the mark. At least two options |
 
-#### 5.4.3 Fixed-meaning fields (at most one of each per template)
+#### 5.3.3 Fixed-meaning fields (at most one of each per template)
 
 The app uses these to list, search and filter orders.
 
@@ -143,53 +118,25 @@ The app uses these to list, search and filter orders.
 | **Amount** | The owner | in the shop's currency: `12,000 ៛` or `$4.50` |
 | **Paid / Not paid** | The owner | a choice with two spots, "Paid" and "Not paid" |
 
-The order's values are checked by the server against the order's template version (§6.8).
+The order's values are checked by the server against the order's template version (§6.6).
 
-#### 5.4.4 Shop info elements
-
-Shop name, phone, address and logo are drawn from the shop's details **as they were when the order was saved**: the order keeps a copy (§7), so an old slip never changes when the shop changes its phone (Q9). In the studio and in Try it they show the details of a sample shop, or of an attached shop chosen in the toolbar.
-
-#### 5.4.5 Fill order and Try it
+#### 5.3.4 Fill order and Try it
 
 - **Fill order:** the Form tab lists every field the owner fills (not Order No. or Date), in order. On the phone, **Next** goes through them in this order. A new field goes to the end.
 - **Try it:** a phone-sized frame inside the studio that fills the slip exactly as the owner will (step 3 builds the same component), with the live slip beside it. Nothing is saved.
 
-### 5.5 Contextual toolbars
+### 5.4 Toolbar
 
 | Selected | Toolbar |
 |---|---|
-| Text | Font size, bold, colour, alignment, line spacing |
-| Shape or line | Fill (or none), border colour, border width, solid or dashed, corner radius (rectangles) |
-| Image | Replace, opacity, set as background |
-| Form field | Label (English, Khmer), required, the type's settings (§5.4.2), value style, draw a border |
-| Shop info | The sample shop; value style |
-| Any one element | Position and size (x, y, w, h), rotation, opacity, lock |
-| Several elements | Align left, centre or right; align top, middle or bottom; spread evenly across or down |
+| One field | Label (English, Khmer), required, the type's settings (§5.3.2), value style, draw a border, position and size |
+| Several fields | Align left, centre or right; top, middle or bottom; spread evenly across or down |
 
-Colours: a palette of the slip's recent colours plus a picker with a hex box.
+### 5.5 On the canvas and keyboard
 
-### 5.6 On the canvas (Canva's behaviour)
+The full rules, with what is built and what is still to build, are in [`studio-behaviour.md`](studio-behaviour.md). In short: click, Shift+click and box select; drag to move (Shift locks the axis, Alt-drag copies); eight handles to resize (Shift keeps proportions); snapping to the artwork's edges and centre and to other fields (Ctrl turns it off); arrows nudge 1 px, Shift+arrows 10 px; Delete, Ctrl+D, Ctrl+C / Ctrl+V, Ctrl+Z / Ctrl+Y, Esc; zoom with Ctrl + scroll, Ctrl + `+` / `−` / `0`; pan with scroll or Space + drag. No rotation.
 
-- **Select:** click an element; Shift+click adds or removes one; drag a box on an empty part of the canvas to select everything it touches. Locked elements and the background can't be selected on the canvas (use Layers).
-- **Move:** drag. Pressing an unselected element selects it and starts dragging at once.
-- **Resize:** eight handles. Corner handles keep the shape's proportions for images, icons and text; side handles don't.
-- **Text boxes:** side handles change the width and the text rewraps; the height always fits the text. Corner handles scale the text's font size with the box. **Double-click** edits the text in place (an editor over the canvas in the same font); Esc or a click outside finishes.
-- **Rotate:** the round handle above the selection; it snaps to 0°, 45°, 90°… within 3°.
-- **Snap:** edges and centres snap to the canvas's edges and centre and to other elements, within 6 screen px, with guide lines. Hold **Alt** to move without snapping.
-- **Zoom:** 10–400% with the slider, Ctrl + scroll (around the pointer), Ctrl + `+` / `−`, Ctrl + `0` for Fit. The studio opens at Fit.
-- **Pan:** scroll; or Space + drag; or the middle mouse button.
-
-### 5.7 Keyboard shortcuts
-
-- **Editing:** Delete or Backspace, Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z), Ctrl+C / Ctrl+V, Ctrl+D (duplicate)
-- **Moving:** arrow keys move 1 px, Shift+arrows 10 px
-- **Selecting:** Ctrl+A, Shift+click, Esc
-- **Layers:** Ctrl+] / Ctrl+[ bring forward / send backward
-- **Canvas:** Ctrl + scroll, Ctrl + `+` / `−` / `0`, Space + drag
-
-Shortcuts don't fire while typing in a field or editing text.
-
-### 5.8 Saving, undo, versions, publishing
+### 5.6 Saving, undo, versions, publishing
 
 - The draft **saves by itself** about a second after each change, with `version`. A stale save answers `409 VERSION_CONFLICT`, and the studio says "This template changed in another window. Reload to see it." and stops saving.
 - **Undo and redo** keep the last 100 changes of this session; a gesture (one drag, one resize) is one change.
@@ -198,32 +145,26 @@ Shortcuts don't fire while typing in a field or editing text.
 - **Publish warns** (and can go ahead) about: a field partly off the canvas; no Amount; no Phone; no fields at all besides Order No.
 - **Attach to shops** from the template's page or from the shop's page (step 2).
 
-### 5.9 Images
+### 5.7 Left out of the first version
 
-PNG or JPEG, ≤ 1 MB, 200–2000 px a side, checked from the file's own bytes (D28). Stored once in `images` and shared by the platform's templates. An image added to the canvas keeps its proportions; its opacity can change. An image can't be deleted while a template version uses it.
-
-### 5.10 Left out of the first version
-
-- animation and effects
+- drawing in the studio: text, shapes, lines, icons, images, colours, shop info elements, rotation (the artwork carries the look, D35)
+- an AI button inside the app (the platform uses its own AI tool; revisit once we know which gives good slips)
 - several pages per template
-- groups
-- crop, filters or straightening of images
-- fonts other than Noto Sans Khmer (regular and bold)
-- charts, tables, QR codes on the slip
+- fonts other than Noto Sans Khmer for values
 - an owner-side editor
-- automatic line breaks inside Khmer words (D32: lines wrap at spaces and new lines only)
+- automatic line breaks inside Khmer words (D32)
 
 ## 6. Technical design
 
-1. **A design is one JSON document:** canvas size, background (colour or image id), and the elements in layer order. Every element has `id, type, x, y, w, h, rotation, opacity, locked, hidden, name` plus its type's own fields. One Valibot schema in `shared/contracts` checks it in both the browser and the server.
+1. **A design is one JSON document:** canvas size, the artwork (an image id, drawn over a colour), and the fields. Every field has `id, type, x, y, w, h` plus its type's own settings (D35). One Valibot schema in `shared/contracts` checks it in both the browser and the server.
 2. **Drawn as SVG, in the browser and on the server.** One shared function, `design + values + shop → SVG`:
    - the studio shows that SVG on screen
    - the server passes it to resvg to make the PNG
    - so what you design is what the customer gets.
 
    Not Fabric or Konva: they mean two drawing paths that drift apart.
-3. **Text is shaped by fontkit 3 and drawn as glyph paths** ([D32](decisions.md#d32-studio-canvas-and-slip-text)). The shared function shapes each line with fontkit and writes `<path>`s, so the SVG holds no `<text>` and resvg only rasterises. The studio and the server load the same font files and build the same SVG. Lines wrap only at spaces and new lines (Q14). fontkit is pinned and checked against HarfBuzz by a test.
-4. **Handles, snapping, rotation and selecting several elements: Moveable + Selecto** ([D32](decisions.md#d32-studio-canvas-and-slip-text)), pinned. They drive transparent boxes over the SVG and only write x, y, w, h and rotation into the design; the SVG is rebuilt from it. Konva is the fallback for this layer only.
+3. **Values are shaped by fontkit 3 and drawn as glyph paths** ([D32](decisions.md#d32-studio-canvas-and-slip-text)). The shared function shapes each line with fontkit and writes `<path>`s, so the SVG holds no `<text>` and resvg only rasterises. The studio and the server load the same font files and build the same SVG. Lines wrap only at spaces and new lines (Q14). fontkit is pinned and checked against HarfBuzz by a test.
+4. **Handles, snapping and selecting several fields: Moveable + Selecto** (D32), over transparent boxes; each gesture writes x, y, w and h into the design. D35 keeps them: with the artwork static and only fields on the canvas, the redraw problem behind D34 is gone, and each field is drawn as its own piece. Our own interaction layer (D34) stays the fallback.
 5. **Undo and redo:** a history of design snapshots (a design is small).
 6. **The studio is desktop only.** The owner's screens are mobile first (content up to 640 px wide).
 7. **Fonts:** Noto Sans Khmer (regular and bold) for Khmer and Latin.
@@ -273,6 +214,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 |---|---|---|
 | **A. Reset** | 1 | The spike and these plan decisions (D32, D33), then the reset |
 | **B. Studio** | S1–S5, 2 | Everything the platform uses: the studio, the templates list, attaching templates to shops |
+| **B2. Simplify the studio** | R1, K1 | AI-made artwork + fields only (D35): the drawing tools removed, the artwork upload, the canvas for fields |
 | **C. Owner + Telegram** | 3, 4 | Everything the shop owner and the customer use |
 
 | # | Step | PR | Size | Status |
@@ -284,6 +226,8 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | Done, in PR B |
 | S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | Done, in PR B |
 | 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | Done, in PR B |
+| R1 | **Faster drawing:** each element drawn as its own piece, equal to the server's SVG | B2 | Medium | Done |
+| K1 | **Simplify (D35):** the drawing element types, tools and rotation removed; New template = artwork upload (PNG, JPEG, SVG drawn to PNG in the browser) or a copy; Replace artwork; the side panel is Fields only. The spec's "To build" rules follow | B2 | Large | Done (spec rules to build remain) |
 | 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | |
 | 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | |
 
@@ -300,10 +244,11 @@ Each step includes:
 **🤖 Claude Code:** ask the owner about these before the step that needs them, and record each answer here and in `decisions.md` if it's an architecture choice.
 
 Answered on 2026-11-17:
+- **Q11:** send the slip right after the scan; **no phone check** (no `telegram_pending`).
+- **Studio rework** (Phase 0 research, Q-S1–Q-S7) → [`studio-behaviour.md`](studio-behaviour.md), [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer); then **simplified** to AI-made artwork + fields only → [D35](decisions.md#d35-ai-made-artwork-and-fields-only).
 - **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
 - **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only), the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
-| Q11 | Telegram: keep the **phone check** when the customer scans, or send the slip right after the scan? | Send right after the scan (simpler, order-only) | Step 4 |
-| Q7 | (Older) Is "cancel and make a new order" enough for mistakes, or is editing a saved order needed? | Cancel and remake for the first version (§4) | Step 3 |
+| Q7 | **Answered 2026-11-17: editing a saved order is needed** (not only cancel and remake; this changes §4). Before step 3, settle: does the customer get a new image after an edit; does the order stay on its template version; can a paid or picked-up order be edited; is the old value kept (history) or only audited? | To settle before step 3 | Step 3 |

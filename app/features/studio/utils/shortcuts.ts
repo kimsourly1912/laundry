@@ -1,13 +1,10 @@
-import type { LayerMove } from './design-ops'
-
 /**
- * The studio's keyboard (plan §5.7), as a pure map from a key press to an action, so it can be
- * tested without a browser. Space (pan) and Alt (no snapping) are held keys, handled by the canvas.
+ * The studio's keyboard (plan §5.5), as a pure map from a key press to an action, so it can be
+ * tested without a browser. Space (pan) and Ctrl (no snapping) are held keys, handled by the canvas.
  */
 
 export type ShortcutAction
   = | { kind: 'undo' | 'redo' | 'selectAll' | 'deselect' | 'delete' | 'duplicate' | 'copy' | 'paste' | 'zoomIn' | 'zoomOut' | 'fit' }
-    | { kind: 'layer', move: LayerMove }
     | { kind: 'nudge', dx: number, dy: number }
 
 interface KeyPress {
@@ -31,8 +28,6 @@ export function shortcutOf(event: KeyPress): ShortcutAction | undefined {
     if (key === 'd') return { kind: 'duplicate' }
     if (key === 'c') return { kind: 'copy' }
     if (key === 'v') return { kind: 'paste' }
-    if (key === ']') return { kind: 'layer', move: 'forward' }
-    if (key === '[') return { kind: 'layer', move: 'backward' }
     if (key === '+' || key === '=') return { kind: 'zoomIn' }
     if (key === '-' || key === '_') return { kind: 'zoomOut' }
     if (key === '0') return { kind: 'fit' }
@@ -49,7 +44,7 @@ export function shortcutOf(event: KeyPress): ShortcutAction | undefined {
 }
 
 /**
- * Shortcuts don't fire while typing in a field or editing text (plan §5.7), nor inside a dialog or a
+ * Shortcuts don't fire while typing in a field or editing text (plan §5.5), nor inside a dialog or a
  * menu, whose own keys (Escape closes it) come first.
  */
 export function isTyping(event: { target: EventTarget | null }): boolean {

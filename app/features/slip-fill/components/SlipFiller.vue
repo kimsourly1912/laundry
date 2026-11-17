@@ -10,7 +10,7 @@ import type { FillProblem, FillProblems, SlipFill } from '#shared/slip/values'
 import { checkFill } from '#shared/slip/values'
 import { fillData, fillSteps, problemKey, stepOf } from '../utils/fill'
 import type { FillStep } from '../utils/fill'
-import SlipSvg from './SlipSvg.vue'
+import { SlipSvg } from './slip-svg'
 
 const props = defineProps<{
   design: SlipDesign
@@ -104,7 +104,7 @@ function tapElement(id: string) {
   else if (element.type === 'paid') fill.value = { ...fill.value, paid: element.value === 'paid' }
 }
 
-const tappable = computed(() => props.design.elements.filter(element => !element.hidden && stepOf(steps.value, element) >= 0))
+const tappable = computed(() => props.design.elements.filter(element => stepOf(steps.value, element) >= 0))
 const selectedKey = computed(() => step.value?.key)
 
 /** Shows every problem and goes to the first; `true` when the slip can be saved. */
@@ -154,9 +154,8 @@ defineExpose({ validate })
           top: `${element.y / design.height * 100}%`,
           width: `${element.w / design.width * 100}%`,
           height: `${element.h / design.height * 100}%`,
-          transform: `rotate(${element.rotation}deg)`,
         }"
-        :aria-label="'label' in element ? labelOf(element.label) : element.name"
+        :aria-label="'label' in element ? labelOf(element.label) : element.type"
         :data-testid="`fill-box-${element.id}`"
         @click="tapElement(element.id)"
       />
@@ -219,7 +218,7 @@ defineExpose({ validate })
         <UButton
           v-for="option in step.options"
           :key="option.id"
-          :label="'label' in option ? labelOf(option.label) : option.name"
+          :label="'label' in option ? labelOf(option.label) : option.type"
           size="lg"
           :variant="fill.values[step.key] === option.id ? 'solid' : 'outline'"
           :aria-pressed="fill.values[step.key] === option.id"
