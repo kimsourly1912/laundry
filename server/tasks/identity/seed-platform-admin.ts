@@ -10,7 +10,10 @@ import { MIN_PASSWORD_LENGTH, seedPlatformAdmin } from '#server/features/identit
 export default defineTask({
   meta: { name: 'identity:seed-platform-admin', description: 'Create the first platform admin from env' },
   async run() {
-    const { username, password } = useRuntimeConfig().platformAdmin as { username: string, password: string }
+    // Nuxt parses env overrides of runtime config: an all-digit password (`123456`) arrives as a number.
+    const config = useRuntimeConfig().platformAdmin as { username: unknown, password: unknown }
+    const username = String(config.username ?? '')
+    const password = String(config.password ?? '')
     if (!username || password.length < MIN_PASSWORD_LENGTH) {
       throw new Error(`Set NUXT_PLATFORM_ADMIN_USERNAME and NUXT_PLATFORM_ADMIN_PASSWORD (at least ${MIN_PASSWORD_LENGTH} characters).`)
     }
