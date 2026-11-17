@@ -63,7 +63,7 @@ erDiagram
 | `address` | text null | |
 | `logo_image_id` | text null | FK → `images.id`, restrict. Unused since D35 (the artwork carries the shop's look); kept for the order's copy of the shop's details |
 | `currency` | text | `KHR` (default) \| `USD`. May change at any time: each order keeps a copy ([D33](../decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)) |
-| `language` | text | `en` (default) \| `km`: customer-facing messages ([D6](../decisions.md#d6-shop-language-column)) |
+| `language` | text, default `en` | **Unused since D36** (English only); dropped by a later migration |
 | `status` | text | `active` \| `suspended` |
 | `version`, `created_at`, `updated_at` | | |
 

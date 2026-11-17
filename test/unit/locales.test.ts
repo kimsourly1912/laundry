@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
-// docs/standards/i18n.md → Strings: every string is in en.json and km.json; a key missing from one
-// file, or used in code but missing from both, fails here.
+// docs/standards/i18n.md → Strings: English only (D36), every string is in en.json; a key used in
+// code but missing from it fails here.
 
 const appDir = fileURLToPath(new URL('../../app', import.meta.url))
 const load = (code: string) => JSON.parse(readFileSync(join(appDir, 'locales', `${code}.json`), 'utf8'))
@@ -19,8 +19,6 @@ function flatten(tree: Record<string, unknown>, prefix = ''): Map<string, string
 }
 
 const en = flatten(load('en'))
-const km = flatten(load('km'))
-const placeholders = (text: string) => [...text.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort()
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -41,25 +39,9 @@ function usedKeys(): Set<string> {
   return keys
 }
 
-/** The studio is English only (D33): its strings may be missing from km.json, which falls back to English. */
-const ENGLISH_ONLY = 'studio.'
-
 describe('locales', () => {
-  it('en and km have the same keys, but the studio\'s', () => {
-    expect([...km.keys()].filter(key => !en.has(key))).toEqual([])
-    expect([...en.keys()].filter(key => !km.has(key) && !key.startsWith(ENGLISH_ONLY))).toEqual([])
-  })
-
   it('no empty text', () => {
-    expect([...en, ...km].filter(([, text]) => !text.trim()).map(([key]) => key)).toEqual([])
-  })
-
-  it('the same placeholders and plural forms in both languages', () => {
-    for (const [key, text] of en) {
-      if (!km.has(key)) continue
-      expect(placeholders(km.get(key) ?? ''), key).toEqual(placeholders(text))
-      expect((km.get(key) ?? '').split('|').length, key).toBe(text.split('|').length)
-    }
+    expect([...en].filter(([, text]) => !text.trim()).map(([key]) => key)).toEqual([])
   })
 
   it('every key the code names exists', () => {

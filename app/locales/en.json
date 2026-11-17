@@ -18,7 +18,6 @@
       "loadError": "Couldn't load this. Try again.",
       "notFound": "This page doesn't exist."
     },
-    "language": "Language",
     "pagination": "{from}–{to} of {total}",
     "unsaved": {
       "leave": "Leave without saving? Your changes will be lost."
@@ -117,13 +116,6 @@
     "currencies": {
       "KHR": "Riel (៛)",
       "USD": "US dollar ($)"
-    },
-    "customersSection": "Customers",
-    "language": "Customers' language",
-    "languageHelp": "For Telegram messages and the ticket page.",
-    "languages": {
-      "en": "English",
-      "km": "Khmer"
     }
   },
   "platform": {
@@ -267,7 +259,7 @@
         "noOrderNo": "Add an Order No. field (Fields panel).",
         "duplicateFixed": "{name} is on the slip twice.",
         "groupTooSmall": "{name} needs at least two options.",
-        "missingLabel": "{name} needs a label in English and in Khmer."
+        "missingLabel": "{name} needs a label."
       },
       "warnings": {
         "offCanvas": "{name} is partly off the slip.",
@@ -355,12 +347,8 @@
     },
     "field": {
       "label": "Label",
-      "labelEn": "Label in English",
-      "labelKm": "Label in Khmer",
-      "labelHint": "What the owner sees while filling, in their language. Both are needed to publish.",
+      "labelHint": "What the owner sees while filling: write it in the language the shop reads (Khmer is fine). Needed to publish.",
       "group": "Choice group",
-      "groupLabelEn": "Group label in English",
-      "groupLabelKm": "Group label in Khmer",
       "settings": "Settings",
       "required": "Required",
       "mark": "Mark",
@@ -391,13 +379,13 @@
         "center": "Align centre",
         "right": "Align right"
       },
-      "border": "Draw a border"
+      "border": "Draw a border",
+      "groupLabel": "Group label"
     },
     "tryIt": {
       "open": "Try it",
       "title": "Try it",
       "description": "Fill the slip as the owner will. Nothing is saved.",
-      "language": "Owner's language",
       "check": "Check like Save",
       "checked": "The slip can be saved.",
       "reset": "Start again"

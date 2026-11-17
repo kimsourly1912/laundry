@@ -13,7 +13,7 @@ import { idSchema } from './common'
  * stored by them (`SlipValues`).
  *
  * The schema checks shape and bounds only. What a template needs before it can be published (an
- * Order No., labels in both languages, …) is checked by `publishProblems` (`#shared/slip/checks`).
+ * Order No., labels, …) is checked by `publishProblems` (`#shared/slip/checks`).
  */
 
 export const CANVAS_MIN_SIDE = 200
@@ -55,11 +55,8 @@ const base = {
   h: extent,
 }
 
-/** What the owner sees while filling, in their language (plan §5.3.1). Both are required to publish. */
-export const labelSchema = v.strictObject({
-  en: v.pipe(v.string(), v.trim(), v.maxLength(60, 'At most 60 characters')),
-  km: v.pipe(v.string(), v.trim(), v.maxLength(60, 'At most 60 characters')),
-})
+/** What the owner sees while filling (plan §5.3.1): one free-text label, Khmer if the shop reads Khmer (D36). Required to publish. */
+export const labelSchema = v.pipe(v.string(), v.trim(), v.maxLength(60, 'At most 60 characters'))
 export type Label = v.InferOutput<typeof labelSchema>
 
 /** How a value is drawn inside its box (plan §5.3.1). */
@@ -184,7 +181,6 @@ export interface SlipShop {
   address: string | null
   logoImageId: string | null
   currency: 'KHR' | 'USD'
-  language: 'en' | 'km'
 }
 
 /** Everything a slip is filled with. */

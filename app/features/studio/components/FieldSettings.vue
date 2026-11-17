@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * A form field's settings in the contextual toolbar (plan §5.5): labels in English and Khmer,
+ * A form field's settings in the contextual toolbar (plan §5.5): its label,
  * required, the type's own settings (§5.4.2), the value's style, and "Draw a border". Text inputs
  * apply when they lose focus or on Enter, so typing a label is one undo step.
  */
@@ -33,13 +33,12 @@ function setGroup(update: Partial<ChoiceGroup>) {
   editor.apply({ ...editor.design.value, groups: editor.design.value.groups.map(item => (item.id === current.id ? { ...item, ...update } : item)) })
 }
 
-function setLabel(language: 'en' | 'km', value: string) {
-  if (!('label' in element.value)) return
-  set({ label: { ...element.value.label, [language]: value.trim().slice(0, 60) } })
+function setLabel(value: string) {
+  if ('label' in element.value) set({ label: value.trim().slice(0, 60) })
 }
 
-function setGroupLabel(language: 'en' | 'km', value: string) {
-  if (group.value) setGroup({ label: { ...group.value.label, [language]: value.trim().slice(0, 60) } })
+function setGroupLabel(value: string) {
+  if (group.value) setGroup({ label: value.trim().slice(0, 60) })
 }
 
 const textValue = (event: Event) => (event.target as HTMLInputElement).value
@@ -57,30 +56,20 @@ const decimalItems = computed(() => [0, 1, 2].map(value => ({ value, label: t(`s
     <UPopover v-if="LABELLED.has(element.type)">
       <UButton
         :label="t('studio.field.label')"
-        icon="i-lucide-languages"
+        icon="i-lucide-tag"
         size="xs"
         color="neutral"
         variant="outline"
       />
       <template #content>
         <div class="w-72 space-y-3 p-3">
-          <UFormField :label="t('studio.field.labelEn')">
+          <UFormField :label="t('studio.field.label')">
             <UInput
-              :model-value="'label' in element ? element.label.en : ''"
+              :model-value="'label' in element ? element.label : ''"
               :maxlength="60"
               class="w-full"
-              data-testid="label-en"
-              @change="setLabel('en', textValue($event))"
-            />
-          </UFormField>
-          <UFormField :label="t('studio.field.labelKm')">
-            <UInput
-              :model-value="'label' in element ? element.label.km : ''"
-              :maxlength="60"
-              lang="km"
-              class="w-full"
-              data-testid="label-km"
-              @change="setLabel('km', textValue($event))"
+              data-testid="label"
+              @change="setLabel(textValue($event))"
             />
           </UFormField>
           <p class="text-xs text-muted">
@@ -100,21 +89,13 @@ const decimalItems = computed(() => [0, 1, 2].map(value => ({ value, label: t(`s
       />
       <template #content>
         <div class="w-72 space-y-3 p-3">
-          <UFormField :label="t('studio.field.groupLabelEn')">
+          <UFormField :label="t('studio.field.groupLabel')">
             <UInput
-              :model-value="group.label.en"
+              :model-value="group.label"
               :maxlength="60"
               class="w-full"
-              @change="setGroupLabel('en', textValue($event))"
-            />
-          </UFormField>
-          <UFormField :label="t('studio.field.groupLabelKm')">
-            <UInput
-              :model-value="group.label.km"
-              :maxlength="60"
-              lang="km"
-              class="w-full"
-              @change="setGroupLabel('km', textValue($event))"
+              data-testid="group-label"
+              @change="setGroupLabel(textValue($event))"
             />
           </UFormField>
           <UCheckbox

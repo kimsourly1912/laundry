@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Sign-in, change password and the "unavailable" notice: one centered card, the language choice. */
+/** Sign-in, change password and the "unavailable" notice: one centered card. */
 const { t } = useI18n()
 </script>
 
@@ -15,6 +15,5 @@ const { t } = useI18n()
     <UCard class="w-full max-w-sm">
       <slot />
     </UCard>
-    <LanguageSelect />
   </div>
 </template>

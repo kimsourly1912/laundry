@@ -10,12 +10,11 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 - **PR B, the studio: done, waiting for the owner's review** (branch `claude/affectionate-ritchie-mtyfdr`, one commit per step):
   - **S1 done:** the design format (`shared/contracts/slip-design.ts`), the shared SVG builder with fontkit text and its HarfBuzz test ([reference/slip.md](reference/slip.md)), `/api/platform/templates` (list, create from a photo, blank or a copy, autosave at `version`, publish, preview PNG), `/api/platform/images` (upload, list, bytes), the templates list, New template, and the studio page (the slip at Fit, rename, save status, Preview, Publish). The spike is deleted.
   - **S2 done:** the canvas (Moveable + Selecto over transparent boxes, D32): zoom 10–400% and Fit, pan, select (click, Shift, box), press-and-drag, resize, rotate (snaps 45° within 3°), snapping (Alt off), the keyboard of plan §5.7 but copy and paste (S5), undo / redo of the last 100 changes, the floating toolbar, position and size, and the Layers tab. Logic in `app/features/studio/utils` (history, design operations, shortcuts) with unit tests; e2e in `test/e2e/studio-canvas.test.ts`.
-  - **S3 done:** the Form tab (number, text, checkbox, choice groups, Order No., date, phone, amount, Paid / Not paid; the fill order dragged to reorder), the Shop info tab (sample shop only: choosing an attached shop comes with step 2's attachments), each field's settings in the toolbar, the publish checks (studio and server), and Try it with `SlipFiller` (`app/features/slip-fill`, reused by step 3). **Khmer to review:** `slipFill.*` in `km.json`.
+  - **S3 done:** the Form tab (number, text, checkbox, choice groups, Order No., date, phone, amount, Paid / Not paid; the fill order dragged to reorder), the Shop info tab (sample shop only: choosing an attached shop comes with step 2's attachments), each field's settings in the toolbar, the publish checks (studio and server), and Try it with `SlipFiller` (`app/features/slip-fill`, reused by step 3).
   - **S4 done:** the Text tab (heading, subheading, body; double-click edits the text in place in the same font; side handles rewrap, corners scale the size; the height always fits the text), the Elements tab (lines, rectangles, circles, triangles, tick, star), the Uploads tab (upload, add in proportion, set as background), their toolbars with the slip's recent colours, and Resize.
   - **S5 done:** align (left, centre, right, top, middle, bottom) and spread evenly for several elements; Copy and Paste (Ctrl+C / Ctrl+V and the ⋯ menu), kept in the browser so a copy can go into another template, checked against the element schema when pasted; options bring their choice group, and a fixed-meaning field the template already has is left out.
   - **Step 2 done:** attach a published template to a shop and detach it (`/api/platform/templates/:id/shops`, `/api/platform/shops/:shopId/templates`; two-shop tests), archive and restore (archive detaches it everywhere), the templates list with thumbnails and shop counts, the studio's Shops dialog and ⋯ menu, the shop page's Templates card, and a template chosen when a shop is created (attached by a second request right after; on failure the shop page offers it).
   - **Not in PR B:** a shop's logo and the Shop info preview, both dropped by D35 (the artwork carries the shop's look).
-  - **Khmer to review:** `slipFill.*`, `platform.nav.templates`, `platform.shop.templates.*`, `platform.newShop.template`, `templateHelp`, `noTemplates` in `km.json`.
 - **PR B merged (#13).** The owner found the studio's canvas worked badly (measured: 150–200 ms frames on a normal laptop) and then simplified the product ([D35](decisions.md#d35-ai-made-artwork-and-fields-only)): **the slip's look is artwork made by AI or a designer and uploaded; the studio only places form fields on it.**
 - **PR B2, the studio simplified (#14, branch `claude/affectionate-ritchie-mtyfdr`):** R1 (each field drawn as its own piece, equal to the server's SVG) and K1 done:
   - the drawing element types, rotation, locking and hiding removed from the design, the studio and the server;
@@ -24,7 +23,8 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
   - Ctrl turns snapping off, Shift keeps proportions, the wheel zooms at Figma's rates.
 
   **Still to build** (marked in [studio-behaviour.md](studio-behaviour.md)): Shift axis lock and Alt-drag copy, Esc cancels a gesture, thin outlines at any zoom, hover outline and labels, tiny fields, equal-gap snapping.
-- **Staging:** templates made before D35 no longer match the design format: archive them and make them again from an artwork.
+- **D36 (2026-11-17): English only and Cancel and copy.** `km.json`, the language switch, the shop's language setting and two-language labels are gone (labels are one free-text string); `shop_settings.language` is no longer used and is dropped by a later migration. Saved orders aren't edited: step 3 builds **Cancel and copy**.
+- **Staging:** templates made before D35 and D36 no longer match the design format: archive them and make them again from an artwork.
 - **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. **Q7 answered: a saved order can be edited**; its rules must be settled before step 3 ([plan §10](plan.md#10-open-questions)).
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
@@ -75,7 +75,7 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 - **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) on staging **as a Secret**, not a plain variable: each deploy deletes plain variables set in the dashboard.
 - **Each shop's slip:** keep a straight, cropped photo of its paper slip (PNG or JPEG, up to 1 MB, 200–2000 px a side): the studio starts a template from it (plan §5.2).
 - **PR size:** one PR per area, one commit per step: Reset, Studio, Owner + Telegram ([plan §9](plan.md#9-steps), owner 2026-11-17).
-- **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.
+- **English only** (D36, 2026-11-17): no Khmer screens; a shop's Khmer is on its slip artwork and field labels.
 - **No pilot shop yet:** use mock data, shaped like real paper slips.
 
 ## Blockers

@@ -6,7 +6,7 @@ import { sampleData } from '#shared/slip/fields'
 import { SlipSvg, useSlipText } from '~/features/slip-fill'
 import NewTemplateModal from './NewTemplateModal.vue'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { can } = useSession()
 const { filters, page, pageSize, query } = usePaginatedQuery({ status: '', search: '' })
 const search = ref(filters.search)
@@ -134,7 +134,7 @@ function clearFilters() {
                   {{ template.width }} × {{ template.height }} px · {{ template.latestVersion ? t('studio.list.version', { number: template.latestVersion }) : t('studio.list.neverPublished') }} · {{ t('studio.list.shops', template.shopCount) }}
                 </p>
                 <p class="text-xs text-muted">
-                  {{ t('studio.list.updated', { date: formatDate(template.updatedAt, locale) }) }}
+                  {{ t('studio.list.updated', { date: formatDate(template.updatedAt) }) }}
                 </p>
               </div>
               <UBadge

@@ -10,11 +10,9 @@ export { formatDateTime, formatMoney } from '#shared/format'
  */
 
 const TIME_ZONE = 'Asia/Phnom_Penh'
-const intlLocale = (locale: string) => (locale === 'km' ? 'km-KH' : 'en-GB')
-
-/** `16 Nov 2026` (en) / `16 វិច្ឆិកា 2026` (km). */
-export function formatDate(iso: string, locale: string): string {
-  return new Intl.DateTimeFormat(intlLocale(locale), { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE }).format(new Date(iso))
+/** `16 Nov 2026`. */
+export function formatDate(iso: string): string {
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: TIME_ZONE }).format(new Date(iso))
 }
 
 /** Minor units as the plain number a person types: `13500`, `12.50`. */
@@ -34,9 +32,4 @@ export function parseMoney(text: string, currency: Currency): number | null {
   if (!pattern.test(plain)) return null
   const [whole, fraction = ''] = plain.split('.')
   return Number(whole) * 10 ** digits + Number(fraction.padEnd(digits, '0') || 0)
-}
-
-/** A name kept in two languages (D4): Khmer when chosen and present, else English. */
-export function localName(names: { nameEn: string, nameKm: string | null }, locale: string): string {
-  return locale === 'km' && names.nameKm ? names.nameKm : names.nameEn
 }

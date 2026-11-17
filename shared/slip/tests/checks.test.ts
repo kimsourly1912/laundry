@@ -5,7 +5,7 @@ import { publishProblems } from '#shared/slip/checks'
 import { createElement, createGroup } from '#shared/slip/elements'
 import { checkFill, cleanValues } from '#shared/slip/values'
 
-const label = { en: 'Shirt', km: 'អាវ' }
+const label = 'អាវ'
 function design(elements: SlipElement[], extra: Partial<SlipDesign> = {}): SlipDesign {
   return { ...blankDesign(800, 500), elements, ...extra }
 }
@@ -28,10 +28,10 @@ describe('publishProblems (plan §5.6)', () => {
       createElement('date', { id: 'd2' }),
       createElement('paid', { id: 'p1' }),
       createElement('paid', { id: 'p2' }),
-      createElement('number', { id: 'n' }, { label: { en: 'Shirt', km: ' ' } }),
+      createElement('number', { id: 'n' }, { label: ' ' }),
       createElement('option', { id: 'o' }, { group: 'g', label }),
     ], { groups: [createGroup('g', { label })] })
-    // Paid spots start with their labels in both languages.
+    // Paid spots start with their labels.
     expect(codes(publishProblems(slip).errors)).toEqual(['duplicateFixed:d2', 'duplicateFixed:p2', 'noOrderNo', 'groupTooSmall:g', 'missingLabel:n'])
   })
 

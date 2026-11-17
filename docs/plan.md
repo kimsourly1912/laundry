@@ -6,7 +6,7 @@ The plan the owner agreed on 2026-11-17. It replaces the spec's step plan (§18)
 > - This page is the work plan. Resume from [§9 Steps](#9-steps), and keep the status in [`current-state.md`](current-state.md).
 > - The **studio details (§5) were agreed with the owner on 2026-11-17** (D32, D33). Ask about anything still open in [§10 Open questions](#10-open-questions) before the step that needs it. Don't fill gaps by guessing.
 > - Lines marked **🤖 Claude Code** are instructions or checks for you. Everything else is the agreed product.
-> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English + Khmer, docs in the same PR, one PR per area with one commit per step (§9), and stop for review after each PR.
+> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English only (D36), docs in the same PR, one PR per area with one commit per step (§9), and stop for review after each PR.
 
 ## 1. The goal
 
@@ -40,7 +40,7 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 - **Default template:** the owner chooses one. If none is set, **Create order** first asks the owner to choose, then remembers the choice. If the platform detaches or archives a shop's default, the owner chooses again; old orders are unaffected.
 - **Template versions:** each **Publish** makes a fixed version. New orders use the latest published version. **An order keeps the version it was made on forever**, so a customer's image never changes.
 - **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. There is no "ready" step.
-- **Mistakes:** ~~Cancel the order and make a new one; no edit-after-save.~~ **Changed by Q7 (owner, 2026-11-17): a saved order can be edited.** The rules (new image for the customer, template version, paid or picked-up orders, history) are settled before step 3 (§10).
+- **Mistakes:** no edit after save. **Cancel and copy** on the order page cancels the order and opens Create order filled with its values; the owner fixes and saves a new order (new number, new QR) ([D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes), Q7).
 - **Telegram sends only the slip image** in the first version: no "ready" or "collected" messages, and no reminders.
 - **Never delete** orders (cancel instead), templates (archive instead) or shops (suspend instead).
 - **The platform never reads a shop's orders.** `/api/shop/**` still answers `403` to the super admin.
@@ -90,7 +90,7 @@ On paper, a number or a tick goes **inside a box printed on the slip**. A form f
 
 #### 5.3.1 Every field has
 
-- a **label in English and Khmer** ("Shirt" / "អាវ"): what the owner sees while filling, in the owner's language. Both are required to publish
+- a **label** ("Shirt", or "អាវ" for a shop that reads Khmer): one free-text string, what the owner sees while filling (D36). Required to publish
 - **Required** (on or off): the owner can't save the order without it
 - the **value style**: font size, bold, colour, alignment (left, centre, right) inside the box
 - **Draw a border** (off by default): a thin box, for designs with no printed box
@@ -129,7 +129,7 @@ The order's values are checked by the server against the order's template versio
 
 | Selected | Toolbar |
 |---|---|
-| One field | Label (English, Khmer), required, the type's settings (§5.3.2), value style, draw a border, position and size |
+| One field | Label, required, the type's settings (§5.3.2), value style, draw a border, position and size |
 | Several fields | Align left, centre or right; top, middle or bottom; spread evenly across or down |
 
 ### 5.5 On the canvas and keyboard
@@ -141,7 +141,7 @@ The full rules, with what is built and what is still to build, are in [`studio-b
 - The draft **saves by itself** about a second after each change, with `version`. A stale save answers `409 VERSION_CONFLICT`, and the studio says "This template changed in another window. Reload to see it." and stops saving.
 - **Undo and redo** keep the last 100 changes of this session; a gesture (one drag, one resize) is one change.
 - **Publish** shows the checks, then makes a fixed `template_versions` row (version 1, 2, …). New orders use it at once; existing orders keep theirs.
-- **Publish is refused** when: there's no Order No.; a choice group has fewer than two options; a field has no English or no Khmer label; a fixed-meaning field appears twice.
+- **Publish is refused** when: there's no Order No.; a choice group has fewer than two options; a field has no label; a fixed-meaning field appears twice.
 - **Publish warns** (and can go ahead) about: a field partly off the canvas; no Amount; no Phone; no fields at all besides Order No.
 - **Attach to shops** from the template's page or from the shop's page (step 2).
 
@@ -236,7 +236,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 Each step includes:
 - tests, with a two-shop isolation test for every shop-owned table and query
 - a test that fails when each new guard is removed
-- English and Khmer strings, listed in the PR for the owner's Khmer reviewer
+- English strings in `en.json`
 - docs.
 
 ## 10. Open questions
@@ -244,6 +244,7 @@ Each step includes:
 **🤖 Claude Code:** ask the owner about these before the step that needs them, and record each answer here and in `decisions.md` if it's an architecture choice.
 
 Answered on 2026-11-17:
+- **Q7:** no edit after save; **Cancel and copy** instead → [D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes). **English only** (no Khmer screens) → D36.
 - **Q11:** send the slip right after the scan; **no phone check** (no `telegram_pending`).
 - **Studio rework** (Phase 0 research, Q-S1–Q-S7) → [`studio-behaviour.md`](studio-behaviour.md), [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer); then **simplified** to AI-made artwork + fields only → [D35](decisions.md#d35-ai-made-artwork-and-fields-only).
 - **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
@@ -251,4 +252,3 @@ Answered on 2026-11-17:
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
-| Q7 | **Answered 2026-11-17: editing a saved order is needed** (not only cancel and remake; this changes §4). Before step 3, settle: does the customer get a new image after an edit; does the order stay on its template version; can a paid or picked-up order be edited; is the old value kept (history) or only audited? | To settle before step 3 | Step 3 |

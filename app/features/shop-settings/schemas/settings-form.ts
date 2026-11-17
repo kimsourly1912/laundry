@@ -1,11 +1,10 @@
 import * as v from 'valibot'
 import type { ShopSettings, updateShopSettingsSchema } from '#shared/contracts/shop-settings'
-import { CURRENCIES, SHOP_LANGUAGES } from '#shared/contracts/shop-settings'
+import { CURRENCIES } from '#shared/contracts/shop-settings'
 import { SHOP_NAME_MAX } from '#shared/contracts/platform-shops'
 
 /**
- * The shop settings form (docs/standards/forms.md): the request contract's rules with messages in
- * the user's language, and the mapping both ways (pure, tested). Blank optional text is sent as
+ * The shop settings form (docs/standards/forms.md): the request contract's rules with its messages, and the mapping both ways (pure, tested). Blank optional text is sent as
  * blank and stored as none.
  */
 
@@ -16,7 +15,6 @@ export interface SettingsForm {
   phone: string
   address: string
   currency: (typeof CURRENCIES)[number]
-  language: (typeof SHOP_LANGUAGES)[number]
 }
 
 const optional = (t: Translate, max: number) => v.pipe(v.string(), v.maxLength(max, t('validation.maxLength', { max })))
@@ -27,7 +25,6 @@ export function settingsFormSchema(t: Translate) {
     phone: v.pipe(v.string(), v.maxLength(30, t('validation.maxLength', { max: 30 })), v.regex(/^[\d\s+\-()]*$/, t('validation.phone'))),
     address: optional(t, 200),
     currency: v.picklist(CURRENCIES),
-    language: v.picklist(SHOP_LANGUAGES),
   })
 }
 
@@ -37,7 +34,6 @@ export function toSettingsForm(settings: ShopSettings): SettingsForm {
     phone: settings.phone ?? '',
     address: settings.address ?? '',
     currency: settings.currency,
-    language: settings.language,
   }
 }
 

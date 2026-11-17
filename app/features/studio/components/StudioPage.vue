@@ -115,10 +115,8 @@ function applyReplace() {
 
 const tryOpen = ref(false)
 const tryFill = ref<SlipFill>(emptyFill())
-const tryLanguage = ref<'en' | 'km'>('km')
 const tryChecked = ref(false)
 const filler = ref<InstanceType<typeof SlipFiller>>()
-const languages = [{ value: 'km', label: 'ខ្មែរ' }, { value: 'en', label: 'English' }]
 function openTry() {
   tryFill.value = emptyFill()
   tryChecked.value = false
@@ -138,7 +136,7 @@ const problems = computed(() => publishProblems(design.value))
 function problemName(key: string | undefined): string {
   if (!key) return ''
   const group = design.value.groups.find(item => item.id === key)
-  if (group) return group.label.en || t('studio.form.types.choice')
+  if (group) return group.label || t('studio.form.types.choice')
   const element = editor.element(key)
   return element ? fieldName(element, t) : key
 }
@@ -440,20 +438,12 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           class="flex items-start gap-6"
         >
           <div class="w-[390px] shrink-0 space-y-3 rounded-[2rem] border-8 border-neutral-800 bg-elevated p-3">
-            <URadioGroup
-              v-model="tryLanguage"
-              :items="languages"
-              orientation="horizontal"
-              :legend="t('studio.tryIt.language')"
-              size="sm"
-            />
             <SlipFiller
               ref="filler"
               v-model="tryFill"
               :design="design"
               :shop="SAMPLE_SHOP"
               :text="text"
-              :language="tryLanguage"
               :date="today"
             />
             <div class="flex items-center gap-2">

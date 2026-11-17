@@ -70,7 +70,7 @@ const order = computed(() => fillOrderOf(design.value))
 function nameOf(key: string): string {
   if (key === PAID_KEY) return t('studio.form.paidPair')
   const group = design.value.groups.find(item => item.id === key)
-  if (group) return group.label.en || t('studio.form.types.choice')
+  if (group) return group.label || t('studio.form.types.choice')
   const element = editor.element(key)
   return element ? fieldName(element, t) : key
 }

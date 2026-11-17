@@ -6,8 +6,6 @@ import { SHOP_NAME_MAX } from './platform-shops'
 
 export const CURRENCIES = ['KHR', 'USD'] as const
 export type Currency = typeof CURRENCIES[number]
-export const SHOP_LANGUAGES = ['en', 'km'] as const
-export type ShopLanguage = typeof SHOP_LANGUAGES[number]
 
 /** A phone number as shown to customers: digits, spaces, `+`, `-`, `(`, `)`. */
 const shopPhoneSchema = v.pipe(optionalTextSchema(30), v.check(phone => phone === null || /^[\d\s+\-()]+$/.test(phone), 'Use digits, spaces, + and - only'))
@@ -20,8 +18,6 @@ export const updateShopSettingsSchema = v.strictObject({
   address: optionalTextSchema(200),
   /** Orders keep a copy of it (D33), so it may change at any time. */
   currency: v.picklist(CURRENCIES),
-  /** The language of the shop's customer-facing messages (D6). */
-  language: v.picklist(SHOP_LANGUAGES),
 })
 export type UpdateShopSettingsInput = v.InferOutput<typeof updateShopSettingsSchema>
 
@@ -30,6 +26,5 @@ export interface ShopSettings {
   phone: string | null
   address: string | null
   currency: Currency
-  language: ShopLanguage
   version: number
 }

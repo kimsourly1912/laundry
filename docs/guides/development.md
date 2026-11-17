@@ -65,7 +65,7 @@ pnpm test:unit
 
 Plus the e2e files you changed (`pnpm vitest run --project e2e <file>`), and `pnpm build` when you changed `nuxt.config.ts`, modules or plugins. Report any check you couldn't run, and why.
 
-PR description: what changed, which spec step, the checks run and their result, guards proven by removal, screenshots for UI (390 px in Khmer and English, 1440 px).
+PR description: what changed, which spec step, the checks run and their result, guards proven by removal, screenshots for UI (390 px and 1440 px).
 
 ## Conventions
 

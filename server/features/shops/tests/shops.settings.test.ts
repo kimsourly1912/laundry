@@ -34,23 +34,22 @@ const input = (extra: Partial<UpdateShopSettingsInput> = {}): UpdateShopSettings
   phone: '012 345 678',
   address: 'St 271, Phnom Penh',
   currency: 'KHR',
-  language: 'km',
   ...extra,
 })
 
 describe('shop settings', () => {
   it('reads the actor\'s own shop, with its defaults', async () => {
-    expect(await getSettings(db, a)).toMatchObject({ name: 'Shop A', currency: 'KHR', language: 'en', version: 1 })
+    expect(await getSettings(db, a)).toMatchObject({ name: 'Shop A', currency: 'KHR', version: 1 })
     expect((await getSettings(db, b)).name).toBe('Shop B')
   })
 
   it('saves every setting at the version read; the other shop is untouched; the audit names the fields', async () => {
     const saved = await updateSettings(db, a, input({ name: 'Shop A Wash', currency: 'USD' }))
-    expect(saved).toMatchObject({ name: 'Shop A Wash', phone: '012 345 678', currency: 'USD', language: 'km', version: 2 })
+    expect(saved).toMatchObject({ name: 'Shop A Wash', phone: '012 345 678', currency: 'USD', version: 2 })
     expect(await getSettings(db, b)).toMatchObject({ name: 'Shop B', currency: 'KHR', version: 1 })
     const [row] = await db.select().from(auditEvents).where(eq(auditEvents.action, 'shop.settings.update'))
     expect(row).toMatchObject({ shopId: a.shopId, targetId: a.shopId })
-    expect((row!.data as { fields: string[] }).fields.sort()).toEqual(['address', 'currency', 'language', 'name', 'phone'])
+    expect((row!.data as { fields: string[] }).fields.sort()).toEqual(['address', 'currency', 'name', 'phone'])
   })
 
   it('409 VERSION_CONFLICT when stale, also after the platform suspended and resumed it', async () => {

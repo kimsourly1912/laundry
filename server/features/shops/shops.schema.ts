@@ -12,10 +12,11 @@ export const shopSettings = sqliteTable('shop_settings', {
   shopId: shopId().primaryKey(),
   phone: text(),
   address: text(),
-  /** For the slip's Shop info logo (plan §5.4.4). */
+  /** No screen sets it since D35 (the artwork carries the shop's look); kept for the order's copy. */
   logoImageId: text().references(() => images.id, { onDelete: 'restrict' }),
   currency: text({ enum: ['KHR', 'USD'] }).notNull().default('KHR'),
-  // Customer-facing language: Telegram messages (D6).
+  // No longer read or written: the app is English only (D36). Dropped by a later migration
+  // (operations.md → Migrations: expand, then contract).
   language: text({ enum: ['en', 'km'] }).notNull().default('en'),
   status: text({ enum: ['active', 'suspended'] }).notNull().default('active'),
   version: integer().notNull().default(1),

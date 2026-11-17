@@ -524,3 +524,30 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **Studio code removed:** the Text, Elements, Shop info, Uploads and Layers tabs and the Resize dialog.
 - **The behaviour spec is cut** to the rules that apply to fields.
 - The shop's logo and the Shop info preview (plan §5.4.4 before) are dropped; the order still keeps a copy of the shop's details for its currency and language (D33).
+
+## D36. English only, and Cancel and copy for mistakes
+**Owner, 2026-11-17.** Replaces D4 (English default, Khmer second) and D6 (the shop's customer language); answers plan Q7.
+
+**Context.** Two questions came up after D35:
+- **Khmer screens.** With D35, a shop's slip carries its own language: the artwork is made by AI or a designer, in Khmer if the shop wants. Keeping every screen in two languages (two string files, a language switch, `{ en, km }` labels on every field, a shop language setting, a Khmer review of every PR) cost effort on every change.
+- **Editing a saved order (Q7).** The owner first chose editing. An edit, though, needs rules for a number already written on the bag, an image the customer may already have, a fixed template version, paid or picked-up orders, and a history of old values.
+
+**Decision.**
+- **The app is English only.** `km.json`, the language switch, the shop's `language` setting and the Khmer half of field labels are removed.
+  - **A field's label is one free-text string;** the platform writes it in Khmer for a shop that reads Khmer.
+  - **`@nuxtjs/i18n` stays with one locale.** It keeps strings out of components, as AGENTS.md requires, and bringing Khmer back would be a second file. Removing it would touch about 40 screens for no gain now.
+  - Noto Sans Khmer stays for text users type (labels, a text field's value) and for the slip's values.
+- **No edit after save.** On the order page, **Cancel and copy** cancels the order and opens Create order filled with its values; the owner fixes and saves a new order (new number, new QR).
+  - "Edit while open and before the customer scans" can be added later if shops ask: it keeps the number and needs no resending.
+
+**Alternatives.**
+- **Keep Khmer screens:** right for owners who can't read English. Not chosen: the owner judged the slip in Khmer enough. If owners struggle, `km.json` comes back.
+- **Remove `@nuxtjs/i18n` too:** see above.
+- **Full editing (Q7 as first chosen):** rules and code for each case above.
+- **Cancel only:** the owner retypes everything.
+
+**Consequences.**
+- AGENTS.md, `docs/standards/i18n.md` and the review checklist drop the Khmer rules.
+- **Labels:** the design's labels change from `{ en, km }` to a string. The staging database has test data only; templates must be made again.
+- **The `shop_settings.language` column is no longer read or written.** Dropping it is a later migration (expand, then contract: operations.md → Migrations).
+- Step 3 builds Cancel and copy instead of an edit.

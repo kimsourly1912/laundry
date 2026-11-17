@@ -4,7 +4,7 @@ import type { TemplateDetail } from '#shared/contracts/templates'
 import { createTemplateWithArtwork } from './support/templates'
 import { launchBrowser, newDevice, screenshotOnFailure, signIn } from './support/browser'
 
-// Form fields (plan §5.4, S3): add fields, label them in both languages, the publish checks, the
+// Form fields (plan §5.3, S3, D36): add fields, label them (one label, Khmer allowed), the publish checks, the
 // fill order, and Try it (the owner's form, nothing saved).
 
 const host = inject('e2eHost')
@@ -24,12 +24,10 @@ async function saved(page: Page, id: string): Promise<TemplateDetail> {
   return page.evaluate(async id => (await fetch(`/api/platform/templates/${id}`)).json(), id)
 }
 
-async function setLabels(page: Page, en: string, km: string) {
+async function setLabel(page: Page, label: string) {
   await page.getByRole('button', { name: 'Label', exact: true }).click()
-  await page.getByTestId('label-en').fill(en)
-  await page.getByTestId('label-en').press('Enter')
-  await page.getByTestId('label-km').fill(km)
-  await page.getByTestId('label-km').press('Enter')
+  await page.getByTestId('label').fill(label)
+  await page.getByTestId('label').press('Enter')
   await page.keyboard.press('Escape')
 }
 
@@ -50,21 +48,21 @@ describe('studio form fields', () => {
 
     // A number field without labels can't be published.
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
-    await expect.poll(() => page.getByText('Number needs a label in English and in Khmer.').count()).toBe(1)
-    await page.getByText('Number needs a label in English and in Khmer.').click()
-    await setLabels(page, 'Shirt', 'អាវ')
+    await expect.poll(() => page.getByText('Number needs a label.').count()).toBe(1)
+    await page.getByText('Number needs a label.').click()
+    // A shop that reads Khmer gets its labels in Khmer.
+    await setLabel(page, 'អាវ')
 
     for (const field of ['Phone', 'Amount', 'Paid / Not paid']) await page.getByRole('button', { name: field, exact: true }).click()
     const design = (await saved(page, created.id)).design
     expect(design.elements.map(element => element.type)).toEqual(['orderNo', 'number', 'phone', 'amount', 'paid', 'paid'])
-    expect(design.elements[1]).toMatchObject({ label: { en: 'Shirt', km: 'អាវ' } })
-    expect(await page.getByTestId('fill-order').locator('li').allTextContents()).toEqual(['1Shirt', '2Phone', '3Amount', '4Paid / Not paid'])
+    expect(design.elements[1]).toMatchObject({ label: 'អាវ' })
+    expect(await page.getByTestId('fill-order').locator('li').allTextContents()).toEqual(['1អាវ', '2Phone', '3Amount', '4Paid / Not paid'])
 
-    // Try it: the owner's form, in Khmer first.
+    // Try it: the owner's form shows the label as written.
     await page.getByRole('button', { name: 'Try it' }).click()
     await expect.poll(() => page.getByTestId('fill-step').textContent()).toContain('អាវ')
     await page.getByTestId('fill-number').fill('3')
-    // The form's own words follow the app's language (the owner's, on the owner's phone).
     await page.getByRole('button', { name: 'Next' }).click()
     await page.getByTestId('fill-phone').fill('01')
     await page.getByRole('button', { name: 'Check like Save' }).click()

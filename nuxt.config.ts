@@ -211,8 +211,8 @@ export default defineNuxtConfig({
     families: [{ name: 'Noto Sans Khmer', provider: 'google', subsets: ['khmer'], weights: [400, 500, 600, 700], global: true }],
   },
   i18n: {
-    // English by default, Khmer second (D4). No locale in the URL: app pages are screens behind
-    // sign-in; the choice is kept in a cookie (docs/standards/i18n.md, D20).
+    // English only (D36): one locale keeps every string in app/locales/en.json, and a second
+    // language would be one more file. No locale in the URL (docs/standards/i18n.md, D20).
     strategy: 'no_prefix',
     defaultLocale: 'en',
     // Files at app/locales/<code>.json (AGENTS.md): `langDir` resolves from `restructureDir`.
@@ -220,9 +220,8 @@ export default defineNuxtConfig({
     langDir: 'locales',
     locales: [
       { code: 'en', language: 'en-GB', name: 'English', file: 'en.json' },
-      { code: 'km', language: 'km-KH', name: 'ខ្មែរ', file: 'km.json' },
     ],
-    detectBrowserLanguage: { useCookie: true, cookieKey: 'laundry_locale', fallbackLocale: 'en', alwaysRedirect: true },
+    detectBrowserLanguage: false,
   },
   icon: {
     // With ssr: false, @nuxt/icon would fetch icons from api.iconify.design at runtime.

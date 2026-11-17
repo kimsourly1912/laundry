@@ -22,7 +22,7 @@ function svgOf(slip: SlipDesign, data: SlipData = empty, imageHref = (id: string
 
 describe('designSchema', () => {
   it('accepts a design with every field type', () => {
-    const group = createGroup('service', { label: { en: 'Service', km: 'សេវា' } })
+    const group = createGroup('service', { label: 'សេវា' })
     const elements = [
       createElement('number', { id: 'n' }),
       createElement('textField', { id: 'tf' }),

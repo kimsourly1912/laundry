@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Account (spec §4): change password, "sign out other devices", language. */
+/** Account (spec §4): change password, "sign out other devices". */
 import ChangePasswordForm from './ChangePasswordForm.vue'
 
 const { t } = useI18n()
@@ -70,13 +70,6 @@ const signOutOthers = useMutation(() => apiFetch('/auth/revoke-other-sessions', 
             class="self-start"
             @click="signOutOthers.execute(undefined)"
           />
-        </UPageCard>
-
-        <UPageCard
-          :title="t('common.language')"
-          variant="subtle"
-        >
-          <LanguageSelect />
         </UPageCard>
       </div>
     </template>

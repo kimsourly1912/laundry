@@ -41,7 +41,6 @@ function baseOf(type: ElementType, placement: Placement) {
 }
 
 const valueStyle = { size: 28, bold: false, color: INK, align: 'center' as const }
-const label = (en: string, km: string) => ({ en, km })
 
 type Extra<T extends ElementType> = Partial<Omit<ElementOf<T>, 'type'>>
 
@@ -52,15 +51,15 @@ type Extra<T extends ElementType> = Partial<Omit<ElementOf<T>, 'type'>>
 export function createElement<T extends ElementType>(type: T, placement: Placement, extra: Extra<T> = {}): ElementOf<T> {
   const base = baseOf(type, placement)
   const defaults: { [K in ElementType]: Omit<ElementOf<K>, keyof typeof base> } = {
-    number: { type: 'number', label: label('', ''), required: false, ...valueStyle, border: false, decimals: 0, min: 0, max: 999, unit: '' },
-    textField: { type: 'textField', label: label('', ''), required: false, ...valueStyle, align: 'left', border: false, maxLength: 40 },
-    checkbox: { type: 'checkbox', label: label('', ''), required: false, border: false, mark: 'tick', color: MARK },
-    option: { type: 'option', group: '', label: label('', ''), border: false, color: MARK },
+    number: { type: 'number', label: '', required: false, ...valueStyle, border: false, decimals: 0, min: 0, max: 999, unit: '' },
+    textField: { type: 'textField', label: '', required: false, ...valueStyle, align: 'left', border: false, maxLength: 40 },
+    checkbox: { type: 'checkbox', label: '', required: false, border: false, mark: 'tick', color: MARK },
+    option: { type: 'option', group: '', label: '', border: false, color: MARK },
     orderNo: { type: 'orderNo', ...valueStyle, border: false },
     date: { type: 'date', ...valueStyle, border: false },
-    phone: { type: 'phone', label: label('Phone', 'លេខទូរស័ព្ទ'), required: false, ...valueStyle, border: false },
-    amount: { type: 'amount', label: label('Amount', 'តម្លៃ'), required: false, ...valueStyle, border: false },
-    paid: { type: 'paid', value: 'paid', label: label('Paid', 'បានបង់'), border: false, mark: 'tick', color: MARK },
+    phone: { type: 'phone', label: 'Phone', required: false, ...valueStyle, border: false },
+    amount: { type: 'amount', label: 'Amount', required: false, ...valueStyle, border: false },
+    paid: { type: 'paid', value: 'paid', label: 'Paid', border: false, mark: 'tick', color: MARK },
   }
   // One object per type above, so the result is the element of `type`: TypeScript can't follow
   // the generic through the lookup.
@@ -69,8 +68,8 @@ export function createElement<T extends ElementType>(type: T, placement: Placeme
 
 /** A new choice group (plan §5.3.2); its options are added with `createElement('option', …, { group })`. */
 export function createGroup(id: string, extra: Partial<ChoiceGroup> = {}): ChoiceGroup {
-  return { id, label: label('', ''), required: false, mark: 'tick', ...extra }
+  return { id, label: '', required: false, mark: 'tick', ...extra }
 }
 
 /** The labels of the Not paid spot, when the studio adds the pair (plan §5.3.3). */
-export const UNPAID_LABEL = label('Not paid', 'មិនទាន់បង់')
+export const UNPAID_LABEL = 'Not paid'

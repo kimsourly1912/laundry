@@ -58,7 +58,7 @@ const auditOf = (targetId: string) => db.select({ action: auditEvents.action, sh
 
 /** The design with one more field, labelled `label`. */
 function withField(design: SlipDesign, label = 'សេវា'): SlipDesign {
-  return { ...design, elements: [...design.elements, createElement('number', { id: `n${design.elements.length}` }, { label: { en: label, km: label } })] }
+  return { ...design, elements: [...design.elements, createElement('number', { id: `n${design.elements.length}` }, { label })] }
 }
 
 describe('images', () => {
@@ -118,7 +118,7 @@ describe('updateTemplate (autosave)', () => {
   it('saves the draft and the name at the version read, auditing only the rename', async () => {
     const template = await create(undefined, 'Draft')
     const saved = await updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design) })
-    expect(saved).toMatchObject({ version: 2, name: 'Draft', design: { elements: [{ type: 'number', label: { en: 'សេវា' } }] } })
+    expect(saved).toMatchObject({ version: 2, name: 'Draft', design: { elements: [{ type: 'number', label: 'សេវា' }] } })
     const renamed = await updateTemplate(db, actor, template.id, { version: 2, name: 'Linda slip' })
     expect(renamed).toMatchObject({ version: 3, name: 'Linda slip', design: saved.design })
     expect((await auditOf(template.id)).map(row => row.action)).toEqual(['template.create', 'template.rename'])
@@ -128,7 +128,7 @@ describe('updateTemplate (autosave)', () => {
     const template = await create()
     await updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design, 'first') })
     expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design, 'second') }))).toBe('409 VERSION_CONFLICT')
-    expect((await getTemplate(db, template.id)).design.elements).toMatchObject([{ label: { en: 'first' } }])
+    expect((await getTemplate(db, template.id)).design.elements).toMatchObject([{ label: 'first' }])
   })
 
   it('refuses an artwork that was never uploaded, a taken name, an archived or a missing template', async () => {
