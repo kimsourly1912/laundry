@@ -9,6 +9,7 @@ What every studio tool does, including the edge cases, **before** the canvas is 
 | Key | Source | Trust |
 |---|---|---|
 | **OT** | [opentempl](https://github.com/noah-thing/opentempl) source (MIT), file named | What a working editor's code does |
+| **OP** | [open-pencil](https://github.com/open-pencil/open-pencil) source (MIT): a Figma-compatible editor in Vue whose input code copies Figma's behaviour and often names the Figma version it measured. File named (under `packages/vue/src/shared/input/` unless shown) | What Figma does, measured |
 | **OT-run n** | opentempl run locally from source, driven by a script (scenario n, 2026-11-17) | What it actually does |
 | **FG** | Figma's help centre (help.figma.com), article named | Official, verified |
 | **CV** | Canva: third-party shortcut lists only. Canva's help centre refuses automated reading | **Unverified** |
@@ -34,7 +35,7 @@ Measured on our studio (US): with the CPU slowed 4× (a normal laptop), a drag o
 | # | Rule | Source | Status | Test |
 |---|---|---|---|---|
 | V1 | The slip is drawn **at the zoomed size** (SVG `width/height` = design × zoom, `viewBox` in design units), not with a CSS `scale()`. Handles, outlines and guides are drawn in screen pixels, so they stay thin at any zoom | OT `PageStage.tsx`, `PageView` `displayWidth`; US (outlines thick at 400%) | Change | e2e: outline 1 px at 400% |
-| V2 | Ctrl/⌘ + wheel zooms about the pointer: `zoom × exp(−clamp(deltaY, ±30) × 0.006)`. One mouse-wheel notch ≈ 20%; a trackpad pinch is smooth | OT `Viewport.tsx`; OT-run 12 (10 notches ≈ 6×); US (ours: 2.7× per notch) | Change | unit: factor per notch |
+| V2 | Ctrl/⌘ + wheel zooms about the pointer, at Figma's measured rates: a **trackpad pinch** (Chromium reports Ctrl+wheel with small deltas) by `2^(−deltaY / 50)`; a **mouse wheel** by `e^(−0.005 × deltaY)`; one event never zooms more than 10×. Wheel without Ctrl pans by 2 × delta, at most 120 px per event | OP `wheel.ts` ("measured in Figma 126"); OT `Viewport.tsx` (gentler); US (ours: 2.7× per notch) | Change | unit: factor per event |
 | V3 | Zoom range 10%–400% | PL §5.6 (OT allows 800%) | Keep | unit |
 | V4 | Ctrl + `+` / `−` zoom by 1.25 about the view's centre; Ctrl+0 Fit; **Ctrl+1 100%** | OT `shortcuts.ts`; FG "Adjust your zoom" (Shift+1 fit) | Keep + New (Ctrl+1) | e2e |
 | V5 | The studio opens at Fit and **keeps fitting while the window resizes** until the person zooms or pans; after that the zoom stays | OT `Viewport.tsx` (`autoFit`) | New | e2e |
@@ -58,6 +59,7 @@ Measured on our studio (US): with the CPU slowed 4× (a normal laptop), a drag o
 |---|---|---|---|---|
 | S1 | Click selects one element and clears the rest | PL §5.6; OT; FG "Select layers" | Keep | e2e |
 | S2 | Shift+click adds an element, or removes it if already selected | PL; OT `select(additive)`; FG | Keep | e2e |
+| S2b | **Shift+press on an already selected element:** a click (no drag) removes it from the selection; a drag moves the whole selection and removes nothing | OP `select/press.ts` (`clickDeselectsId`), `move/drag.ts` | New | e2e |
 | S3 | Press on empty slip and drag: a **box select**. It selects every unlocked, shown element it **touches** (not only those fully inside). Shift + box adds to the selection | PL §5.6; OT `rectsIntersect`; OT-run 10 (touching one corner selects) | Keep | e2e |
 | S4 | The box select updates **live** while dragging (selected elements show as you go) | OT (`selection` set on each move) | New | e2e |
 | S5 | Box select never picks locked or hidden elements | OT; OT-run 11d | Keep | e2e |
@@ -76,7 +78,9 @@ Measured on our studio (US): with the CPU slowed 4× (a normal laptop), a drag o
 | M4 | **Shift while dragging** locks the move to the main axis (horizontal or vertical) | OT `beginMove`; OT-run 5 | New | e2e |
 | M5 | **Alt held when the drag starts** moves a copy and leaves the original (Alt-drag duplicates). The copy is one undo step | OT `beginMove(duplicate)`; FG "Copy and paste" (Alt-drag); OT-run 6 (Alt pressed after the press does nothing) | New (Q-S2) | e2e |
 | M6 | Locked elements in the selection don't move; the rest do | OT `movable` filter; OT-run 11c | Keep | e2e |
-| M7 | **Esc during a drag, resize or rotate cancels it**: everything returns to where it was, nothing is saved, no undo step | **Gap in OT** (OT-run 4: Esc ends the selection but keeps the move); FG unverified | New | e2e |
+| M7 | **Esc during a drag, resize or rotate cancels it**: everything returns to where it was (an Alt-drag copy goes away), nothing is saved, no undo step | OP `pointer/drag.ts` (`discardCanvasDrag`, `cancelMove`): Figma cancels resize and rotate on Esc; OP leaves moves running, as Figma does. **We cancel moves too** (harmless, and OT-run 4 shows the confusion of not doing it) | New | e2e |
+| M10 | The window losing focus, or the browser cancelling the pointer (`pointercancel`), cancels the gesture as Esc does | OP `useCanvasInput.ts` (`blur` → cancel, `pointercancel`) | New | e2e |
+| M11 | Space pressed **during** a drag doesn't start panning; the drag goes on | OP (Space is taken during a move) | New | e2e |
 | M8 | Elements may be moved partly or fully off the slip; a field off the slip is a publish warning (not blocked) | PL §5.8 | Keep | e2e |
 | M9 | Arrow keys nudge 1 px, Shift+arrows 10 px. **Presses in a row (within 0.5 s) are one undo step and one save** | PL §5.7; FG "nudge values" (1 / 10); OT nudge | Keep + New (merge) | unit + e2e |
 
@@ -93,8 +97,10 @@ Handles: corners are 14 px circles; side handles are 22 × 7 px pills (OT `app.c
 | R5 | Text, side handle: changes the wrap width; the text rewraps; the height follows. Width can't go below ~0.6 × font size | OT `resizeElement` (text branch); PL §5.6 | Keep | unit + e2e |
 | R6 | Text, corner handle: scales the font size with the box | OT; PL §5.6 | Keep | unit |
 | R7 | A **rotated** element resizes along its own axes; the opposite handle stays fixed on the page | OT `resizeElement` (`rotatePoint`) | Keep (verify ours) | unit |
-| R8 | Dragging past the opposite side **stops at the minimum size** (4 px); the element never flips | OT `MIN = 4`; OT-run 7c | Keep | unit |
-| R9 | **Several selected:** only the 4 corners; the whole selection scales together inside its bounding box (texts' font sizes and lines' widths scale with it) | OT `scaleGroup`, `groupResizeBox` | Change (ours lets each resize alone) | unit + e2e |
+| R8 | Dragging past the opposite side **stops at the minimum size** (4 px); the element never flips. (Figma mirrors the layer instead; we have no flip in the first version, and a mirrored Khmer label would be wrong) | OT `MIN = 4`; OT-run 7c; OP `resize/rect.ts` (mirrors) | Keep | unit |
+| R8b | With proportions kept, a corner follows the axis the pointer moved most (the width when equal), and the opposite corner stays put | OP `resize/rect.ts` | New | unit |
+| R9 | **Several selected:** the box is the elements' axis-aligned bounds (upright even when they're rotated), with only the 4 corners; the whole selection scales together inside its bounding box (texts' font sizes and lines' widths scale with it) | OT `scaleGroup`, `groupResizeBox` | Change (ours lets each resize alone) | unit + e2e |
+| R10b | A press **near** a selected element too small for handles still takes it (the hit area grows to the handles' box), as Figma widens it | OP `select/hit.ts` (`tinySelectionAt`) | New | e2e |
 | R10 | **Tiny on screen:** when the box is under ~40 screen px on a side, the side handles hide and only corners stay; under ~16 px only the bottom-right corner stays, so the body can still be grabbed to move | **Gap in OT** (OT-run 13: 8 handles cover a 6 px box) | New | e2e |
 | R11 | A live label shows the size while resizing (`240 × 80`) and the angle while rotating (`45°`) | OT `live-label` | New | e2e |
 | R12 | Resizing snaps the dragged edge to guides (only for unrotated elements) | OT `onHandle` (snap only if no rotation) | New | unit |
@@ -107,14 +113,15 @@ Handles: corners are 14 px circles; side handles are 22 × 7 px pills (OT `app.c
 | RO1 | The round handle sits **below** the selection (it doesn't hide the floating toolbar above) | OT `.rotate-handle` (`top: 100%`); our studio already does this | Change (plan says "above") | e2e |
 | RO2 | Snaps to 0°, 45°, 90°… within 3° | PL §5.6; OT `snapAngle(deg, 3, 45)` | Keep | unit |
 | RO3 | **Shift: 15° steps** | OT `rotationFor`; FG "Adjust alignment… rotation" (Shift, 15°); CV (third-party); OT-run 8 | New | unit + e2e |
-| RO4 | Several selected rotate together around the selection's centre (each keeps its place in the group) | OT `onRotate` (multi) | Keep | unit |
+| RO4 | Several selected rotate together around the selection's centre (each keeps its place in the group); the selection box stays upright | OT `onRotate` (multi); OP `transform/rotation.ts` | Keep | unit |
 | RO5 | Stored angle: −180° to 180°, one decimal | Ours (`normalAngle`) | Keep | unit |
 
 ## 8. Snapping and smart guides
 
 | # | Rule | Source | Status | Test |
 |---|---|---|---|---|
-| G1 | Edges and centres snap to: the slip's edges and centre, other shown elements' edges and centres. Threshold 6 **screen** px (so it feels the same at any zoom) | PL §5.6; OT `snapBox(… 6 / zoom)` | Keep | unit |
+| G1 | Edges and centres snap to: the slip's edges and centre, other shown elements' edges and centres. Threshold **5 screen px** (Figma's), so it feels the same at any zoom | OP `scene-graph/src/snap.ts` (5), `snap/resolve.ts` (÷ zoom); OT (6); PL §5.6 (6) | Change | unit |
+| G1b | **Whole pixels:** a move lands on whole positions and a resize on whole sizes (Figma's "snap to pixel grid"); Ctrl (no snapping) keeps them exact too | OP `snap/resolve.ts` | New | unit |
 | G2 | **Equal spacing:** between two neighbours on a line, the element snaps to equal gaps, and the gaps are labelled (`24`) | OT `equalGap`, `gapGuides`; FG Smart selection (spacing) | New | unit |
 | G3 | Guide lines show only while dragging, run between the matched elements, and are 1 px | OT `GuideLine`; FG ("A red guide appears") | Keep | e2e |
 | G4 | **Hold Ctrl/⌘ to move without snapping** | OT (`!ev.metaKey && !ev.ctrlKey`); FG ("Hold Control to temporarily disable" snapping) | Change (plan: Alt) (Q-S2) | e2e |
@@ -223,7 +230,7 @@ Not taken from OT: tool keys (T, R, C, L…), groups (Ctrl+G), flip, find, comma
 
 ## 17. Questions for the owner
 
-Answered 2026-11-17: **all as recommended.**
+Answered 2026-11-17: **Q-S1–Q-S5 all as recommended.** Q-S6 and Q-S7 came from the open-pencil study and are open.
 
 | # | Question | Answer | Why |
 |---|---|---|---|
@@ -232,6 +239,22 @@ Answered 2026-11-17: **all as recommended.**
 | **Q-S3** | Corner handles: keep proportions for images, icons, text; free for shapes and fields; **Shift switches**? | Yes | Same as opentempl. The plan had the per-type rule without Shift; Figma uses Shift to keep proportions |
 | **Q-S4** | Extras from opentempl: layer previews (Y4), right-click menu (B3), field labels on hover (F2). Include in the rebuild, or later? | Include B3 and F2; Y4 later | B3 and F2 are cheap and help on a busy photo; Y4 is cosmetic |
 | **Q-S5** | Single-key tools (T for text, R for rectangle) like opentempl? | Later | Our main use is fields on a photo; buttons in the Form tab are enough for now |
+| **Q-S6** | **Text box sizing:** add Figma's **auto width** (a new text grows sideways on one line as you type; dragging a side handle turns it into fixed width that wraps)? Today a text always has a fixed width and wraps | **Yes** (open; asked 2026-11-17) | Labels like "Shirt" or "អាវ" are short: a fixed width wraps them when the platform types a longer word. One flag on the text element; the server keeps drawing from the stored width |
+| **Q-S7** | **Auto layout** (padding, gap, hug, fill) like Figma? | **No, not in the first version** (open; asked 2026-11-17) | Fields sit over printed boxes on a photo, so positions are absolute. Auto layout needs frames in the design and a layout engine on the server too. Equal-gap guides and Spread evenly cover even spacing |
+
+## 17b. From open-pencil (Figma's behaviour): what we take and what we don't
+
+open-pencil is a Figma-compatible editor (Vue 3, about 300,000 lines): it opens `.fig` files, draws with CanvasKit (Skia in WebAssembly) and lays out with Taffy (a flexbox and grid engine in WebAssembly). Its input code is the best source for **how Figma's gestures feel**, and the rules above now cite it (OP).
+
+| Area | open-pencil | For our studio |
+|---|---|---|
+| Gestures (select, move, resize, rotate, Esc, Shift / Ctrl / Alt) | Figma's, measured | **Taken:** V2, G1, G1b, S2b, M7, M10, M11, R8b, R9, R10b, RO4 |
+| Text box sizing | Three modes: **auto width** (grows on one line; made by a click), **auto height** (fixed width, wraps; made by a drag), **fixed** | **Q-S6** below |
+| Auto layout (padding, gap, hug, fill, wrap, grid) | Frames that lay their children out like CSS flexbox and grid, through Taffy | **Not taken (Q-S7):** see below |
+| Drawing | CanvasKit (Skia): one renderer in the browser | **Not taken:** our server must draw the customer's PNG on a Worker; the shared SVG builder (D31, D32, D34) stays |
+| Components, variants, vector pen, `.fig` files, AI, collaboration | Yes | Not for a laundry slip |
+
+**Why not auto layout:** the main use is fields placed **on a photo of a printed slip** (D33). Each field must sit exactly over a printed box, wherever the printer put it, so positions are absolute. Auto layout would also need a tree of frames in the design (ours is a flat list) and the same layout engine on the server, so the customer's PNG matches; that's Taffy (WebAssembly) on the Worker beside resvg. What a slip does need from it, even spacing, is covered by smart guides with equal gaps (G2) and **Spread evenly** (built in S5).
 
 ## 18. Deliberately not adopted from opentempl
 
@@ -245,6 +268,7 @@ Pages, groups, connectors and connect dots, pen and freehand drawing, crop mode,
 
 ## 20. How this was gathered
 
+- **open-pencil:** `packages/vue/src/shared/input/` (`select/press.ts`, `select/hit.ts`, `select/move.ts`, `move/drag.ts`, `move/snap.ts`, `resize/apply.ts`, `resize/rect.ts`, `resize/selection.ts`, `resize/sizing.ts`, `snap/resolve.ts`, `wheel.ts`, `drag-threshold.ts`, `click-count.ts`, `duplicate-drag.ts`), `packages/vue/src/canvas/` (`useCanvasInput.ts`, `pointer/drag.ts`, `transform/rotation.ts`, `transform/marquee.ts`, `text-edit/input.ts`), `packages/core/src/layout/` (`text-auto-resize.ts`, `item-spacing.ts`, `axis-sizing.ts`, `spacing-marks.ts`), `packages/scene-graph/src/snap.ts`.
 - **Code:** opentempl `apps/editor/src/canvas/*` (`PageStage`, `SelectionOverlay`, `transform`, `snap`, `TextEditor`, `CropOverlay`, `Viewport`), `editor/Editor.ts`, `editor/shortcuts.ts`, `panels/LayersPanel.tsx`, `styles/app.css`, `doc/design.ts` (undo `captureTimeout: 450`).
 - **Running it:** opentempl built from source and driven by a Playwright script through 16 scenarios (OT-run 1–16), on a 1080 × 1080 page at 58% zoom.
 - **Figma:** help.figma.com articles "Select layers and objects", "Adjust alignment, rotation, position and dimensions", "Set small and big nudge values", "Adjust your zoom and view options", "Lock and unlock layers", "Arrange layers with Smart selection", "Scale layers while maintaining proportions", "Copy and paste objects", "Adjust text dimensions and resizing", "Explore text properties", "Measure distances between layers", "Toggle visibility to hide layers".
