@@ -4,9 +4,9 @@ The plan the owner agreed on 2026-11-17. It replaces the spec's step plan (§18)
 
 > **Claude Code — read this first.**
 > - This page is the work plan. Resume from [§9 Steps](#9-steps), and keep the status in [`current-state.md`](current-state.md).
-> - The **studio details (§5) were written on 2026-11-17 from the owner's answers** (D32, D33). The owner reviews §5 before S2 (Q12). Ask about anything still open in [§10 Open questions](#10-open-questions) before the step that needs it. Don't fill gaps by guessing.
+> - The **studio details (§5) were agreed with the owner on 2026-11-17** (D32, D33). Ask about anything still open in [§10 Open questions](#10-open-questions) before the step that needs it. Don't fill gaps by guessing.
 > - Lines marked **🤖 Claude Code** are instructions or checks for you. Everything else is the agreed product.
-> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English + Khmer, docs in the same PR, one PR for several small steps with one commit each, and stop for review after each PR.
+> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English + Khmer, docs in the same PR, one PR per area with one commit per step (§9), and stop for review after each PR.
 
 ## 1. The goal
 
@@ -47,7 +47,7 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 
 ## 5. The studio (Canva-like, desktop, platform only)
 
-> **🤖 Claude Code:** written on 2026-11-17 from the owner's answers (photo first, Q9, Q10). The owner reviews it before S2 (Q12); record their changes here. Anything this page leaves open goes to §10 Open questions, not a guess.
+> **🤖 Claude Code:** agreed with the owner on 2026-11-17 (photo first, Q9, Q10, Q12: the defaults below were accepted as written). Anything this page leaves open goes to §10 Open questions, not a guess.
 
 **Main use (owner, 2026-11-17): a photo of the shop's paper slip, with form fields placed on it.** Shapes and text are for small touches and blank designs. So form fields come before the full drawing tools (§9). The studio's own screens are **English only** (Q10, [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)); the slip, its text and the field labels stay Khmer and English.
 
@@ -266,21 +266,27 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 
 ## 9. Steps
 
-One PR may hold several small or medium steps, with one commit per step. A large step is its own PR. Stop for the owner's review after each PR.
+**PRs by area, not by step (owner, 2026-11-17).** Each PR holds a whole area, with **one commit per step**, and the owner reviews after each PR. Build the steps in the table's order.
 
-| # | Step | Size | Status |
-|---|---|---|---|
-| 1 | **Reset:** record D31 (done with this page), delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | Medium | Next |
-| S1 | **Design format + rendering:** the Valibot design schema, the shared SVG builder with fontkit text (and its HarfBuzz comparison test), server PNG from a design, templates with autosave, `version`, publish and versions; images upload; start from a photo, blank or a copy (§5.2) | Large | |
-| S2 | **Canvas core:** zoom and pan, select, drag, resize, rotate, snapping, keyboard, undo and redo, the Layers tab | Large | |
-| S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks, attach to shops | Large | |
-| 2 | **Platform screens:** templates list (thumbnail, status, attached shops), shop create and detail with attached templates | Medium | |
-| 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | Large | |
-| 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | Small | |
-| S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | Large | |
-| S5 | **Polish:** align and spread several elements, copy and paste | Medium | |
+| PR | Steps | Covers |
+|---|---|---|
+| **A. Reset** | 1 | The spike and these plan decisions (D32, D33), then the reset |
+| **B. Studio** | S1–S5, 2 | Everything the platform uses: the studio, the templates list, attaching templates to shops |
+| **C. Owner + Telegram** | 3, 4 | Everything the shop owner and the customer use |
 
-**Order (owner, 2026-11-17):** the main use is a photo with fields (§5), so a shop can work after S1–S3 and steps 2–4. The drawing tools for blank designs (S4, S5) come after.
+| # | Step | PR | Size | Status |
+|---|---|---|---|---|
+| 1 | **Reset:** delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | A | Medium | In progress |
+| S1 | **Design format + rendering:** the Valibot design schema, the shared SVG builder with fontkit text (and its HarfBuzz comparison test), server PNG from a design, templates with autosave, `version`, publish and versions; images upload; start from a photo, blank or a copy (§5.2) | B | Large | |
+| S2 | **Canvas core:** zoom and pan, select, drag, resize, rotate, snapping, keyboard, undo and redo, the Layers tab | B | Large | |
+| S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | |
+| S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | |
+| S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | |
+| 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | |
+| 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | |
+| 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | |
+
+**🤖 Claude Code:** PR B is large. Keep each step's commit self-contained (tests and docs pass at every commit), so the owner can review it commit by commit. Photo + fields stays the main use (D33): if PR B runs long, S1–S3 and step 2 are what PR C needs; S4–S5 can move to their own PR with the owner's agreement.
 
 Each step includes:
 - tests, with a two-shop isolation test for every shop-owned table and query
@@ -294,10 +300,9 @@ Each step includes:
 
 Answered on 2026-11-17:
 - **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
-- **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only) and the main use (a photo with fields, so form fields come first) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
+- **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only) the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
-| Q12 | Review the studio details as written in §5 (layout, presets, field types and settings, canvas behaviour, publish checks) | Review before S2; S1 needs only §5.2, §5.4 and §5.9 | S1 / S2 |
 | Q11 | Telegram: keep the **phone check** when the customer scans, or send the slip right after the scan? | Send right after the scan (simpler, order-only) | Step 4 |
 | Q7 | (Older) Is "cancel and make a new order" enough for mistakes, or is editing a saved order needed? | Cancel and remake for the first version (§4) | Step 3 |

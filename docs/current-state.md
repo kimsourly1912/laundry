@@ -57,7 +57,7 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 - **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)): create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once. Until then: no QR, nothing sent.
 - **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) on staging **as a Secret**, not a plain variable: each deploy deletes plain variables set in the dashboard.
 - **Each shop's receipt:** upload a photo or scan of its paper slip on the shop's page → Design the receipt (PNG or JPEG, up to 1 MB, 200–2000 px a side; crop it to the slip first).
-- **PR size:** the owner prefers one PR for several small and medium steps (one commit each) over one PR per step (2026-11-16).
+- **PR size:** one PR per area, one commit per step: Reset, Studio, Owner + Telegram ([plan §9](plan.md#9-steps), owner 2026-11-17).
 - **Khmer review:** the owner has someone to check Khmer text. Every PR that adds Khmer strings lists them for that review.
 - **No pilot shop yet:** use mock data. `pnpm dev:accounts` and the staging sample data use two made-up shops with realistic prices, shaped like the paper tickets (spec §1).
 
