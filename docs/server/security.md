@@ -119,7 +119,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 | **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |
 | **Case-sensitive paths** | `router.options.sensitive`: one spelling per page, so checks on paths can't be skipped by case. |
-| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. The studio's image upload (S1) will be the one exception, by exact path: ≤ 1 MB, platform only, its type and size read from the file itself, never from headers. |
+| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. Two exceptions, by exact path, platform only (plan S1): the studio's image upload (`POST /api/platform/images`) ≤ 1 MB, its type and size read from the file itself, never from headers; a template's design (`PATCH /api/platform/templates/:id` and `…/preview`) ≤ 256 KB (`MAX_DESIGN_BYTES`). |
 | **Enumeration** | Other shops' records are `404`. Sign-in errors don't say whether the username exists. |
 
 ## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), plan §8)

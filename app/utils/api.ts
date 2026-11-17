@@ -19,3 +19,14 @@ export function apiFetch<T>(path: string, options?: ApiFetchOptions): Promise<T>
   if (!client) throw new Error('apiFetch was called before plugins/api.client.ts configured it.')
   return client<T>(path, options)
 }
+
+/**
+ * Calls our API for a file (a PNG, an uploaded image): resolves to its bytes as a `Blob`. Errors and
+ * the session boundary are `apiFetch`'s.
+ *
+ * @example
+ * const png = await apiBlob(`/platform/templates/${id}/preview`, { method: 'POST', body: { design } })
+ */
+export function apiBlob(path: string, options?: ApiFetchOptions): Promise<Blob> {
+  return apiFetch<Blob>(path, { ...options, responseType: 'blob' })
+}

@@ -15,6 +15,7 @@ One page per shared helper: what it does, its API, and examples that compile. A 
 | [audit.md](./audit.md) | `auditStatement` | `server/features/platform/*` |
 | [idempotency.md](./idempotency.md) | `readIdempotencyKey`, `runIdempotent`, `expireIdempotencyKeys` | `server/utils/idempotency.ts`, `server/features/platform/*` |
 | [lists.md](./lists.md) | `pageQuerySchema`, `Page`, `toPage`, `optionalParam`, `intParam`, `nameSchema`, `versionSchema`, the account schemas | `shared/contracts/common.ts`, `shared/contracts/identity.ts` |
-| [api-client.md](./api-client.md) | `apiFetch`, `ApiError`, `errorText`, `useApiQuery`, `useMutation`, `usePaginatedQuery`, `invalidate` | `app/utils/api*.ts`, `app/composables/use*Query.ts`, `useMutation.ts` |
+| [api-client.md](./api-client.md) | `apiFetch`, `apiBlob`, `ApiError`, `errorText`, `useApiQuery`, `useMutation`, `usePaginatedQuery`, `invalidate` | `app/utils/api*.ts`, `app/composables/use*Query.ts`, `useMutation.ts` |
 | [app-shell.md](./app-shell.md) | `useSession`, `accessRedirect`, `homePath`, layouts, navigation, language, form helpers, `BottomBar` | `app/composables/useSession.ts`, `app/utils/route-access.ts`, `app/layouts/`, `app/utils/form.ts` |
+| [slip.md](./slip.md) | `designSchema`, `slipSvg`, `createSlipText`, `fillOrderOf`, `valueText`, `sampleData`, `createElement`, `publishProblems`, `checkFill`, `renderSlipPng`, `SlipFiller` | `shared/contracts/slip-design.ts`, `shared/slip/*`, `server/features/templates/templates.render.ts`, `app/features/slip-fill` |
 | [test-harness.md](./test-harness.md) | `createTestDb` and the server test project | `server/tests/support/*` |

@@ -2,13 +2,14 @@
 /**
  * One shop, as the platform sees it (spec §4 → settings pattern): profile and rename, the owner
  * (reset password, sign out everywhere), suspend or resume. Each change sends the version shown.
- * Its templates come with plan step 2.
+ * Its templates: attach and detach them (plan step 2).
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { PlatformShopDetail } from '#shared/contracts/platform-shops'
 import { MIN_PASSWORD_LENGTH } from '#shared/contracts/identity'
 import * as v from 'valibot'
 import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop-form'
+import ShopTemplatesCard from './ShopTemplatesCard.vue'
 
 const props = defineProps<{ id: string }>()
 const { t, locale } = useI18n()
@@ -268,6 +269,11 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
               />
             </template>
           </UPageCard>
+
+          <ShopTemplatesCard
+            v-if="can('template:read')"
+            :shop-id="current.id"
+          />
 
           <UPageCard
             v-if="can('shop:suspend')"

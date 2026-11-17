@@ -67,16 +67,6 @@ const RATE_LIMITS = [
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', '@nuxt/test-utils/module', '@nuxthub/core', '@nuxtjs/better-auth', '@nuxt/a11y', '@nuxtjs/i18n'],
-  // SPIKE (studio spike, plan §6.4): a throwaway page and render route, on the dev server only.
-  // Delete with app/spike-studio, server/spike-studio and shared/spike-studio.
-  $development: {
-    serverHandlers: [{ route: '/_spike/render', method: 'post', handler: './server/spike-studio/render.post.ts' }],
-    hooks: {
-      'pages:extend'(pages) {
-        pages.push({ name: 'spike-studio', path: '/spike/studio', file: fileURLToPath(new URL('./app/spike-studio/StudioSpike.vue', import.meta.url)), meta: { public: true, layout: false } })
-      },
-    },
-  },
   $env: {
     // `--envName staging` replaces `$production` (one environment block applies), so the security
     // headers are repeated here. The production block is named `prod`, never `production`: without

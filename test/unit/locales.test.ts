@@ -41,10 +41,13 @@ function usedKeys(): Set<string> {
   return keys
 }
 
+/** The studio is English only (D33): its strings may be missing from km.json, which falls back to English. */
+const ENGLISH_ONLY = 'studio.'
+
 describe('locales', () => {
-  it('en and km have the same keys', () => {
+  it('en and km have the same keys, but the studio\'s', () => {
     expect([...km.keys()].filter(key => !en.has(key))).toEqual([])
-    expect([...en.keys()].filter(key => !km.has(key))).toEqual([])
+    expect([...en.keys()].filter(key => !km.has(key) && !key.startsWith(ENGLISH_ONLY))).toEqual([])
   })
 
   it('no empty text', () => {
@@ -53,6 +56,7 @@ describe('locales', () => {
 
   it('the same placeholders and plural forms in both languages', () => {
     for (const [key, text] of en) {
+      if (!km.has(key)) continue
       expect(placeholders(km.get(key) ?? ''), key).toEqual(placeholders(text))
       expect((km.get(key) ?? '').split('|').length, key).toBe(text.split('|').length)
     }

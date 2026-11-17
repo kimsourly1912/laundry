@@ -128,7 +128,8 @@
   },
   "platform": {
     "nav": {
-      "shops": "Shops"
+      "shops": "Shops",
+      "templates": "Templates"
     },
     "shops": {
       "title": "Shops",
@@ -162,7 +163,10 @@
       "username": "Username",
       "password": "Temporary password",
       "submit": "Create shop",
-      "created": "{shop} was created."
+      "created": "{shop} was created.",
+      "template": "Template",
+      "templateHelp": "Attached to the shop as soon as it's created. More can be attached on the shop's page.",
+      "noTemplates": "No published template yet: publish one in Templates, then attach it on the shop's page."
     },
     "shop": {
       "title": "Shop",
@@ -191,7 +195,20 @@
       "resume": "Resume shop",
       "resumeDescription": "The owner can use the shop again.",
       "resumed": "The shop was resumed.",
-      "notFound": "This shop doesn't exist."
+      "notFound": "This shop doesn't exist.",
+      "templates": {
+        "title": "Templates",
+        "description": "The slips this shop's owner can fill. The owner picks the default.",
+        "none": "No template yet: the owner can't take orders until one is attached.",
+        "default": "Default",
+        "detach": "Detach",
+        "add": "Attach a template",
+        "choose": "Choose a published template",
+        "noneToAdd": "No other published template",
+        "attach": "Attach",
+        "attached": "The template was attached.",
+        "detached": "The template was detached."
+      }
     }
   },
   "overview": {
@@ -206,5 +223,329 @@
     "support": "Need a change or help?",
     "supportDescription": "A change to your slip, a problem: message us and we'll set it up for you.",
     "contactSupport": "Contact support"
+  },
+  "studio": {
+    "title": "Studio",
+    "back": "Templates",
+    "name": "Template name",
+    "rename": "Rename {name}",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "save": {
+      "saved": "Saved",
+      "pending": "Not saved yet",
+      "saving": "Saving…",
+      "failed": "Not saved",
+      "conflict": "Not saved",
+      "conflictMessage": "This template changed in another window. Reload to see it."
+    },
+    "desktopOnly": {
+      "title": "Open the studio on a computer",
+      "description": "The studio needs a screen at least 1280 pixels wide."
+    },
+    "preview": {
+      "open": "Preview",
+      "title": "Preview",
+      "description": "The picture the customer gets, with sample values.",
+      "alt": "The slip as the customer gets it",
+      "failed": "The preview couldn't be made. Try again."
+    },
+    "publish": {
+      "open": "Publish",
+      "title": "Publish version {number}?",
+      "description": "New orders use it at once. Orders already made keep the version they were made on.",
+      "confirm": "Publish version {number}",
+      "done": "Version {number} is published.",
+      "allGood": "Everything a slip needs is there.",
+      "fixFirst": "Fix these to publish:",
+      "check": "Check these:",
+      "confirmAnyway": "Publish version {number} anyway",
+      "errors": {
+        "noOrderNo": "Add an Order No. field (Form tab).",
+        "duplicateFixed": "{name} is on the slip twice.",
+        "groupTooSmall": "{name} needs at least two options.",
+        "missingLabel": "{name} needs a label in English and in Khmer."
+      },
+      "warnings": {
+        "offCanvas": "{name} is partly off the slip.",
+        "noAmount": "There's no Amount field.",
+        "noPhone": "There's no Phone field.",
+        "noFields": "The owner has no fields to fill."
+      }
+    },
+    "list": {
+      "title": "Templates",
+      "search": "Search by name",
+      "tabs": {
+        "current": "Current"
+      },
+      "empty": "No templates yet",
+      "emptyDescription": "Start one from a photo of a shop's paper slip.",
+      "noMatch": "No templates match",
+      "version": "Version {number}",
+      "neverPublished": "Not published yet",
+      "updated": "Changed {date}",
+      "shops": "No shops|1 shop|{count} shops"
+    },
+    "new": {
+      "title": "New template",
+      "start": "Start from",
+      "photo": "A photo of the paper slip",
+      "photoHint": "The canvas takes the photo's size; the photo is the background.",
+      "blank": "A blank canvas",
+      "blankHint": "A preset or a size of your own.",
+      "copy": "A copy of a template",
+      "copyHint": "The same design, as a new draft.",
+      "choosePhoto": "Choose a photo",
+      "photoRules": "PNG or JPEG, up to 1 MB, 200–2000 pixels a side. Straighten and crop it first.",
+      "photoTooLarge": "The photo is larger than 1 MB.",
+      "uploading": "Uploading…",
+      "photoReady": "Photo uploaded: {width} × {height} px.",
+      "softPhoto": "This photo is under {side} pixels on its long side: the customer's picture will look soft.",
+      "size": "Size",
+      "presets": {
+        "wide": "Wide slip",
+        "narrow": "Narrow receipt",
+        "a6": "A6 portrait",
+        "square": "Square",
+        "custom": "Custom size"
+      },
+      "width": "Width (px)",
+      "height": "Height (px)",
+      "sizeRange": "{min}–{max} pixels a side",
+      "copyFrom": "Template to copy",
+      "chooseTemplate": "Choose a template",
+      "copyName": "Copy of {name}",
+      "create": "Create and open"
+    },
+    "undo": "Undo",
+    "redo": "Redo",
+    "rail": "Studio tools",
+    "tabs": {
+      "layers": "Layers",
+      "form": "Form",
+      "shop": "Shop info",
+      "text": "Text",
+      "elements": "Elements",
+      "uploads": "Uploads"
+    },
+    "layers": {
+      "title": "Layers",
+      "empty": "Nothing on the slip yet.",
+      "rename": "Layer name",
+      "show": "Show {name}",
+      "hide": "Hide {name}",
+      "lock": "Lock {name}",
+      "unlock": "Unlock {name}",
+      "background": "Background",
+      "backgroundPhoto": "Background photo"
+    },
+    "canvas": {
+      "duplicate": "Duplicate",
+      "lock": "Lock",
+      "unlock": "Unlock",
+      "delete": "Delete",
+      "more": "More",
+      "bringForward": "Bring forward",
+      "sendBackward": "Send backward",
+      "bringToFront": "Bring to front",
+      "sendToBack": "Send to back",
+      "zoom": "Zoom",
+      "fit": "Fit",
+      "copy": "Copy",
+      "paste": "Paste"
+    },
+    "toolbar": {
+      "x": "X",
+      "y": "Y",
+      "w": "W",
+      "h": "H",
+      "rotation": "Rotation",
+      "opacity": "Opacity %",
+      "none": "Select an element to change it. Shift adds to the selection; drag on the canvas to select several.",
+      "selected": "{count} selected",
+      "spreadAcross": "Spread evenly across",
+      "spreadDown": "Spread evenly down",
+      "align": {
+        "left": "Align left",
+        "center": "Align centre",
+        "right": "Align right",
+        "top": "Align top",
+        "middle": "Align middle",
+        "bottom": "Align bottom"
+      }
+    },
+    "form": {
+      "ownerFills": "The owner fills",
+      "fixed": "Fixed meaning",
+      "fixedHint": "The app uses these to list and search orders. One of each per template.",
+      "fillOrder": "Fill order",
+      "fillOrderHint": "Next goes through the fields in this order. Drag to change it.",
+      "noFields": "Add a field the owner fills.",
+      "paidPair": "Paid / Not paid",
+      "notPaid": "Not paid",
+      "optionName": "Option {n}",
+      "types": {
+        "number": "Number",
+        "textField": "Text",
+        "checkbox": "Checkbox",
+        "choice": "Choice",
+        "orderNo": "Order No.",
+        "date": "Date",
+        "phone": "Phone",
+        "amount": "Amount",
+        "paid": "Paid / Not paid"
+      }
+    },
+    "shopInfo": {
+      "hint": "Drawn from the shop's details when each order is saved. The studio shows a sample shop.",
+      "name": "Shop name",
+      "phone": "Shop phone",
+      "address": "Shop address",
+      "logo": "Shop logo"
+    },
+    "field": {
+      "label": "Label",
+      "labelEn": "Label in English",
+      "labelKm": "Label in Khmer",
+      "labelHint": "What the owner sees while filling, in their language. Both are needed to publish.",
+      "group": "Choice group",
+      "groupLabelEn": "Group label in English",
+      "groupLabelKm": "Group label in Khmer",
+      "settings": "Settings",
+      "required": "Required",
+      "mark": "Mark",
+      "markColor": "Mark colour",
+      "marks": {
+        "tick": "Tick ✓",
+        "cross": "Cross ✗",
+        "dot": "Filled dot",
+        "box": "Filled box"
+      },
+      "decimalsLabel": "Numbers",
+      "decimals": {
+        "0": "Whole numbers",
+        "1": "One decimal place",
+        "2": "Two decimal places"
+      },
+      "min": "Minimum",
+      "max": "Maximum",
+      "unit": "Unit",
+      "unitPlaceholder": "kg",
+      "maxLength": "Maximum length",
+      "style": "Style",
+      "size": "Font size",
+      "color": "Colour",
+      "bold": "Bold",
+      "align": {
+        "left": "Align left",
+        "center": "Align centre",
+        "right": "Align right"
+      },
+      "border": "Draw a border"
+    },
+    "tryIt": {
+      "open": "Try it",
+      "title": "Try it",
+      "description": "Fill the slip as the owner will. Nothing is saved.",
+      "language": "Owner's language",
+      "check": "Check like Save",
+      "checked": "The slip can be saved.",
+      "reset": "Start again"
+    },
+    "text": {
+      "heading": "Heading",
+      "subheading": "Subheading",
+      "body": "Body text",
+      "hint": "Khmer and English in the same box. Lines break at spaces and new lines only: put a space where a long Khmer line may break. Double-click a text to edit it.",
+      "edit": "Edit text",
+      "editing": "Text",
+      "lineSpacing": "Line spacing"
+    },
+    "elements": {
+      "line": "Line",
+      "dashedLine": "Dashed line",
+      "rect": "Rectangle",
+      "roundedRect": "Rounded rectangle",
+      "circle": "Circle",
+      "triangle": "Triangle",
+      "tick": "Tick",
+      "star": "Star"
+    },
+    "uploads": {
+      "upload": "Upload a PNG or JPEG (up to 1 MB, 200–2000 px a side)",
+      "empty": "No images yet.",
+      "add": "Add to the slip",
+      "setBackground": "Set as background",
+      "removeBackground": "Remove the background image"
+    },
+    "shape": {
+      "style": "Style",
+      "fill": "Fill",
+      "border": "Border",
+      "lineColor": "Line colour",
+      "width": "Width",
+      "radius": "Corner radius",
+      "dashed": "Dashed"
+    },
+    "image": {
+      "replace": "Replace"
+    },
+    "color": {
+      "none": "None",
+      "pick": "Pick {label}",
+      "hex": "{label} as hex"
+    },
+    "resize": {
+      "open": "Resize",
+      "title": "Canvas size",
+      "description": "The customer's picture is this size. Elements keep their places.",
+      "apply": "Resize"
+    },
+    "shops": {
+      "open": "Shops",
+      "title": "Shops using this template",
+      "description": "The owner of each shop can fill this slip. Only a published template can be attached.",
+      "none": "Not attached to any shop.",
+      "add": "Attach to a shop",
+      "choose": "Choose a shop",
+      "attach": "Attach",
+      "detach": "Detach",
+      "default": "Default",
+      "notPublished": "Publish the template before attaching it."
+    },
+    "archive": {
+      "menu": "More",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archived": "The template is archived.",
+      "restored": "The template is restored.",
+      "banner": "This template is archived: it can't be changed or attached. Restore it to use it again.",
+      "confirmTitle": "Archive this template?",
+      "confirmDescription": "It's detached from every shop and hidden from the list. Orders made on it keep their slips."
+    }
+  },
+  "slipFill": {
+    "untitled": "(no label)",
+    "paidQuestion": "Paid?",
+    "paid": "Paid",
+    "notPaid": "Not paid",
+    "ticked": "Ticked",
+    "position": "{n} of {total}",
+    "back": "Back",
+    "next": "Next",
+    "nothingToFill": "This slip has nothing to fill.",
+    "problems": {
+      "required": "Fill this in.",
+      "range": "From {min} to {max}.",
+      "decimals": "At most {decimals} decimal places.",
+      "whole": "A whole number.",
+      "tooLong": "At most {max} characters.",
+      "invalidPhone": "Not a valid phone number.",
+      "invalid": "Check this value."
+    }
   }
 }

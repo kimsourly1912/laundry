@@ -1,3 +1,4 @@
+import { blankDesign } from '#shared/contracts/slip-design'
 import { templateShops, templates, templateVersions } from '#server/features/templates/templates.schema'
 import { orders } from '#server/features/orders/orders.schema'
 import type { Db } from '#server/utils/batch'
@@ -15,7 +16,7 @@ let templateCount = 0
 export async function createTestTemplate(db: Db, userId: string) {
   const templateId = newId()
   const versionId = newId()
-  const design = { width: 800, height: 520, elements: [] }
+  const design = blankDesign(800, 520)
   await db.batch([
     db.insert(templates).values({ id: templateId, name: `Template ${++templateCount}`, status: 'published', design, createdBy: userId }),
     db.insert(templateVersions).values({ id: versionId, templateId, number: 1, design, createdBy: userId }),

@@ -1,7 +1,7 @@
 import type { $Fetch, FetchOptions } from 'ofetch'
 import { ApiError } from './api-error'
 
-export type ApiFetchOptions = Omit<FetchOptions<'json'>, 'retry' | 'baseURL'>
+export type ApiFetchOptions = Omit<FetchOptions<'json' | 'blob'>, 'retry' | 'baseURL'>
 export type ApiFetch = <T>(path: string, options?: ApiFetchOptions) => Promise<T>
 
 interface CreateApiFetchOptions {
