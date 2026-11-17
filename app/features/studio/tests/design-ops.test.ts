@@ -111,3 +111,52 @@ describe('addElements and the fill order', () => {
     expect(placeInFillOrder(['a', 'b', 'c'], 'a', 2)).toEqual(['b', 'c', 'a'])
   })
 })
+
+describe('align, spread, copy and paste (S5)', () => {
+  const box = (id: string, x: number, y: number, w = 20, h = 10) => createElement('rect', { id, x, y, w, h })
+
+  it('aligns on the selection\'s edges and middles', async () => {
+    const { alignElements } = await import('../utils/design-ops')
+    const slip: SlipDesign = { ...blankDesign(800, 500), elements: [box('a', 10, 10), box('b', 100, 50, 40, 30), box('c', 0, 0)] }
+    const at = (next: SlipDesign) => next.elements.map(element => [element.x, element.y])
+    expect(at(alignElements(slip, ['a', 'b'], 'left'))).toEqual([[10, 10], [10, 50], [0, 0]])
+    expect(at(alignElements(slip, ['a', 'b'], 'right'))).toEqual([[120, 10], [100, 50], [0, 0]])
+    expect(at(alignElements(slip, ['a', 'b'], 'center'))).toEqual([[65, 10], [55, 50], [0, 0]])
+    expect(at(alignElements(slip, ['a', 'b'], 'bottom'))).toEqual([[10, 70], [100, 50], [0, 0]])
+    expect(at(alignElements(slip, ['a', 'b'], 'middle'))).toEqual([[10, 40], [100, 30], [0, 0]])
+    expect(alignElements(slip, ['a'], 'left')).toBe(slip)
+  })
+
+  it('spreads three or more with equal gaps, keeping the ends', async () => {
+    const { spreadElements } = await import('../utils/design-ops')
+    const slip: SlipDesign = { ...blankDesign(800, 500), elements: [box('a', 0, 0), box('c', 200, 0), box('b', 30, 0, 40)] }
+    expect(spreadElements(slip, ['a', 'b', 'c'], 'across').elements.map(element => element.x)).toEqual([0, 200, 90])
+    expect(spreadElements(slip, ['a', 'b'], 'across')).toBe(slip)
+  })
+
+  it('pastes copies with new ids, brings missing groups, and never a second fixed field', async () => {
+    const { copyElements, pasteElements } = await import('../utils/design-ops')
+    const from: SlipDesign = { ...blankDesign(800, 500), elements: [createElement('option', { id: 'o1' }, { group: 'g' }), createElement('orderNo', { id: 'no' }), createElement('number', { id: 'n' })], groups: [createGroup('g')] }
+    const clipboard = copyElements(from, ['o1', 'no', 'n'])
+    const into: SlipDesign = { ...blankDesign(800, 500), elements: [createElement('orderNo', { id: 'mine' })] }
+    const { design: pasted, ids } = pasteElements(into, clipboard)
+    expect(pasted.elements.map(element => element.type)).toEqual(['orderNo', 'option', 'number'])
+    expect(ids).toHaveLength(2)
+    expect(pasted.groups).toHaveLength(1)
+    expect(pasted.groups[0]!.id).not.toBe('g')
+    expect(pasted.elements[1]).toMatchObject({ group: pasted.groups[0]!.id, x: 20, y: 20 })
+    expect(pasted.fillOrder).toEqual([ids[1], pasted.groups[0]!.id])
+    // Into the same design: the group exists, so the option joins it.
+    expect(pasteElements(from, copyElements(from, ['o1'])).design.elements.at(-1)).toMatchObject({ group: 'g' })
+  })
+})
+
+describe('reactive designs', () => {
+  it('duplicates and copies elements of a reactive design (the editor\'s)', async () => {
+    const { reactive } = await import('vue')
+    const { copyElements, duplicateElements } = await import('../utils/design-ops')
+    const slip = reactive<SlipDesign>({ ...blankDesign(800, 500), elements: [createElement('rect', { id: 'a' })] })
+    expect(duplicateElements(slip, ['a']).ids).toHaveLength(1)
+    expect(copyElements(slip, ['a']).elements).toHaveLength(1)
+  })
+})

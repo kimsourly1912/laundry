@@ -141,4 +141,25 @@ describe('studio canvas', () => {
     await page.keyboard.press('Control+0')
     await expect.poll(() => page.getByTestId('zoom-percent').textContent()).toBe(fitted)
   })
+
+  it('aligns two elements, and copies and pastes them (S5)', async () => {
+    const page = await newDevice(browser, { width: 1440, height: 900 })
+    onTestFailed(screenshotOnFailure('studio-canvas-3', [page]))
+    const id = await openSeeded(page, 'Canvas test 3')
+
+    await page.keyboard.press('Control+a')
+    await page.getByRole('button', { name: 'Align left' }).click()
+    let design = await savedDesign(page, id)
+    expect(design.elements.map(element => element.x)).toEqual([100, 100])
+    await page.getByRole('button', { name: 'Align top' }).click()
+    design = await savedDesign(page, id)
+    expect(design.elements.map(element => element.y)).toEqual([100, 100])
+
+    await page.keyboard.press('Control+c')
+    await page.keyboard.press('Control+v')
+    design = await savedDesign(page, id)
+    expect(design.elements).toHaveLength(4)
+    expect(design.elements.slice(2).map(element => [element.x, element.y])).toEqual([[120, 120], [120, 120]])
+    expect(new Set(design.elements.map(element => element.id)).size).toBe(4)
+  })
 })

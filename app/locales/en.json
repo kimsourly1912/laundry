@@ -337,7 +337,9 @@
       "bringToFront": "Bring to front",
       "sendToBack": "Send to back",
       "zoom": "Zoom",
-      "fit": "Fit"
+      "fit": "Fit",
+      "copy": "Copy",
+      "paste": "Paste"
     },
     "toolbar": {
       "x": "X",
@@ -346,7 +348,18 @@
       "h": "H",
       "rotation": "Rotation",
       "opacity": "Opacity %",
-      "none": "Select an element to change it. Shift adds to the selection; drag on the canvas to select several."
+      "none": "Select an element to change it. Shift adds to the selection; drag on the canvas to select several.",
+      "selected": "{count} selected",
+      "spreadAcross": "Spread evenly across",
+      "spreadDown": "Spread evenly down",
+      "align": {
+        "left": "Align left",
+        "center": "Align centre",
+        "right": "Align right",
+        "top": "Align top",
+        "middle": "Align middle",
+        "bottom": "Align bottom"
+      }
     },
     "form": {
       "ownerFills": "The owner fills",

@@ -12,11 +12,13 @@ import Moveable from 'vue3-moveable'
 import VueSelecto from 'vue3-selecto'
 import type { OnDrag, OnDragGroup, OnDragGroupStart, OnDragStart, OnResize, OnResizeGroup, OnResizeGroupStart, OnResizeStart, OnRotate, OnRotateGroup, OnRotateGroupStart, OnRotateStart } from 'vue3-moveable'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import * as v from 'valibot'
+import { elementSchema, groupSchema } from '#shared/contracts/slip-design'
 import type { SlipData, SlipElement } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
 import type { StudioEditor } from '../composables/useStudioEditor'
-import { duplicateElements, moveLayers, nudgeElements, removeElements, roundBox, updateElements } from '../utils/design-ops'
-import type { LayerMove } from '../utils/design-ops'
+import { copyElements, duplicateElements, moveLayers, nudgeElements, pasteElements, removeElements, roundBox, updateElements } from '../utils/design-ops'
+import type { Clipboard, LayerMove } from '../utils/design-ops'
 import { isTyping, shortcutOf } from '../utils/shortcuts'
 import { textHeight } from '#shared/slip/svg'
 import { SlipSvg } from '~/features/slip-fill'
@@ -319,7 +321,48 @@ function nudge(dx: number, dy: number) {
   if (ids.length) editor.apply(nudgeElements(design.value, ids, dx, dy))
 }
 
+// Copy and paste (plan §5.7): kept in this browser, so a copy can go into another template.
+const CLIPBOARD_KEY = 'laundry.studio.clipboard'
+const clipboardSchema = v.object({ elements: v.array(elementSchema), groups: v.array(groupSchema) })
+let clipboard: Clipboard | undefined
+
+function copySelected() {
+  if (!selectedIds.value.length) return
+  clipboard = copyElements(design.value, selectedIds.value)
+  try {
+    localStorage.setItem(CLIPBOARD_KEY, JSON.stringify(clipboard))
+  }
+  catch {
+    // Storage may be off (a private window): the copy stays in this page.
+  }
+}
+
+function readClipboard(): Clipboard | undefined {
+  try {
+    const stored = localStorage.getItem(CLIPBOARD_KEY)
+    // Stored text is checked like a design: an old or broken copy is ignored.
+    const parsed = stored ? v.safeParse(clipboardSchema, JSON.parse(stored)) : undefined
+    if (parsed?.success) return parsed.output
+  }
+  catch {
+    // Unreadable: fall back to this page's copy.
+  }
+  return clipboard
+}
+
+/** Pastes what was copied. */
+function paste() {
+  const copied = readClipboard()
+  if (!copied?.elements?.length) return
+  const result = pasteElements(design.value, copied)
+  editor.apply(result.design)
+  editor.select(result.ids)
+}
+
 const layerItems = computed<DropdownMenuItem[][]>(() => [[
+  { label: t('studio.canvas.copy'), kbds: ['ctrl', 'c'], onSelect: copySelected },
+  { label: t('studio.canvas.paste'), kbds: ['ctrl', 'v'], onSelect: paste },
+], [
   { label: t('studio.canvas.bringForward'), kbds: ['ctrl', ']'], onSelect: () => moveSelected('forward') },
   { label: t('studio.canvas.sendBackward'), kbds: ['ctrl', '['], onSelect: () => moveSelected('backward') },
   { label: t('studio.canvas.bringToFront'), onSelect: () => moveSelected('front') },
@@ -403,6 +446,8 @@ function onKeyDown(event: KeyboardEvent) {
     case 'deselect': return editor.select([])
     case 'delete': return removeSelected()
     case 'duplicate': return duplicateSelected()
+    case 'copy': return copySelected()
+    case 'paste': return paste()
     case 'layer': return moveSelected(action.move)
     case 'nudge': return nudge(action.dx, action.dy)
     case 'zoomIn': return zoomTo(zoom.value * 1.25)

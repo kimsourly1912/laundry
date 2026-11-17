@@ -3,6 +3,11 @@ import { newKey } from '#shared/slip/elements'
 import { textHeight } from '#shared/slip/svg'
 import type { SlipText } from '#shared/slip/text'
 
+/** A deep copy through JSON: designs are JSON, and `structuredClone` refuses Vue's reactive proxies. */
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
 /**
  * What the studio does to a design (plan §5.1, §5.3, §5.7), as plain functions: each returns a new
  * design and leaves the one it got alone, so a change is one snapshot for undo.
@@ -70,7 +75,7 @@ export function duplicateElements(design: SlipDesign, ids: readonly string[], of
   const chosen = new Set(ids)
   const copies = design.elements
     .filter(element => chosen.has(element.id) && !SINGLE_TYPES.has(element.type) && element.type !== 'paid')
-    .map(element => ({ ...structuredClone(element), id: newKey(), x: element.x + offset, y: element.y + offset, name: element.name }))
+    .map(element => ({ ...clone(element), id: newKey(), x: element.x + offset, y: element.y + offset, name: element.name }))
   return { design: { ...design, elements: [...design.elements, ...copies] }, ids: copies.map(copy => copy.id) }
 }
 
@@ -146,4 +151,94 @@ export function fitTextHeights(design: SlipDesign, text: SlipText): SlipDesign {
 export function placedSize(image: { width: number, height: number }, canvas: { width: number, height: number }): { w: number, h: number } {
   const scale = Math.min(1, canvas.width / 2 / image.width, canvas.height / 2 / image.height)
   return { w: Math.round(image.width * scale), h: Math.round(image.height * scale) }
+}
+
+// --- Several elements (plan §5.5, S5) ---
+
+export type Alignment = 'left' | 'center' | 'right' | 'top' | 'middle' | 'bottom'
+
+/** Lines the elements up on the selection's own edge or middle (their boxes, as stored). */
+export function alignElements(design: SlipDesign, ids: readonly string[], alignment: Alignment): SlipDesign {
+  const chosen = design.elements.filter(element => ids.includes(element.id))
+  if (chosen.length < 2) return design
+  const left = Math.min(...chosen.map(element => element.x))
+  const right = Math.max(...chosen.map(element => element.x + element.w))
+  const top = Math.min(...chosen.map(element => element.y))
+  const bottom = Math.max(...chosen.map(element => element.y + element.h))
+  return updateElements(design, ids, (element) => {
+    switch (alignment) {
+      case 'left': return { ...element, x: roundBox(left) }
+      case 'center': return { ...element, x: roundBox((left + right) / 2 - element.w / 2) }
+      case 'right': return { ...element, x: roundBox(right - element.w) }
+      case 'top': return { ...element, y: roundBox(top) }
+      case 'middle': return { ...element, y: roundBox((top + bottom) / 2 - element.h / 2) }
+      case 'bottom': return { ...element, y: roundBox(bottom - element.h) }
+    }
+  })
+}
+
+/** Spreads three or more elements evenly across or down: the same gap between each, the ends kept. */
+export function spreadElements(design: SlipDesign, ids: readonly string[], direction: 'across' | 'down'): SlipDesign {
+  const chosen = design.elements.filter(element => ids.includes(element.id))
+  if (chosen.length < 3) return design
+  const across = direction === 'across'
+  const start = (element: SlipElement) => (across ? element.x : element.y)
+  const size = (element: SlipElement) => (across ? element.w : element.h)
+  const sorted = [...chosen].sort((a, b) => start(a) - start(b))
+  const first = sorted[0]!
+  const last = sorted.at(-1)!
+  const span = start(last) + size(last) - start(first)
+  const gap = (span - sorted.reduce((sum, element) => sum + size(element), 0)) / (sorted.length - 1)
+  const places = new Map<string, number>()
+  let at = start(first)
+  for (const element of sorted) {
+    places.set(element.id, roundBox(at))
+    at += size(element) + gap
+  }
+  return updateElements(design, ids, element => (across ? { ...element, x: places.get(element.id)! } : { ...element, y: places.get(element.id)! }))
+}
+
+// --- Copy and paste (plan §5.7) ---
+
+/** What Copy keeps: the elements and the choice groups their options belong to. */
+export interface Clipboard {
+  elements: SlipElement[]
+  groups: SlipDesign['groups']
+}
+
+export function copyElements(design: SlipDesign, ids: readonly string[]): Clipboard {
+  const elements = design.elements.filter(element => ids.includes(element.id)).map(element => clone(element))
+  const groupIds = new Set(elements.flatMap(element => (element.type === 'option' ? [element.group] : [])))
+  return { elements, groups: design.groups.filter(group => groupIds.has(group.id)).map(group => clone(group)) }
+}
+
+/**
+ * Pastes copies with new ids, `offset` px down and right, on top. Options pasted into a design that
+ * doesn't have their group bring a copy of it. Fixed-meaning fields the design already has, and paid
+ * spots when it has one, are left out (one of each per template). Returns the pasted ids.
+ */
+export function pasteElements(design: SlipDesign, clipboard: Clipboard, offset = 20): { design: SlipDesign, ids: string[] } {
+  const present = new Set(design.elements.map(element => element.type))
+  const groupMap = new Map<string, string>()
+  const groups: SlipDesign['groups'] = []
+  for (const group of clipboard.groups) {
+    if (design.groups.some(item => item.id === group.id)) continue
+    const id = newKey()
+    groupMap.set(group.id, id)
+    groups.push({ ...group, id })
+  }
+  const elements = clipboard.elements
+    .filter(element => !(SINGLE_TYPES.has(element.type) && present.has(element.type)) && !(element.type === 'paid' && present.has('paid')))
+    .map((element): SlipElement => {
+      const copy = { ...clone(element), id: newKey(), x: roundBox(element.x + offset), y: roundBox(element.y + offset) }
+      return copy.type === 'option' ? { ...copy, group: groupMap.get(copy.group) ?? copy.group } : copy
+    })
+  const fillKeys = [
+    ...elements.filter(element => ['number', 'textField', 'checkbox', 'phone', 'amount'].includes(element.type)).map(element => element.id),
+    ...groups.map(group => group.id),
+  ]
+  return {
+    design: { ...design, elements: [...design.elements, ...elements], groups: [...design.groups, ...groups], fillOrder: [...design.fillOrder, ...fillKeys] },
+    ids: elements.map(element => element.id),
+  }
 }

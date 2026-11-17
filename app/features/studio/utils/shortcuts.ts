@@ -6,7 +6,7 @@ import type { LayerMove } from './design-ops'
  */
 
 export type ShortcutAction
-  = | { kind: 'undo' | 'redo' | 'selectAll' | 'deselect' | 'delete' | 'duplicate' | 'zoomIn' | 'zoomOut' | 'fit' }
+  = | { kind: 'undo' | 'redo' | 'selectAll' | 'deselect' | 'delete' | 'duplicate' | 'copy' | 'paste' | 'zoomIn' | 'zoomOut' | 'fit' }
     | { kind: 'layer', move: LayerMove }
     | { kind: 'nudge', dx: number, dy: number }
 
@@ -29,6 +29,8 @@ export function shortcutOf(event: KeyPress): ShortcutAction | undefined {
     if (key === 'y') return { kind: 'redo' }
     if (key === 'a') return { kind: 'selectAll' }
     if (key === 'd') return { kind: 'duplicate' }
+    if (key === 'c') return { kind: 'copy' }
+    if (key === 'v') return { kind: 'paste' }
     if (key === ']') return { kind: 'layer', move: 'forward' }
     if (key === '[') return { kind: 'layer', move: 'backward' }
     if (key === '+' || key === '=') return { kind: 'zoomIn' }

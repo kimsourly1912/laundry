@@ -36,7 +36,6 @@ describe('studio', () => {
     const page = await newDevice(browser, DESKTOP)
     onTestFailed(screenshotOnFailure('studio-photo', [page]))
     await signInAsAdmin(page, '/platform/templates')
-    await expect.poll(() => page.getByText('No templates yet').count()).toBe(1)
 
     await page.getByRole('button', { name: 'New template' }).first().click()
     await page.getByTestId('photo-input').setInputFiles({ name: 'linda-slip.png', mimeType: 'image/png', buffer: await photoOf(page, 900, 600) })

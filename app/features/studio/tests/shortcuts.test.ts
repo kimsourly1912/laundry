@@ -11,6 +11,8 @@ describe('shortcutOf (plan §5.7)', () => {
     expect(press('y', { ctrl: true })).toEqual({ kind: 'redo' })
     expect(press('a', { ctrl: true })).toEqual({ kind: 'selectAll' })
     expect(press('d', { ctrl: true })).toEqual({ kind: 'duplicate' })
+    expect(press('c', { ctrl: true })).toEqual({ kind: 'copy' })
+    expect(press('v', { meta: true })).toEqual({ kind: 'paste' })
     expect(press(']', { ctrl: true })).toEqual({ kind: 'layer', move: 'forward' })
     expect(press('[', { ctrl: true })).toEqual({ kind: 'layer', move: 'backward' })
     expect(press('=', { ctrl: true })).toEqual({ kind: 'zoomIn' })

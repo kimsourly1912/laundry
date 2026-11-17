@@ -8,7 +8,8 @@ import type { TemplateDraft } from './useTemplateDraft'
  * frame); `commit()` when it ends makes it one change: one undo step, one save.
  */
 export function useStudioEditor(initial: SlipDesign, draft: TemplateDraft) {
-  const design = ref<SlipDesign>(structuredClone(initial))
+  // A copy through JSON: `initial` may be a reactive proxy, which `structuredClone` refuses.
+  const design = ref<SlipDesign>(JSON.parse(JSON.stringify(initial)))
   const selection = ref<string[]>([])
   const history = createHistory(JSON.stringify(initial))
   const canUndo = ref(false)

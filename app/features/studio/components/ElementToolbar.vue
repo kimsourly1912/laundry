@@ -5,7 +5,8 @@
  */
 import type { SlipElement } from '#shared/contracts/slip-design'
 import type { StudioEditor } from '../composables/useStudioEditor'
-import { roundBox, updateElements } from '../utils/design-ops'
+import { alignElements, roundBox, spreadElements, updateElements } from '../utils/design-ops'
+import type { Alignment } from '../utils/design-ops'
 import DrawingSettings from './DrawingSettings.vue'
 import FieldSettings from './FieldSettings.vue'
 
@@ -15,6 +16,23 @@ const { t } = useI18n()
 const { editor } = props
 
 const element = computed(() => (editor.selected.value.length === 1 ? editor.selected.value[0] : undefined))
+/** Several elements (plan §5.5): align and spread act on the ones that aren't locked. */
+const several = computed(() => editor.movable.value.length > 1)
+const ALIGNMENTS: { value: Alignment, icon: string }[] = [
+  { value: 'left', icon: 'i-lucide-align-start-vertical' },
+  { value: 'center', icon: 'i-lucide-align-center-vertical' },
+  { value: 'right', icon: 'i-lucide-align-end-vertical' },
+  { value: 'top', icon: 'i-lucide-align-start-horizontal' },
+  { value: 'middle', icon: 'i-lucide-align-center-horizontal' },
+  { value: 'bottom', icon: 'i-lucide-align-end-horizontal' },
+]
+const movableIds = () => editor.movable.value.map(item => item.id)
+function align(alignment: Alignment) {
+  editor.apply(alignElements(editor.design.value, movableIds(), alignment))
+}
+function spread(direction: 'across' | 'down') {
+  editor.apply(spreadElements(editor.design.value, movableIds(), direction))
+}
 
 type BoxKey = 'x' | 'y' | 'w' | 'h' | 'rotation'
 const BOX_FIELDS: { key: BoxKey, min: number, max: number }[] = [
@@ -49,8 +67,39 @@ function setOpacity(value: number | null | undefined) {
     class="flex h-12 shrink-0 items-center gap-3 overflow-x-auto border-b border-default bg-default px-3"
     data-testid="element-toolbar"
   >
+    <template v-if="several">
+      <span class="text-xs text-muted">{{ t('studio.toolbar.selected', { count: editor.movable.value.length }) }}</span>
+      <UButton
+        v-for="item in ALIGNMENTS"
+        :key="item.value"
+        :icon="item.icon"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        :aria-label="t(`studio.toolbar.align.${item.value}`)"
+        @click="align(item.value)"
+      />
+      <UButton
+        icon="i-lucide-align-horizontal-space-around"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        :disabled="editor.movable.value.length < 3"
+        :aria-label="t('studio.toolbar.spreadAcross')"
+        @click="spread('across')"
+      />
+      <UButton
+        icon="i-lucide-align-vertical-space-around"
+        size="xs"
+        color="neutral"
+        variant="outline"
+        :disabled="editor.movable.value.length < 3"
+        :aria-label="t('studio.toolbar.spreadDown')"
+        @click="spread('down')"
+      />
+    </template>
     <span
-      v-if="!element"
+      v-else-if="!element"
       class="text-sm text-muted"
     >{{ t('studio.toolbar.none') }}</span>
     <template v-else>
