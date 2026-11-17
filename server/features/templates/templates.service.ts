@@ -5,6 +5,7 @@ import type { SlipDesign } from '#shared/contracts/slip-design'
 import type { CreateTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListQuery, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
 import { sampleData } from '#shared/slip/fields'
 import { imagesOf } from '#shared/slip/svg'
+import { publishProblems } from '#shared/slip/checks'
 import type { Db, Statement } from '#server/utils/batch'
 import { isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
@@ -14,7 +15,7 @@ import type { AuditEntry } from '#server/features/platform'
 import type { PlatformActor } from '#server/features/identity'
 import { findImage } from './images.repository'
 import { requireImages, slipImages } from './images.service'
-import { imageNotFound, nothingToPublish, templateArchived, templateChanged, templateNameTaken, templateNotFound } from './templates.errors'
+import { imageNotFound, nothingToPublish, publishChecksFailed, templateArchived, templateChanged, templateNameTaken, templateNotFound } from './templates.errors'
 import { renderSlipPng } from './templates.render'
 import * as repo from './templates.repository'
 import type { TemplateRow } from './templates.repository'
@@ -135,6 +136,8 @@ export async function publishTemplate(db: Db, actor: PlatformActor, templateId: 
   if (row.status === 'archived') throw templateArchived()
   if (row.version !== version) throw templateChanged()
   if (latest && sameDesign(latest.design, row.design)) throw nothingToPublish(latest.number)
+  const { errors } = publishProblems(row.design)
+  if (errors.length) throw publishChecksFailed(errors)
   await requireImages(db, imageReferences(row.design, 'design'))
   const number = (latest?.number ?? 0) + 1
   await runBatch(db, [

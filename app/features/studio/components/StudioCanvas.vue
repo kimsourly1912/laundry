@@ -18,7 +18,7 @@ import type { StudioEditor } from '../composables/useStudioEditor'
 import { duplicateElements, moveLayers, nudgeElements, removeElements, roundBox, updateElements } from '../utils/design-ops'
 import type { LayerMove } from '../utils/design-ops'
 import { isTyping, shortcutOf } from '../utils/shortcuts'
-import SlipSvg from './SlipSvg.vue'
+import { SlipSvg } from '~/features/slip-fill'
 
 const props = defineProps<{
   editor: StudioEditor

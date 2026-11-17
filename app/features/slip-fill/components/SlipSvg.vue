@@ -15,6 +15,8 @@ const props = defineProps<{
   text: SlipText
   /** Unique on the page when several slips are shown. */
   idPrefix?: string
+  /** Where an image's bytes are: the platform's images by default (the studio). */
+  imageHref?: (imageId: string) => string
 }>()
 
 const host = ref<HTMLElement>()
@@ -23,7 +25,7 @@ const markup = computed(() => slipSvg({
   design: props.design,
   data: props.data,
   text: props.text,
-  imageHref: id => `/api/platform/images/${id}`,
+  imageHref: props.imageHref ?? (id => `/api/platform/images/${id}`),
   idPrefix: props.idPrefix,
 }))
 

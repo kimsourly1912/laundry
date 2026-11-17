@@ -96,3 +96,18 @@ describe('createHistory', () => {
     expect(undone).toEqual(['4', '3', '2', undefined])
   })
 })
+
+describe('addElements and the fill order', () => {
+  it('centres new elements, keeps several in place to each other, and appends fill keys', async () => {
+    const { addElements, placeInFillOrder } = await import('../utils/design-ops')
+    const slip: SlipDesign = { ...blankDesign(800, 500), fillOrder: ['a'] }
+    const once = addElements(slip, [createElement('rect', { id: 'r', w: 40, h: 40 })])
+    // The next one steps 24 px down and right of the middle.
+    expect(addElements(once, [createElement('rect', { id: 's', w: 40, h: 40 })]).elements.at(-1)).toMatchObject({ x: 404, y: 254 })
+    const added = addElements(slip, [createElement('checkbox', { id: 'o1', x: 0, y: 0, w: 40, h: 40 }), createElement('checkbox', { id: 'o2', x: 60, y: 0, w: 40, h: 40 })], { fillKeys: ['g'] })
+    expect(added.elements.map(element => [element.x, element.y])).toEqual([[380, 230], [440, 230]])
+    expect(added.fillOrder).toEqual(['a', 'g'])
+    expect(placeInFillOrder(['a', 'b', 'c'], 'c', 0)).toEqual(['c', 'a', 'b'])
+    expect(placeInFillOrder(['a', 'b', 'c'], 'a', 2)).toEqual(['b', 'c', 'a'])
+  })
+})

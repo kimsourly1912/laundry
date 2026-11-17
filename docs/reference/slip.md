@@ -57,13 +57,26 @@ const svg = slipSvg({
 - `imagesOf(design, shop)` lists the images a slip draws, so the server loads them in one read.
 - `textHeight(element, text)` is a text box's height for its width.
 
+## Publish checks: `publishProblems(design)` (`shared/slip/checks.ts`)
+
+`{ errors, warnings }`, each `{ code, key? }` naming the element or group (plan §5.8). Errors: `noOrderNo`, `duplicateFixed`, `groupTooSmall`, `missingLabel`; the studio disables Publish and the server answers `422 PUBLISH_CHECKS_FAILED` with `fieldErrors` by key. Warnings: `offCanvas`, `noAmount`, `noPhone`, `noFields`.
+
+## The owner's values: `checkFill(design, fill)` (`shared/slip/values.ts`)
+
+```ts
+const problems = checkFill(design, { values, phone: '012 345 678', amount: 12000, paid: true })
+// {} when it can be saved; else { n: { code: 'range', min: 0, max: 99 }, phone: { code: 'invalidPhone' }, … }
+```
+
+Every value must belong to a field of the design, with its type and range; required fields need one. Try it and the owner's form show the codes in the app's words; the server (step 3) answers them with `fillProblemText`. `cleanValues` keeps only the design's keys without empty text or unticked boxes.
+
 ## On the server (`server/features/templates/templates.render.ts`)
 
 `renderSlipPng({ design, data, images })` builds the SVG with `data:` image URLs and rasterises it with resvg (no fonts given to resvg). `serverSlipSvg` is the same SVG, for tests.
 
-## In the studio
+## In the browser (`app/features/slip-fill`)
 
-`useSlipText()` loads the server's own font files once; `SlipSvg.vue` puts the builder's markup in place as inline SVG (parsed as SVG, never as HTML).
+`useSlipText()` loads the server's own font files once; `SlipSvg` puts the builder's markup in place as inline SVG (parsed as SVG, never as HTML). `SlipFiller` is the owner's form: the slip with its boxes to tap, the field being filled, Back / Next through the fill order (`fillSteps`), labels in the owner's language; `validate()` shows `checkFill`'s problems. The studio's Try it and the owner's Create order (step 3) use it.
 
 ## Tests
 

@@ -43,6 +43,11 @@ function jpegHeader(width: number, height: number) {
 }
 
 const blank = { kind: 'blank' as const, width: 1200, height: 800 }
+
+/** A draft that passes the publish checks: it has an Order No. */
+async function publishable(template: { id: string, design: SlipDesign, version: number }) {
+  return updateTemplate(db, actor, template.id, { version: template.version, design: { ...template.design, elements: [createElement('orderNo', { id: 'no' })] } })
+}
 let names = 0
 const create = (start: Parameters<typeof createTemplate>[2]['start'] = blank, name = `Template ${++names}`) => createTemplate(db, actor, { name, start })
 const auditOf = (targetId: string) => db.select({ action: auditEvents.action, shopId: auditEvents.shopId, data: auditEvents.data }).from(auditEvents).where(eq(auditEvents.targetId, targetId)).orderBy(auditEvents.createdAt, auditEvents.id)
@@ -138,40 +143,49 @@ describe('updateTemplate (autosave)', () => {
 
 describe('publishTemplate', () => {
   it('fixes the draft as version 1, 2, … and says when the draft has changes to publish', async () => {
-    const template = await create()
-    const first = await publishTemplate(db, actor, template.id, { version: 1 })
-    expect(first).toMatchObject({ status: 'published', version: 2, latestVersion: 1, hasUnpublishedChanges: false })
+    const template = await publishable(await create())
+    const first = await publishTemplate(db, actor, template.id, { version: 2 })
+    expect(first).toMatchObject({ status: 'published', version: 3, latestVersion: 1, hasUnpublishedChanges: false })
 
-    const edited = await updateTemplate(db, actor, template.id, { version: 2, design: withText(template.design) })
+    const edited = await updateTemplate(db, actor, template.id, { version: 3, design: withText(template.design) })
     expect(edited.hasUnpublishedChanges).toBe(true)
-    const second = await publishTemplate(db, actor, template.id, { version: 3 })
-    expect(second).toMatchObject({ latestVersion: 2, version: 4, hasUnpublishedChanges: false })
+    const second = await publishTemplate(db, actor, template.id, { version: 4 })
+    expect(second).toMatchObject({ latestVersion: 2, version: 5, hasUnpublishedChanges: false })
 
     const versions = await db.select({ number: templateVersions.number, design: templateVersions.design }).from(templateVersions).where(eq(templateVersions.templateId, template.id)).orderBy(templateVersions.number)
     expect(versions).toEqual([{ number: 1, design: template.design }, { number: 2, design: edited.design }])
     expect((await auditOf(template.id)).filter(row => row.action === 'template.publish').map(row => row.data)).toEqual([{ number: 1 }, { number: 2 }])
   })
 
-  it('refuses a stale version, nothing new to publish, and an archived template', async () => {
-    const template = await create()
-    expect(await refusal(publishTemplate(db, actor, template.id, { version: 2 }))).toBe('409 VERSION_CONFLICT')
-    await publishTemplate(db, actor, template.id, { version: 1 })
-    expect(await refusal(publishTemplate(db, actor, template.id, { version: 2 }))).toBe('409 INVALID_STATE')
-    await updateTemplate(db, actor, template.id, { version: 2, design: withText(template.design) })
-    await db.update(templates).set({ status: 'archived' }).where(eq(templates.id, template.id))
+  it('refuses a draft that fails the checks, a stale version, nothing new to publish, and an archived template', async () => {
+    const draft = await create()
+    expect(await refusal(publishTemplate(db, actor, draft.id, { version: 1 }))).toBe('422 PUBLISH_CHECKS_FAILED')
+    const template = await publishable(draft)
+    expect(await refusal(publishTemplate(db, actor, template.id, { version: 1 }))).toBe('409 VERSION_CONFLICT')
+    await publishTemplate(db, actor, template.id, { version: 2 })
     expect(await refusal(publishTemplate(db, actor, template.id, { version: 3 }))).toBe('409 INVALID_STATE')
+    await updateTemplate(db, actor, template.id, { version: 3, design: withText(template.design) })
+    await db.update(templates).set({ status: 'archived' }).where(eq(templates.id, template.id))
+    expect(await refusal(publishTemplate(db, actor, template.id, { version: 4 }))).toBe('409 INVALID_STATE')
     expect(await db.$count(templateVersions, eq(templateVersions.templateId, template.id))).toBe(1)
   })
 
   it('makes one version when two publishes of the same version race', async () => {
-    const template = await create()
-    const results = await Promise.all([1, 2].map(() => refusal(publishTemplate(db, actor, template.id, { version: 1 }))))
+    const template = await publishable(await create())
+    const results = await Promise.all([1, 2].map(() => refusal(publishTemplate(db, actor, template.id, { version: 2 }))))
     expect(results.sort()).toEqual(['409 VERSION_CONFLICT', 'allowed'])
     expect(await db.$count(templateVersions, and(eq(templateVersions.templateId, template.id), eq(templateVersions.number, 1)))).toBe(1)
   })
 })
 
 describe('listTemplates', () => {
+  it('names each publish problem by its element', async () => {
+    const template = await create()
+    const twice = await updateTemplate(db, actor, template.id, { version: 1, design: { ...template.design, elements: [createElement('orderNo', { id: 'a' }), createElement('orderNo', { id: 'b' })] } })
+    const error = await publishTemplate(db, actor, twice.id, { version: 2 }).catch((caught: { data: unknown }) => caught.data)
+    expect(error).toEqual({ code: 'PUBLISH_CHECKS_FAILED', message: 'A fixed field is on the slip twice.', fieldErrors: { b: ['A fixed field is on the slip twice.'] } })
+  })
+
   it('lists the latest changed first, leaves archived ones out unless asked, and searches the name', async () => {
     const a = await create(blank, 'Linda slip')
     const b = await create(blank, 'Sokha receipt')

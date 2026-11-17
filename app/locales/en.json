@@ -242,7 +242,23 @@
       "title": "Publish version {number}?",
       "description": "New orders use it at once. Orders already made keep the version they were made on.",
       "confirm": "Publish version {number}",
-      "done": "Version {number} is published."
+      "done": "Version {number} is published.",
+      "allGood": "Everything a slip needs is there.",
+      "fixFirst": "Fix these to publish:",
+      "check": "Check these:",
+      "confirmAnyway": "Publish version {number} anyway",
+      "errors": {
+        "noOrderNo": "Add an Order No. field (Form tab).",
+        "duplicateFixed": "{name} is on the slip twice.",
+        "groupTooSmall": "{name} needs at least two options.",
+        "missingLabel": "{name} needs a label in English and in Khmer."
+      },
+      "warnings": {
+        "offCanvas": "{name} is partly off the slip.",
+        "noAmount": "There's no Amount field.",
+        "noPhone": "There's no Phone field.",
+        "noFields": "The owner has no fields to fill."
+      }
     },
     "list": {
       "title": "Templates",
@@ -292,7 +308,9 @@
     "redo": "Redo",
     "rail": "Studio tools",
     "tabs": {
-      "layers": "Layers"
+      "layers": "Layers",
+      "form": "Form",
+      "shop": "Shop info"
     },
     "layers": {
       "title": "Layers",
@@ -326,6 +344,104 @@
       "rotation": "Rotation",
       "opacity": "Opacity %",
       "none": "Select an element to change it. Shift adds to the selection; drag on the canvas to select several."
+    },
+    "form": {
+      "ownerFills": "The owner fills",
+      "fixed": "Fixed meaning",
+      "fixedHint": "The app uses these to list and search orders. One of each per template.",
+      "fillOrder": "Fill order",
+      "fillOrderHint": "Next goes through the fields in this order. Drag to change it.",
+      "noFields": "Add a field the owner fills.",
+      "paidPair": "Paid / Not paid",
+      "notPaid": "Not paid",
+      "optionName": "Option {n}",
+      "types": {
+        "number": "Number",
+        "textField": "Text",
+        "checkbox": "Checkbox",
+        "choice": "Choice",
+        "orderNo": "Order No.",
+        "date": "Date",
+        "phone": "Phone",
+        "amount": "Amount",
+        "paid": "Paid / Not paid"
+      }
+    },
+    "shopInfo": {
+      "hint": "Drawn from the shop's details when each order is saved. The studio shows a sample shop.",
+      "name": "Shop name",
+      "phone": "Shop phone",
+      "address": "Shop address",
+      "logo": "Shop logo"
+    },
+    "field": {
+      "label": "Label",
+      "labelEn": "Label in English",
+      "labelKm": "Label in Khmer",
+      "labelHint": "What the owner sees while filling, in their language. Both are needed to publish.",
+      "group": "Choice group",
+      "groupLabelEn": "Group label in English",
+      "groupLabelKm": "Group label in Khmer",
+      "settings": "Settings",
+      "required": "Required",
+      "mark": "Mark",
+      "markColor": "Mark colour",
+      "marks": {
+        "tick": "Tick ✓",
+        "cross": "Cross ✗",
+        "dot": "Filled dot",
+        "box": "Filled box"
+      },
+      "decimalsLabel": "Numbers",
+      "decimals": {
+        "0": "Whole numbers",
+        "1": "One decimal place",
+        "2": "Two decimal places"
+      },
+      "min": "Minimum",
+      "max": "Maximum",
+      "unit": "Unit",
+      "unitPlaceholder": "kg",
+      "maxLength": "Maximum length",
+      "style": "Style",
+      "size": "Font size",
+      "color": "Colour",
+      "bold": "Bold",
+      "align": {
+        "left": "Align left",
+        "center": "Align centre",
+        "right": "Align right"
+      },
+      "border": "Draw a border"
+    },
+    "tryIt": {
+      "open": "Try it",
+      "title": "Try it",
+      "description": "Fill the slip as the owner will. Nothing is saved.",
+      "language": "Owner's language",
+      "check": "Check like Save",
+      "checked": "The slip can be saved.",
+      "reset": "Start again"
+    }
+  },
+  "slipFill": {
+    "untitled": "(no label)",
+    "paidQuestion": "Paid?",
+    "paid": "Paid",
+    "notPaid": "Not paid",
+    "ticked": "Ticked",
+    "position": "{n} of {total}",
+    "back": "Back",
+    "next": "Next",
+    "nothingToFill": "This slip has nothing to fill.",
+    "problems": {
+      "required": "Fill this in.",
+      "range": "From {min} to {max}.",
+      "decimals": "At most {decimals} decimal places.",
+      "whole": "A whole number.",
+      "tooLong": "At most {max} characters.",
+      "invalidPhone": "Not a valid phone number.",
+      "invalid": "Check this value."
     }
   }
 }

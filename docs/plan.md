@@ -280,7 +280,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | 1 | **Reset:** delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | A | Medium | Done (PR A merged) |
 | S1 | **Design format + rendering:** the Valibot design schema, the shared SVG builder with fontkit text (and its HarfBuzz comparison test), server PNG from a design, templates with autosave, `version`, publish and versions; images upload; start from a photo, blank or a copy (§5.2) | B | Large | Done, in PR B |
 | S2 | **Canvas core:** zoom and pan, select, drag, resize, rotate, snapping, keyboard, undo and redo, the Layers tab | B | Large | Done, in PR B |
-| S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | |
+| S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | Done, in PR B |
 | S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | |
 | S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | |
 | 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | |

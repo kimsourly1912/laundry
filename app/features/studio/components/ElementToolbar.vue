@@ -6,6 +6,7 @@
 import type { SlipElement } from '#shared/contracts/slip-design'
 import type { StudioEditor } from '../composables/useStudioEditor'
 import { roundBox, updateElements } from '../utils/design-ops'
+import FieldSettings from './FieldSettings.vue'
 
 const props = defineProps<{ editor: StudioEditor }>()
 const { t } = useI18n()
@@ -51,6 +52,14 @@ function setOpacity(value: number | null | undefined) {
       class="text-sm text-muted"
     >{{ t('studio.toolbar.none') }}</span>
     <template v-else>
+      <FieldSettings
+        :editor="editor"
+        :element="element"
+      />
+      <USeparator
+        orientation="vertical"
+        class="h-6"
+      />
       <UFormField
         v-for="field in BOX_FIELDS"
         :key="field.key"

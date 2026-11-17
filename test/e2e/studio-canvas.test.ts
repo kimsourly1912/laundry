@@ -46,6 +46,7 @@ async function openSeeded(page: Page, name: string) {
   await api(page, `/platform/templates/${created.id}`, { method: 'PATCH', body: { version: 1, design } })
   await page.goto(`${host}/platform/templates/${created.id}`)
   await page.getByTestId('box-r1').waitFor()
+  await page.getByRole('button', { name: 'Layers', exact: true }).click()
   return created.id
 }
 

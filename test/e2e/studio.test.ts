@@ -64,8 +64,16 @@ describe('studio', () => {
     await expect.poll(() => preview.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(900)
     await page.keyboard.press('Escape')
 
+    // Publish needs an Order No.; without Amount and Phone it warns and may go ahead.
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
-    await page.getByRole('button', { name: 'Publish version 1' }).click()
+    await expect.poll(() => page.getByText('Add an Order No. field (Form tab).').count()).toBe(1)
+    expect(await page.getByRole('button', { name: 'Publish version 1' }).isDisabled()).toBe(true)
+    await page.getByRole('button', { name: 'Cancel' }).click()
+    await page.getByRole('button', { name: 'Order No.' }).click()
+    await expect.poll(() => page.getByTestId('save-status').textContent()).toBe('Saved')
+    await page.getByRole('button', { name: 'Publish', exact: true }).click()
+    await expect.poll(() => page.getByText('There\'s no Amount field.').count()).toBe(1)
+    await page.getByRole('button', { name: 'Publish version 1 anyway' }).click()
     await expect.poll(() => page.getByText('Version 1 is published.').count()).toBeGreaterThan(0)
     // Nothing new to publish.
     await expect.poll(() => page.getByRole('button', { name: 'Publish', exact: true }).isDisabled()).toBe(true)

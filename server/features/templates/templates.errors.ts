@@ -1,10 +1,13 @@
 import { apiError, ErrorCodes, notFound, versionConflict } from '#server/utils/errors'
 import { IMAGE_MAX_SIDE, IMAGE_MIN_SIDE } from '#shared/contracts/templates'
+import { PUBLISH_ERROR_TEXT } from '#shared/slip/checks'
+import type { Problem, PublishError } from '#shared/slip/checks'
 
 export const TemplateErrorCodes = {
   TEMPLATE_NAME_TAKEN: 'TEMPLATE_NAME_TAKEN',
   INVALID_IMAGE: 'INVALID_IMAGE',
   UNKNOWN_IMAGE: 'UNKNOWN_IMAGE',
+  PUBLISH_CHECKS_FAILED: 'PUBLISH_CHECKS_FAILED',
 } as const
 
 export function templateNotFound() {
@@ -43,4 +46,14 @@ export function unknownImage(path: string) {
 
 export function nothingToPublish(number: number) {
   return apiError(409, ErrorCodes.INVALID_STATE, `Nothing changed since version ${number}.`)
+}
+
+/**
+ * 422: the draft fails the publish checks (plan §5.8). `fieldErrors` names each problem by the
+ * element or group it's about (`design` when it's about the whole slip).
+ */
+export function publishChecksFailed(errors: Problem<PublishError>[]) {
+  const fieldErrors: Record<string, string[]> = {}
+  for (const error of errors) (fieldErrors[error.key ?? 'design'] ??= []).push(PUBLISH_ERROR_TEXT[error.code])
+  return apiError(422, TemplateErrorCodes.PUBLISH_CHECKS_FAILED, PUBLISH_ERROR_TEXT[errors[0]!.code], { fieldErrors })
 }

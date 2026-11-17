@@ -87,3 +87,40 @@ export function nudgeElements(design: SlipDesign, ids: readonly string[], dx: nu
 export function roundBox(value: number): number {
   return Math.round(value * 10) / 10
 }
+
+// --- Adding (plan §5.3, §5.4) ---
+
+/**
+ * A new element's box: centred on the canvas, stepped down and right by how many elements there
+ * are (in 8 steps of 24 px), so elements added one after another don't hide each other.
+ */
+function centred(design: SlipDesign, element: SlipElement): SlipElement {
+  const step = (design.elements.length % 8) * 24
+  return { ...element, x: roundBox((design.width - element.w) / 2 + step), y: roundBox((design.height - element.h) / 2 + step) }
+}
+
+/**
+ * Adds elements on top, about the middle of the canvas (several keep their places relative to the first).
+ * Fields the owner fills go to the end of the fill order (plan §5.4.5).
+ */
+export function addElements(design: SlipDesign, elements: SlipElement[], options: { groups?: SlipDesign['groups'], fillKeys?: string[] } = {}): SlipDesign {
+  const { groups = [], fillKeys = [] } = options
+  const [first] = elements
+  if (!first) return design
+  const placed = centred(design, first)
+  const dx = placed.x - first.x
+  const dy = placed.y - first.y
+  return {
+    ...design,
+    elements: [...design.elements, ...elements.map(element => ({ ...element, x: roundBox(element.x + dx), y: roundBox(element.y + dy) }))],
+    groups: [...design.groups, ...groups],
+    fillOrder: [...design.fillOrder.filter(key => !fillKeys.includes(key)), ...fillKeys],
+  }
+}
+
+/** Puts a key at `index` of the fill order (dragged in the Form tab), the others keeping their order. */
+export function placeInFillOrder(order: readonly string[], key: string, index: number): string[] {
+  const rest = order.filter(item => item !== key)
+  rest.splice(Math.max(0, Math.min(rest.length, index)), 0, key)
+  return rest
+}
