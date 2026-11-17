@@ -414,6 +414,8 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - A shop with no attached template can't take orders, so the platform attaches one when it creates the shop.
 
 ## D32. Studio canvas and slip text
+**Partly replaced by D34:** the canvas no longer uses Moveable + Selecto; the fontkit text stays.
+
 **Accepted by the owner 2026-11-17 (plan Q13, Q14).** Replaces D28's Khmer fix (one `<text>` per word) and settles plan §6.3–6.4.
 
 **Context.** Plan §6.4 asked for a spike before choosing the studio's interaction library, and §6.3 kept D28's Khmer fix (resvg, one `<text>` per word). The spike (`app/spike-studio`, `shared/spike-studio`, `server/spike-studio`; page `/spike/studio` on the dev server only; deleted in S1, still in git history at commit `20ac250`) built a small studio on the plan's design: one JSON design, one shared SVG builder, Moveable + Selecto over the SVG, and the same SVG rendered by resvg on the server. Findings:
@@ -452,3 +454,38 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Consequences.**
 - S2 changes `test/unit/locales.test.ts` to exempt `studio.*` from the key parity check, and `docs/standards/i18n.md` to say so.
 - Step 1's schema gets the copy column on `orders` (plan §7).
+
+## D34. The studio canvas: our own interaction layer
+**Owner, 2026-11-17.** Replaces D32's choice of Moveable + Selecto (the fontkit part of D32 stays).
+
+**Context.** The owner tested the studio built in PR B and found it worked badly. Measured with the CPU slowed 4× (a normal laptop) on a 50-element slip: frames of 150–200 ms while dragging, and a group drag blocked for 24 s. Causes:
+- every pointer move rebuilt the whole slip SVG and re-shaped every text with fontkit;
+- the SVG was re-parsed each time;
+- Moveable re-measured every element to snap.
+
+Other problems:
+- Moveable and Selecto needed workarounds to hand a gesture from one to the other, and the press-and-drag bugs came from there;
+- a CSS `scale()` made outlines thick when zoomed in;
+- zoom jumped about 170% per wheel notch;
+- neither library has had a release since 2023.
+
+The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) as the reference. It draws with SVG too (one renderer for screen and export), and handles interaction in its own HTML overlay with no canvas library. The owner first asked for Konva. Konva would draw the screen with a second painter, beside the SVG the server rasterises, which is the drift D31 rejected.
+
+**Decision.**
+- **Each element is its own memoised SVG component**, built from the same per-element output as the server's `slipSvg`, so a move redraws only what moved. Shaped text is cached.
+- **The slip is drawn at the zoomed size** (no CSS scale). An **HTML overlay in screen pixels** holds the hover outline, the selection box and handles, the box select, the snap guides and the text editor. It is our own code, modelled on opentempl's `SelectionOverlay`, `transform.ts` and `snap.ts` (MIT notice kept on anything copied).
+- **Behaviour is specified first:** [`studio-behaviour.md`](studio-behaviour.md), with a source and a test for every rule (Phase 0). The owner accepted its recommendations (Q-S1–Q-S5).
+- **A performance budget is tested:** the spec's P4.
+- **The server is unchanged:** the design JSON, saving, publishing, and `slipSvg` → resvg.
+
+**Alternatives.**
+- **Keep Moveable + Selecto and only fix the redraw:** faster, but it keeps the fragile hand-off and two unmaintained libraries.
+- **Konva for the screen, with a shared layout feeding both painters:** possible, but it adds a painter and a pixel-parity test to keep the two from drifting.
+- **Konva's own text:** different Khmer from the customer's PNG.
+- **Polotno:** commercial, React.
+
+**Consequences.**
+- About 1,000 lines of interaction code are ours: geometry with unit tests, against a spec.
+- `vue3-moveable` and `vue3-selecto` are removed in R3.
+- The canvas e2e tests drive the overlay's own elements.
+- New canvas behaviour is added to `studio-behaviour.md` first, then built.

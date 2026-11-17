@@ -16,8 +16,9 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
   - **Step 2 done:** attach a published template to a shop and detach it (`/api/platform/templates/:id/shops`, `/api/platform/shops/:shopId/templates`; two-shop tests), archive and restore (archive detaches it everywhere), the templates list with thumbnails and shop counts, the studio's Shops dialog and ⋯ menu, the shop page's Templates card, and a template chosen when a shop is created (attached by a second request right after; on failure the shop page offers it).
   - **Not in PR B:** choosing an attached shop for the studio's Shop info preview (plan §5.4.4) and a shop's logo (the platform sets `logo_image_id`; no screen yet). Both are small and can come with PR C.
   - **Khmer to review:** `slipFill.*`, `platform.nav.templates`, `platform.shop.templates.*`, `platform.newShop.template`, `templateHelp`, `noTemplates` in `km.json`.
-- **Next: PR C (steps 3, 4)** after the owner reviews PR B. It needs the answers to [Q7 and Q11](plan.md#10-open-questions).
-- **Studio details agreed (2026-11-17):** [plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only), D32, D33. Still open: [Q11 and Q7](plan.md#10-open-questions), needed by steps 4 and 3.
+- **PR B merged (#13).** The owner found the studio's canvas worked badly (measured: 150–200 ms frames on a normal laptop).
+- **Next: PR B2, the studio rework (R1–R6, [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer)).** Built to the agreed [studio behaviour spec](studio-behaviour.md) (Phase 0 research, answers Q-S1–Q-S5 on 2026-11-17).
+- **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. **Q7 answered: a saved order can be edited**; its rules must be settled before step 3 ([plan §10](plan.md#10-open-questions)).
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
 ## Where we are (before D31)

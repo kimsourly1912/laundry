@@ -40,7 +40,7 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 - **Default template:** the owner chooses one. If none is set, **Create order** first asks the owner to choose, then remembers the choice. If the platform detaches or archives a shop's default, the owner chooses again; old orders are unaffected.
 - **Template versions:** each **Publish** makes a fixed version. New orders use the latest published version. **An order keeps the version it was made on forever**, so a customer's image never changes.
 - **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. There is no "ready" step.
-- **Mistakes:** **Cancel** the order and make a new one, like tearing up a paper slip. There's no edit-after-save in the first version.
+- **Mistakes:** ~~Cancel the order and make a new one; no edit-after-save.~~ **Changed by Q7 (owner, 2026-11-17): a saved order can be edited.** The rules (new image for the customer, template version, paid or picked-up orders, history) are settled before step 3 (§10).
 - **Telegram sends only the slip image** in the first version: no "ready" or "collected" messages, and no reminders.
 - **Never delete** orders (cancel instead), templates (archive instead) or shops (suspend instead).
 - **The platform never reads a shop's orders.** `/api/shop/**` still answers `403` to the super admin.
@@ -170,6 +170,8 @@ Colours: a palette of the slip's recent colours plus a picker with a hex box.
 
 ### 5.6 On the canvas (Canva's behaviour)
 
+> **The full rules, with edge cases and sources, are in [`studio-behaviour.md`](studio-behaviour.md)** (agreed 2026-11-17). It wins over this summary. Changes it made: Ctrl moves without snapping and Alt resizes from the centre or Alt-drag copies (was: Alt without snapping); Shift switches proportions on corner handles; Shift rotates in 15° steps; the rotate handle is below the selection; a click on a locked element passes through to what's under it; Esc cancels a drag.
+
 - **Select:** click an element; Shift+click adds or removes one; drag a box on an empty part of the canvas to select everything it touches. Locked elements and the background can't be selected on the canvas (use Layers).
 - **Move:** drag. Pressing an unselected element selects it and starts dragging at once.
 - **Resize:** eight handles. Corner handles keep the shape's proportions for images, icons and text; side handles don't.
@@ -180,6 +182,8 @@ Colours: a palette of the slip's recent colours plus a picker with a hex box.
 - **Pan:** scroll; or Space + drag; or the middle mouse button.
 
 ### 5.7 Keyboard shortcuts
+
+> The complete list is [`studio-behaviour.md` §13](studio-behaviour.md#13-keyboard-complete-list).
 
 - **Editing:** Delete or Backspace, Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z), Ctrl+C / Ctrl+V, Ctrl+D (duplicate)
 - **Moving:** arrow keys move 1 px, Shift+arrows 10 px
@@ -223,7 +227,7 @@ PNG or JPEG, ≤ 1 MB, 200–2000 px a side, checked from the file's own bytes (
 
    Not Fabric or Konva: they mean two drawing paths that drift apart.
 3. **Text is shaped by fontkit 3 and drawn as glyph paths** ([D32](decisions.md#d32-studio-canvas-and-slip-text)). The shared function shapes each line with fontkit and writes `<path>`s, so the SVG holds no `<text>` and resvg only rasterises. The studio and the server load the same font files and build the same SVG. Lines wrap only at spaces and new lines (Q14). fontkit is pinned and checked against HarfBuzz by a test.
-4. **Handles, snapping, rotation and selecting several elements: Moveable + Selecto** ([D32](decisions.md#d32-studio-canvas-and-slip-text)), pinned. They drive transparent boxes over the SVG and only write x, y, w, h and rotation into the design; the SVG is rebuilt from it. Konva is the fallback for this layer only.
+4. **Handles, snapping, rotation and selecting several elements: our own interaction layer** ([D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer), replacing D32's Moveable + Selecto). An HTML overlay in screen pixels over the SVG (the way opentempl works); it only writes x, y, w, h and rotation into the design. Each element is its own SVG component, so a move redraws only what changed.
 5. **Undo and redo:** a history of design snapshots (a design is small).
 6. **The studio is desktop only.** The owner's screens are mobile first (content up to 640 px wide).
 7. **Fonts:** Noto Sans Khmer (regular and bold) for Khmer and Latin.
@@ -273,6 +277,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 |---|---|---|
 | **A. Reset** | 1 | The spike and these plan decisions (D32, D33), then the reset |
 | **B. Studio** | S1–S5, 2 | Everything the platform uses: the studio, the templates list, attaching templates to shops |
+| **B2. Studio rework** | R1–R6 | The canvas rebuilt to [`studio-behaviour.md`](studio-behaviour.md) (D34): fast on a normal laptop, the agreed edge cases |
 | **C. Owner + Telegram** | 3, 4 | Everything the shop owner and the customer use |
 
 | # | Step | PR | Size | Status |
@@ -284,6 +289,12 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | Done, in PR B |
 | S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | Done, in PR B |
 | 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | Done, in PR B |
+| R1 | **Faster drawing:** shaped text cached; one memoised SVG component per element; output byte-identical to the server's | B2 | Medium | |
+| R2 | **Viewport:** the slip drawn at the zoomed size (no CSS scale); zoom about the pointer (V2); pan; Fit that follows the window | B2 | Medium | |
+| R3 | **Interaction layer:** pointer gestures, select (click, Shift, box), move, handles and rotate (`transform.ts`), several elements together, Esc cancels; Moveable and Selecto removed | B2 | Large | |
+| R4 | **Smart guides:** snapping to the slip and elements, equal gaps, Ctrl off, the Snap switch, live size and angle labels | B2 | Medium | |
+| R5 | **Text and polish:** text editing rules (§9 of the spec), hover outline, locked pass-through, floating toolbar flip, right-click menu, field labels on hover, choice-group highlight, keyboard additions | B2 | Medium | |
+| R6 | **Proof:** e2e for every rule, the performance check (spec P4), docs | B2 | Medium | |
 | 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | |
 | 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | |
 
@@ -300,10 +311,11 @@ Each step includes:
 **🤖 Claude Code:** ask the owner about these before the step that needs them, and record each answer here and in `decisions.md` if it's an architecture choice.
 
 Answered on 2026-11-17:
+- **Q11:** send the slip right after the scan; **no phone check** (no `telegram_pending`).
+- **Studio rework** (Phase 0 research, Q-S1–Q-S5) → [`studio-behaviour.md`](studio-behaviour.md), [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer).
 - **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
 - **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only), the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|
-| Q11 | Telegram: keep the **phone check** when the customer scans, or send the slip right after the scan? | Send right after the scan (simpler, order-only) | Step 4 |
-| Q7 | (Older) Is "cancel and make a new order" enough for mistakes, or is editing a saved order needed? | Cancel and remake for the first version (§4) | Step 3 |
+| Q7 | **Answered 2026-11-17: editing a saved order is needed** (not only cancel and remake; this changes §4). Before step 3, settle: does the customer get a new image after an edit; does the order stay on its template version; can a paid or picked-up order be edited; is the old value kept (history) or only audited? | To settle before step 3 | Step 3 |

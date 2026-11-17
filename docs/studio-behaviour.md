@@ -1,6 +1,6 @@
 # Studio behaviour spec (Phase 0)
 
-What every studio tool does, including the edge cases, **before** the canvas is rebuilt. Each rule has a source and the test that will prove it. Status: **draft for the owner's review** (2026-11-17). Once agreed, plan §5.6–5.7 points here and the rebuild (R1–R6) is checked against it.
+What every studio tool does, including the edge cases, **before** the canvas is rebuilt. Each rule has a source and the test that will prove it. Status: **agreed by the owner on 2026-11-17** (all of §17 as recommended). Plan §5.6–5.7 points here, and the rebuild (plan §9, R1–R6) is checked against it ([D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer)).
 
 > **🤖 Claude Code:** build nothing in the studio's canvas that isn't a rule here. A behaviour found missing while building is added here first (with a source), then built and tested.
 
@@ -15,7 +15,7 @@ What every studio tool does, including the edge cases, **before** the canvas is 
 | **PL** | Our plan §5 (agreed 2026-11-17) | Agreed product |
 | **US** | Our own studio, measured 2026-11-17 (a 50-element slip, CPU slowed 4×) | Problems to fix |
 
-Rule status: **Keep** (already agreed in plan §5), **New** (not in the plan), **Change** (differs from the plan, needs the owner's yes). Questions for the owner are marked **Q-S1, Q-S2, …** and listed in [§17](#17-questions-for-the-owner).
+Rule status: **Keep** (already in plan §5), **New** (not in the plan before), **Change** (differs from the plan's first version; agreed with §17). The owner's answers are in [§17](#17-questions-for-the-owner).
 
 ## 1. Performance (the reason for the rebuild)
 
@@ -223,7 +223,9 @@ Not taken from OT: tool keys (T, R, C, L…), groups (Ctrl+G), flip, find, comma
 
 ## 17. Questions for the owner
 
-| # | Question | Recommendation | Why |
+Answered 2026-11-17: **all as recommended.**
+
+| # | Question | Answer | Why |
 |---|---|---|---|
 | **Q-S1** | Clicking a **locked** element: pass the click through to what's under it, and select the locked one (badge, Unlock button) only when nothing else is there? Or never select locked elements on the canvas (plan §5.6, Figma)? | Pass through, then select with Unlock (OT) | A photo slip has locked labels on top of fields. Pass-through lets you click the field under it, and you can still unlock from the canvas without opening Layers |
 | **Q-S2** | Modifier keys: **Ctrl = no snapping**, **Alt = resize from centre / Alt-drag duplicates**? (The plan uses Alt for no snapping.) | Yes | Matches Figma and opentempl, so the platform's hands already know it. Alt can't mean two things |
