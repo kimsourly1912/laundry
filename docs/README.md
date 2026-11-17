@@ -21,6 +21,7 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) â†
 | Path | Holds |
 |---|---|
 | [`current-state.md`](current-state.md) | Where the project is, the next step, open questions, blockers. Short |
+| [`plan.md`](plan.md) | **The work plan (D31):** the slip studio, the owner's portal, data, steps, open questions |
 | [`decisions.md`](decisions.md) | Decisions: context, decision, alternatives, consequences |
 | [`standards/ui.md`](standards/ui.md) | Visual rules: Nuxt UI first, tokens, type, touch, actions, status, accessibility, expected behavior |
 | [`standards/page-patterns.md`](standards/page-patterns.md) | Resource index, settings, detail/editor, task flow, dashboard, page states |
