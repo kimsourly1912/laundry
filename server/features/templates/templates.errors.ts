@@ -8,6 +8,7 @@ export const TemplateErrorCodes = {
   INVALID_IMAGE: 'INVALID_IMAGE',
   UNKNOWN_IMAGE: 'UNKNOWN_IMAGE',
   PUBLISH_CHECKS_FAILED: 'PUBLISH_CHECKS_FAILED',
+  TEMPLATE_NOT_ATTACHABLE: 'TEMPLATE_NOT_ATTACHABLE',
 } as const
 
 export function templateNotFound() {
@@ -56,4 +57,21 @@ export function publishChecksFailed(errors: Problem<PublishError>[]) {
   const fieldErrors: Record<string, string[]> = {}
   for (const error of errors) (fieldErrors[error.key ?? 'design'] ??= []).push(PUBLISH_ERROR_TEXT[error.code])
   return apiError(422, TemplateErrorCodes.PUBLISH_CHECKS_FAILED, PUBLISH_ERROR_TEXT[errors[0]!.code], { fieldErrors })
+}
+
+export function shopNotFound() {
+  return notFound('The shop')
+}
+
+/** Only a published template can be attached: a draft has no version for orders, an archived one is retired. */
+export function templateNotAttachable() {
+  return apiError(422, TemplateErrorCodes.TEMPLATE_NOT_ATTACHABLE, 'Only a published template can be attached to a shop.')
+}
+
+export function alreadyArchived() {
+  return apiError(409, ErrorCodes.INVALID_STATE, 'This template is already archived.')
+}
+
+export function notArchived() {
+  return apiError(409, ErrorCodes.INVALID_STATE, 'This template is not archived.')
 }

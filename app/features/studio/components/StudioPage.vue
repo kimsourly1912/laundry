@@ -17,6 +17,7 @@ import { fitTextHeights } from '../utils/design-ops'
 import ElementToolbar from './ElementToolbar.vue'
 import DrawingPanels from './DrawingPanels.vue'
 import FormPanel from './FormPanel.vue'
+import TemplateShopsModal from './TemplateShopsModal.vue'
 import UploadsPanel from './UploadsPanel.vue'
 import ShopInfoPanel from './ShopInfoPanel.vue'
 import LayersPanel from './LayersPanel.vue'
@@ -89,6 +90,24 @@ onBeforeUnmount(() => {
 })
 
 const canvas = ref<InstanceType<typeof StudioCanvas>>()
+
+// --- Shops and archive (step 2) ---
+
+const shopsOpen = ref(false)
+const archiveOpen = ref(false)
+const moreItems = computed(() => [[saved.value.status === 'archived'
+  ? { label: t('studio.archive.restore'), icon: 'i-lucide-archive-restore', onSelect: () => runStatus('restore') }
+  : { label: t('studio.archive.archive'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } }]])
+async function runStatus(action: 'archive' | 'restore') {
+  archiveOpen.value = false
+  try {
+    await (action === 'archive' ? draft.archive() : draft.restore())
+    toast.add({ title: t(action === 'archive' ? 'studio.archive.archived' : 'studio.archive.restored'), color: 'success', icon: 'i-lucide-circle-check' })
+  }
+  catch (error) {
+    toast.add({ title: errorText(error, t, te), color: 'error', icon: 'i-lucide-circle-alert' })
+  }
+}
 
 // --- Resize the canvas (plan §5.1): 200–2000 px a side; the PNG is this size ---
 
@@ -271,12 +290,27 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           @click="openTry"
         />
         <UButton
+          :label="t('studio.shops.open')"
+          icon="i-lucide-store"
+          color="neutral"
+          variant="outline"
+          @click="shopsOpen = true"
+        />
+        <UButton
           :label="t('studio.preview.open')"
           icon="i-lucide-eye"
           color="neutral"
           variant="outline"
           @click="openPreview"
         />
+        <UDropdownMenu :items="moreItems">
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('studio.archive.menu')"
+          />
+        </UDropdownMenu>
         <UButton
           :label="t('studio.publish.open')"
           icon="i-lucide-upload"
@@ -286,6 +320,15 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
       </div>
     </header>
 
+    <UAlert
+      v-if="saved.status === 'archived'"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-archive"
+      :title="t('studio.archive.banner')"
+      :actions="[{ label: t('studio.archive.restore'), color: 'neutral', variant: 'outline', onClick: () => runStatus('restore') }]"
+      class="rounded-none"
+    />
     <UAlert
       v-if="status === 'conflict'"
       color="warning"
@@ -392,6 +435,34 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           >
             {{ t('studio.preview.failed') }}
           </p>
+        </div>
+      </template>
+    </UModal>
+
+    <TemplateShopsModal
+      v-model:open="shopsOpen"
+      :template-id="template.id"
+      :published="saved.status === 'published'"
+    />
+
+    <UModal
+      v-model:open="archiveOpen"
+      :title="t('studio.archive.confirmTitle')"
+      :description="t('studio.archive.confirmDescription')"
+    >
+      <template #footer>
+        <div class="flex w-full justify-end gap-2">
+          <UButton
+            :label="t('common.actions.cancel')"
+            color="neutral"
+            variant="ghost"
+            @click="archiveOpen = false"
+          />
+          <UButton
+            :label="t('studio.archive.archive')"
+            color="error"
+            @click="runStatus('archive')"
+          />
         </div>
       </template>
     </UModal>

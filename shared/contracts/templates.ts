@@ -70,6 +70,8 @@ export interface TemplateSummary {
   height: number
   /** The latest published version's number, `null` before the first Publish. */
   latestVersion: number | null
+  /** How many shops it's attached to. */
+  shopCount: number
   /** Send it back with every change (409 when the template changed meanwhile). */
   version: number
   /** ISO 8601. */
@@ -77,11 +79,44 @@ export interface TemplateSummary {
   updatedAt: string
 }
 
+/** In the platform's list: the draft too, for the thumbnail. */
+export interface TemplateListItem extends TemplateSummary {
+  design: SlipDesign
+}
+
 /** One template, with its draft (`GET …/:id`, and the answer to every change). */
 export interface TemplateDetail extends TemplateSummary {
   design: SlipDesign
   /** Whether the draft differs from the latest version: Publish has something to fix. */
   hasUnpublishedChanges: boolean
+}
+
+/** `POST …/archive` and `…/restore`: the version the platform saw. */
+export const templateStatusChangeSchema = v.strictObject({ version: versionSchema })
+export type TemplateStatusChangeInput = v.InferOutput<typeof templateStatusChangeSchema>
+
+// --- Attachments (plan §4, step 2) ---
+
+/** `POST /api/platform/templates/:id/shops`: attaches a published template to a shop. */
+export const attachTemplateSchema = v.strictObject({ shopId: idSchema })
+export type AttachTemplateInput = v.InferOutput<typeof attachTemplateSchema>
+
+/** A shop a template is attached to (`GET …/templates/:id/shops`). */
+export interface TemplateShop {
+  shopId: string
+  name: string
+  /** The shop's owner chose it as the default (step 3). */
+  isDefault: boolean
+  attachedAt: string
+}
+
+/** A template attached to a shop (`GET /api/platform/shops/:shopId/templates`). */
+export interface ShopTemplate {
+  templateId: string
+  name: string
+  status: TemplateStatus
+  isDefault: boolean
+  attachedAt: string
 }
 
 // --- Images (plan §5.9) ---

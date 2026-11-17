@@ -1,3 +1,4 @@
 /** The templates feature's public API (docs/server/architecture.md → Features). */
-export { createTemplate, getTemplate, listTemplates, previewTemplate, publishTemplate, updateTemplate } from './templates.service'
+export { archiveTemplate, createTemplate, getTemplate, listTemplates, previewTemplate, publishTemplate, restoreTemplate, updateTemplate } from './templates.service'
+export { attachTemplate, detachTemplate, shopTemplates, templateShops } from './attachments.service'
 export { getImage, imageBytes, listImages, uploadImage } from './images.service'

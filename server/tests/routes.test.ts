@@ -69,6 +69,13 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/images/index.get.ts': `{ template: ['read'] }`,
   'platform/images/index.post.ts': `{ template: ['write'] }`,
   'platform/images/[id].get.ts': `{ template: ['read'] }`,
+  // Step 2: archive and attachments. Attaching changes what a shop may use: it needs `shop: ['update']` too.
+  'platform/templates/[id]/archive.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[id]/restore.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[id]/shops/index.get.ts': `{ template: ['read'], shop: ['read'] }`,
+  'platform/templates/[id]/shops/index.post.ts': `{ template: ['write'], shop: ['update'] }`,
+  'platform/templates/[id]/shops/[shopId].delete.ts': `{ template: ['write'], shop: ['update'] }`,
+  'platform/shops/[shopId]/templates.get.ts': `{ shop: ['read'], template: ['read'] }`,
 }
 
 /**

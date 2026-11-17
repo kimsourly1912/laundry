@@ -2,7 +2,7 @@ import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
-import type { CreateTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListQuery, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
+import type { CreateTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListItem, TemplateListQuery, TemplateStatusChangeInput, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
 import { sampleData } from '#shared/slip/fields'
 import { imagesOf } from '#shared/slip/svg'
 import { publishProblems } from '#shared/slip/checks'
@@ -15,7 +15,8 @@ import type { AuditEntry } from '#server/features/platform'
 import type { PlatformActor } from '#server/features/identity'
 import { findImage } from './images.repository'
 import { requireImages, slipImages } from './images.service'
-import { imageNotFound, nothingToPublish, publishChecksFailed, templateArchived, templateChanged, templateNameTaken, templateNotFound } from './templates.errors'
+import { shopCounts, detachEverywhereStatement } from './attachments.repository'
+import { alreadyArchived, imageNotFound, notArchived, nothingToPublish, publishChecksFailed, templateArchived, templateChanged, templateNameTaken, templateNotFound } from './templates.errors'
 import { renderSlipPng } from './templates.render'
 import * as repo from './templates.repository'
 import type { TemplateRow } from './templates.repository'
@@ -33,9 +34,9 @@ function audit(db: Db, actor: PlatformActor, templateId: string, entry: Omit<Aud
   return auditStatement(db, { userId: actor.userId, shopId: null, requestId: actor.requestId }, { ...entry, targetType: 'template', targetId: templateId }, now)
 }
 
-function toSummary(row: TemplateRow, latestVersion: number | null): TemplateSummary {
+function toSummary(row: TemplateRow, counts: { latestVersion: number | null, shopCount: number }): TemplateSummary {
   const { id, name, status, design, version, createdAt, updatedAt } = row
-  return { id, name, status, width: design.width, height: design.height, latestVersion, version, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() }
+  return { id, name, status, width: design.width, height: design.height, ...counts, version, createdAt: createdAt.toISOString(), updatedAt: updatedAt.toISOString() }
 }
 
 /** Valibot's output keeps the schema's key order, so equal designs are equal JSON. */
@@ -49,15 +50,46 @@ async function loadTemplate(db: Db, templateId: string): Promise<TemplateRow> {
   return row
 }
 
-export async function listTemplates(db: Db, query: TemplateListQuery): Promise<Page<TemplateSummary>> {
+/** The platform's list, each with its draft for the thumbnail and how many shops use it. */
+export async function listTemplates(db: Db, query: TemplateListQuery): Promise<Page<TemplateListItem>> {
   const { rows, total } = await repo.listTemplates(db, query)
-  const latest = await repo.latestNumbers(db, rows.map(row => row.id))
-  return toPage(rows.map(row => toSummary(row, latest.get(row.id) ?? null)), query, total)
+  const ids = rows.map(row => row.id)
+  const [latest, shops] = await Promise.all([repo.latestNumbers(db, ids), shopCounts(db, ids)])
+  return toPage(rows.map(row => ({ ...toSummary(row, { latestVersion: latest.get(row.id) ?? null, shopCount: shops.get(row.id) ?? 0 }), design: row.design })), query, total)
 }
 
 export async function getTemplate(db: Db, templateId: string): Promise<TemplateDetail> {
+  const [row, latest, shops] = await Promise.all([loadTemplate(db, templateId), repo.findLatestVersion(db, templateId), shopCounts(db, [templateId])])
+  const summary = toSummary(row, { latestVersion: latest?.number ?? null, shopCount: shops.get(templateId) ?? 0 })
+  return { ...summary, design: row.design, hasUnpublishedChanges: !latest || !sameDesign(latest.design, row.design) }
+}
+
+/**
+ * Archives the template (plan §4: never deleted): hidden from the list, no longer attachable, and
+ * detached from every shop in the same batch, so no new order uses it. Its versions and orders stay.
+ */
+export async function archiveTemplate(db: Db, actor: PlatformActor, templateId: string, input: TemplateStatusChangeInput, now = new Date()): Promise<TemplateDetail> {
+  const row = await loadTemplate(db, templateId)
+  if (row.status === 'archived') throw alreadyArchived()
+  await runBatch(db, [
+    repo.updateTemplateAtVersion(db, { id: templateId, version: input.version, now, set: { status: 'archived' } }),
+    requireOneChange(db),
+    detachEverywhereStatement(db, templateId),
+    audit(db, actor, templateId, { action: 'template.archive' }, now),
+  ], templateChanged)
+  return getTemplate(db, templateId)
+}
+
+/** Brings an archived template back: published if it has a version, else a draft. Shops are attached again by hand. */
+export async function restoreTemplate(db: Db, actor: PlatformActor, templateId: string, input: TemplateStatusChangeInput, now = new Date()): Promise<TemplateDetail> {
   const [row, latest] = await Promise.all([loadTemplate(db, templateId), repo.findLatestVersion(db, templateId)])
-  return { ...toSummary(row, latest?.number ?? null), design: row.design, hasUnpublishedChanges: !latest || !sameDesign(latest.design, row.design) }
+  if (row.status !== 'archived') throw notArchived()
+  await runBatch(db, [
+    repo.restoreTemplateAtVersion(db, { id: templateId, version: input.version, now, status: latest ? 'published' : 'draft' }),
+    requireOneChange(db),
+    audit(db, actor, templateId, { action: 'template.restore' }, now),
+  ], templateChanged)
+  return getTemplate(db, templateId)
 }
 
 /** Where each image the design draws is named, for `requireImages`'s error. */

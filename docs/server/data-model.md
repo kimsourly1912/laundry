@@ -69,7 +69,7 @@ erDiagram
 
 ## `templates`, `template_versions`, `template_shops`, `images` (owner: `templates`)
 
-**Status:** tables built in step 1. S1 built the templates' and images' code: create (blank, photo, copy), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 builds attachments and archive.
+**Status:** tables built in step 1. S1 built the templates' and images' code: create (blank, photo, copy), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.
@@ -149,7 +149,7 @@ The phone check's table (`telegram_pending`) comes back in step 4 only if the ow
 | `id` | text PK | UUID v7 |
 | `shop_id` | text null | FK → `organization.id`, restrict. The shop the action happened **in**; `null` for a platform action, whose shop is the target ([D19](../decisions.md#d19-platform-actions-and-their-audit-rows)) |
 | `actor_user_id` | text | Plain text, no FK: the trail outlives account changes |
-| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `shop.settings.update`, `owner.reset-password`, `owner.revoke-sessions`, `template.create`, `template.rename`, `template.publish`, `image.upload`. A template's draft autosave (about once a second while editing) writes none: a draft reaches no shop until it's published |
+| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `shop.settings.update`, `owner.reset-password`, `owner.revoke-sessions`, `template.create`, `template.rename`, `template.publish`, `template.archive`, `template.restore`, `template.attach`, `template.detach` (with the shop's id in `data`), `image.upload`. A template's draft autosave (about once a second while editing) writes none: a draft reaches no shop until it's published |
 | `target_type`, `target_id` | text | `shop` + the shop's id |
 | `data` | json null | Which fields changed, ids; never passwords or personal values |
 | `request_id` | text null | Leads to the request's log lines |

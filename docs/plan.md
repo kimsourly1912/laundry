@@ -283,7 +283,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | Done, in PR B |
 | S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | Done, in PR B |
 | S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | Done, in PR B |
-| 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | |
+| 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | Done, in PR B |
 | 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | |
 | 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | |
 

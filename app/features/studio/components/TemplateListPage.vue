@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /** The platform's templates (plan §5.2, step 2 adds thumbnails and attached shops): status tabs, search, pages in the URL. */
 import type { Page } from '#shared/contracts/common'
-import type { TemplateSummary } from '#shared/contracts/templates'
+import type { TemplateListItem } from '#shared/contracts/templates'
+import { sampleData } from '#shared/slip/fields'
+import { SlipSvg, useSlipText } from '~/features/slip-fill'
 import NewTemplateModal from './NewTemplateModal.vue'
 
 const { t, locale } = useI18n()
@@ -17,8 +19,11 @@ watch(search, (value) => {
 })
 onBeforeUnmount(() => clearTimeout(typing))
 
-const templates = useApiQuery('studio:templates', () => apiFetch<Page<TemplateSummary>>('/platform/templates', { query: query.value }), { watch: [query] })
+const templates = useApiQuery('studio:templates', () => apiFetch<Page<TemplateListItem>>('/platform/templates', { query: query.value }), { watch: [query] })
 const creating = ref(false)
+// Thumbnails: each template's draft drawn by the shared builder, with sample values.
+const { text } = useSlipText()
+const today = new Date().toISOString().slice(0, 10)
 
 const tabs = computed(() => [
   { label: t('studio.list.tabs.current'), value: '' },
@@ -108,12 +113,25 @@ function clearFilters() {
               :to="`/platform/templates/${template.id}`"
               class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-elevated/50 focus-visible:outline-2 focus-visible:outline-primary"
             >
-              <div class="min-w-0 space-y-0.5">
+              <div
+                class="w-28 shrink-0 overflow-hidden rounded border border-default bg-white"
+                :style="{ aspectRatio: `${template.width} / ${template.height}` }"
+                aria-hidden="true"
+              >
+                <SlipSvg
+                  v-if="text"
+                  :design="template.design"
+                  :data="sampleData(template.design, { date: today })"
+                  :text="text"
+                  :id-prefix="`thumb-${template.id}-`"
+                />
+              </div>
+              <div class="min-w-0 flex-1 space-y-0.5">
                 <p class="font-medium break-words">
                   {{ template.name }}
                 </p>
                 <p class="text-sm text-muted">
-                  {{ template.width }} × {{ template.height }} px · {{ template.latestVersion ? t('studio.list.version', { number: template.latestVersion }) : t('studio.list.neverPublished') }}
+                  {{ template.width }} × {{ template.height }} px · {{ template.latestVersion ? t('studio.list.version', { number: template.latestVersion }) : t('studio.list.neverPublished') }} · {{ t('studio.list.shops', template.shopCount) }}
                 </p>
                 <p class="text-xs text-muted">
                   {{ t('studio.list.updated', { date: formatDate(template.updatedAt, locale) }) }}

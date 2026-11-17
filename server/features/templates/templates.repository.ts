@@ -8,8 +8,8 @@ import { templates, templateVersions } from './templates.schema'
 
 /**
  * Templates and their versions (data-model → templates). Platform tables: no `shop_id`, and only the
- * platform's routes reach these functions. A shop reaches a template through `template_shops` (S1
- * has none yet: step 2 and step 3).
+ * platform's routes reach these functions. A shop reaches a template through `template_shops`
+ * (`attachments.repository.ts`) or its own order.
  */
 
 // --- Reads ---
@@ -115,6 +115,14 @@ export function updateTemplateAtVersion(db: Db, change: TemplateChange): Stateme
   return db.update(templates)
     .set({ ...set, version: sql`${templates.version} + 1`, updatedAt: now })
     .where(and(eq(templates.id, id), eq(templates.version, version), ne(templates.status, 'archived')))
+}
+
+/** Brings an archived template back to `status`, only while it's still at `version` and archived. Follow it with `requireOneChange`. */
+export function restoreTemplateAtVersion(db: Db, change: { id: string, version: number, now: Date, status: 'draft' | 'published' }): Statement {
+  const { id, version, now, status } = change
+  return db.update(templates)
+    .set({ status, version: sql`${templates.version} + 1`, updatedAt: now })
+    .where(and(eq(templates.id, id), eq(templates.version, version), eq(templates.status, 'archived')))
 }
 
 interface NewVersion {

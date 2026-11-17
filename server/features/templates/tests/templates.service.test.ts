@@ -195,7 +195,7 @@ describe('listTemplates', () => {
 
     const all = await listTemplates(db, { page: 1, pageSize: 20 })
     expect(all.items.map(item => item.id)).toEqual([a.id, b.id])
-    expect(all.items[0]).toEqual({ id: a.id, name: 'Linda slip 2', status: 'draft', width: 1200, height: 800, latestVersion: null, version: 2, createdAt: a.createdAt, updatedAt: expect.any(String) })
+    expect(all.items[0]).toEqual({ id: a.id, name: 'Linda slip 2', status: 'draft', width: 1200, height: 800, latestVersion: null, shopCount: 0, version: 2, createdAt: a.createdAt, updatedAt: expect.any(String), design: a.design })
     expect((await listTemplates(db, { status: 'archived', page: 1, pageSize: 20 })).items.map(item => item.id)).toEqual([c.id])
     expect((await listTemplates(db, { search: 'linda', page: 1, pageSize: 20 })).items.map(item => item.id)).toEqual([a.id])
     expect(await listTemplates(db, { page: 2, pageSize: 1 })).toMatchObject({ total: 2, items: [{ id: b.id }] })

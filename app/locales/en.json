@@ -163,7 +163,10 @@
       "username": "Username",
       "password": "Temporary password",
       "submit": "Create shop",
-      "created": "{shop} was created."
+      "created": "{shop} was created.",
+      "template": "Template",
+      "templateHelp": "Attached to the shop as soon as it's created. More can be attached on the shop's page.",
+      "noTemplates": "No published template yet: publish one in Templates, then attach it on the shop's page."
     },
     "shop": {
       "title": "Shop",
@@ -192,7 +195,20 @@
       "resume": "Resume shop",
       "resumeDescription": "The owner can use the shop again.",
       "resumed": "The shop was resumed.",
-      "notFound": "This shop doesn't exist."
+      "notFound": "This shop doesn't exist.",
+      "templates": {
+        "title": "Templates",
+        "description": "The slips this shop's owner can fill. The owner picks the default.",
+        "none": "No template yet: the owner can't take orders until one is attached.",
+        "default": "Default",
+        "detach": "Detach",
+        "add": "Attach a template",
+        "choose": "Choose a published template",
+        "noneToAdd": "No other published template",
+        "attach": "Attach",
+        "attached": "The template was attached.",
+        "detached": "The template was detached."
+      }
     }
   },
   "overview": {
@@ -271,7 +287,8 @@
       "noMatch": "No templates match",
       "version": "Version {number}",
       "neverPublished": "Not published yet",
-      "updated": "Changed {date}"
+      "updated": "Changed {date}",
+      "shops": "No shops|1 shop|{count} shops"
     },
     "new": {
       "title": "New template",
@@ -487,6 +504,28 @@
       "title": "Canvas size",
       "description": "The customer's picture is this size. Elements keep their places.",
       "apply": "Resize"
+    },
+    "shops": {
+      "open": "Shops",
+      "title": "Shops using this template",
+      "description": "The owner of each shop can fill this slip. Only a published template can be attached.",
+      "none": "Not attached to any shop.",
+      "add": "Attach to a shop",
+      "choose": "Choose a shop",
+      "attach": "Attach",
+      "detach": "Detach",
+      "default": "Default",
+      "notPublished": "Publish the template before attaching it."
+    },
+    "archive": {
+      "menu": "More",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archived": "The template is archived.",
+      "restored": "The template is restored.",
+      "banner": "This template is archived: it can't be changed or attached. Restore it to use it again.",
+      "confirmTitle": "Archive this template?",
+      "confirmDescription": "It's detached from every shop and hidden from the list. Orders made on it keep their slips."
     }
   },
   "slipFill": {

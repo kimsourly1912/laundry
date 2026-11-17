@@ -50,10 +50,18 @@ export function useTemplateDraft(loaded: TemplateDetail) {
    * one on screen. Resolves to the answer, or throws its `ApiError`.
    */
   async function publish(): Promise<TemplateDetail> {
+    return act('publish')
+  }
+
+  /**
+   * Publish, archive or restore (step 2): what waits is saved first, then the action at the version
+   * the last save answered; the saver carries on from the answer's version.
+   */
+  async function act(action: 'publish' | 'archive' | 'restore'): Promise<TemplateDetail> {
     await saver.flush()
     if (status.value === 'conflict') throw new ApiError({ kind: 'conflict', status: 409, code: 'VERSION_CONFLICT' })
     if (status.value !== 'saved') throw new ApiError({ kind: 'network', status: 0 })
-    const answer = await apiFetch<TemplateDetail>(`/platform/templates/${loaded.id}/publish`, { method: 'POST', body: { version: saver.version() } })
+    const answer = await apiFetch<TemplateDetail>(`/platform/templates/${loaded.id}/${action}`, { method: 'POST', body: { version: saver.version() } })
     saver.setVersion(answer.version)
     saved.value = answer
     return answer
@@ -69,6 +77,8 @@ export function useTemplateDraft(loaded: TemplateDetail) {
     saveDesign,
     rename,
     publish,
+    archive: () => act('archive'),
+    restore: () => act('restore'),
     retry: () => saver.retry(),
   }
 }
