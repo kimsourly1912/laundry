@@ -1,11 +1,19 @@
+import { MAX_DESIGN_BYTES } from '#shared/contracts/slip-design'
+import { IMAGE_MAX_BYTES } from '#shared/contracts/templates'
 import { MAX_JSON_BYTES } from './validation'
+
+/** The studio's design: a template's save and preview (`/api/platform/templates/:id`, `…/preview`). */
+const DESIGN_PATH = /^\/api\/platform\/templates\/[^/]+(?:\/preview)?$/
 
 /**
  * The largest body the Worker accepts for a path, or `undefined` for no cap (not an API path).
- * API routes take JSON (64 KB). The studio's image upload (plan S1) adds its own path and limit.
+ * API routes take JSON (64 KB); the studio's design and image upload take more (plan S1). Each
+ * route still checks its own limit: this only keeps the Worker's memory safe.
  */
 export function workerBodyLimit(path: string): number | undefined {
   if (!path.startsWith('/api/')) return undefined
+  if (path === '/api/platform/images') return IMAGE_MAX_BYTES
+  if (DESIGN_PATH.test(path)) return MAX_DESIGN_BYTES
   return MAX_JSON_BYTES
 }
 

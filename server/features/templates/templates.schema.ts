@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { IMAGE_MAX_BYTES, IMAGE_MAX_SIDE, IMAGE_MIN_SIDE, IMAGE_TYPES, TEMPLATE_STATUSES } from '#shared/contracts/templates'
+import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 
 /**
@@ -7,15 +9,12 @@ import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
  * in the studio and attaches them to shops. `templates`, `template_versions` and `images` are
  * platform tables (no `shop_id`); `template_shops` is shop-owned.
  *
- * A design is one JSON document, checked by its Valibot schema on every write (S1): read whole,
+ * A design is one JSON document, checked by its Valibot schema on every write: read whole,
  * never queried inside. Templates are archived, never deleted; versions never change.
  */
 
-export const TEMPLATE_STATUSES = ['draft', 'published', 'archived'] as const
-export type TemplateStatus = typeof TEMPLATE_STATUSES[number]
-
-/** The design document's shape is the studio's contract (S1); the database only stores it. */
-export type StoredDesign = Record<string, unknown>
+/** The design document's shape is `designSchema` (`#shared/contracts/slip-design`), checked on every write. */
+export type StoredDesign = SlipDesign
 
 export const templates = sqliteTable('templates', {
   id: text().primaryKey(),
@@ -70,12 +69,6 @@ export const templateShops = sqliteTable('template_shops', {
   // The shops a template is attached to (the template's page).
   index('template_shops_template_idx').on(table.templateId),
 ])
-
-export const IMAGE_TYPES = ['image/png', 'image/jpeg'] as const
-export type ImageType = typeof IMAGE_TYPES[number]
-export const IMAGE_MAX_BYTES = 1024 * 1024
-export const IMAGE_MIN_SIDE = 200
-export const IMAGE_MAX_SIDE = 2000
 
 /**
  * The platform's uploaded images (plan §5.9): slip backgrounds, pictures on a slip, shop logos.

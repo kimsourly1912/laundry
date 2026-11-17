@@ -6,7 +6,7 @@ What runs on every request before a route, in order, and the two routes every de
 
 | Step | Where | Does |
 |---|---|---|
-| Body cap (Cloudflare only) | `server/cloudflare-entry.ts` + `server/utils/worker-body.ts` | Refuses an `/api/**` body over 64 KB with `413` **before** Nitro buffers it ([D11](../decisions.md#d11-worker-body-cap)) |
+| Body cap (Cloudflare only) | `server/cloudflare-entry.ts` + `server/utils/worker-body.ts` | Refuses an `/api/**` body over 64 KB with `413` **before** Nitro buffers it ([D11](../decisions.md#d11-worker-body-cap)). By exact path, two exceptions (plan S1): `POST /api/platform/images` ≤ 1 MB, and a template's save and preview (`/api/platform/templates/:id`, `…/preview`) ≤ 256 KB |
 | Request id | `server/middleware/00.request-id.ts` | `event.context.requestId`: `cf-ray` if it's a short safe token, else `newId()`. Sent back as `X-Request-Id`, in error bodies and logs |
 | Origin check | `server/middleware/10.origin-check.ts` | Non-GET `/api/**` must have `Origin` (or `Referer`) equal to the request's origin or `NUXT_PUBLIC_SITE_URL`, else `403 FORBIDDEN`. Exempt: `/api/auth/**` (Better Auth checks its own), `/api/webhooks/**` (secret header) |
 | Rate limit | `server/middleware/20.rate-limit.ts` | Per-address limits on `/api/public/**` and `/api/webhooks/**`, else `429 RATE_LIMITED` with `Retry-After: 60` |

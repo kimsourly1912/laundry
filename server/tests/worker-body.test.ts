@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { MAX_DESIGN_BYTES } from '#shared/contracts/slip-design'
+import { IMAGE_MAX_BYTES } from '#shared/contracts/templates'
 import { MAX_JSON_BYTES } from '#server/utils/validation'
 import { boundedWorkerRequest, workerBodyLimit } from '#server/utils/worker-body'
 
@@ -26,6 +28,13 @@ describe('workerBodyLimit', () => {
   it('caps API paths at the JSON limit and leaves pages alone', () => {
     expect(workerBodyLimit('/api/shop/orders')).toBe(MAX_JSON_BYTES)
     expect(workerBodyLimit('/orders/new')).toBeUndefined()
+    // The studio's design and image upload (plan S1), and nothing else under their paths.
+    expect(workerBodyLimit('/api/platform/images')).toBe(IMAGE_MAX_BYTES)
+    expect(workerBodyLimit('/api/platform/images/x')).toBe(MAX_JSON_BYTES)
+    expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001')).toBe(MAX_DESIGN_BYTES)
+    expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001/preview')).toBe(MAX_DESIGN_BYTES)
+    expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001/publish')).toBe(MAX_JSON_BYTES)
+    expect(workerBodyLimit('/api/platform/templates')).toBe(MAX_JSON_BYTES)
   })
 })
 

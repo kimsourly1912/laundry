@@ -59,6 +59,16 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/shops/[shopId]/resume.post.ts': `{ shop: ['suspend'] }`,
   'platform/shops/[shopId]/owner/reset-password.post.ts': `{ owner: ['reset-password'] }`,
   'platform/shops/[shopId]/owner/revoke-sessions.post.ts': `{ owner: ['revoke-sessions'] }`,
+  // The studio (plan S1): reading a template, its preview and images is `read`; changing them is `write`.
+  'platform/templates/index.get.ts': `{ template: ['read'] }`,
+  'platform/templates/index.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[id]/index.get.ts': `{ template: ['read'] }`,
+  'platform/templates/[id]/index.patch.ts': `{ template: ['write'] }`,
+  'platform/templates/[id]/publish.post.ts': `{ template: ['write'] }`,
+  'platform/templates/[id]/preview.post.ts': `{ template: ['read'] }`,
+  'platform/images/index.get.ts': `{ template: ['read'] }`,
+  'platform/images/index.post.ts': `{ template: ['write'] }`,
+  'platform/images/[id].get.ts': `{ template: ['read'] }`,
 }
 
 /**

@@ -1,4 +1,4 @@
-// SPIKE: the part of fontkit 3's API the studio spike uses (fontkit ships no types).
+// The part of fontkit 3's API the slip builder uses (fontkit ships no types). D32.
 declare module 'fontkit' {
   export interface Glyph {
     id: number
@@ -17,7 +17,9 @@ declare module 'fontkit' {
   }
   export interface Font {
     unitsPerEm: number
+    /** Font units above the baseline (positive). */
     ascent: number
+    /** Font units below the baseline (negative). */
     descent: number
     layout: (text: string) => GlyphRun
   }

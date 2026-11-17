@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { blankDesign } from '#shared/contracts/slip-design'
 import { images, templateShops, templates, templateVersions } from '#server/features/templates/templates.schema'
 import type { Db } from '#server/utils/batch'
 import { createTestDb } from '#server/tests/support/db'
@@ -55,15 +56,15 @@ describe('template_shops', () => {
 
 describe('templates and versions', () => {
   it('names are unique whatever the case', async () => {
-    const design = { elements: [] }
+    const design = blankDesign(800, 520)
     await db.insert(templates).values({ id: '01900000-0000-7000-8000-000000000001', name: 'Linda slip', design, createdBy: a.userId })
     await expect(db.insert(templates).values({ id: '01900000-0000-7000-8000-000000000002', name: 'LINDA SLIP', design, createdBy: a.userId })).rejects.toThrow()
   })
 
   it('a version number is used once per template; a template with versions can\'t be deleted', async () => {
     const { templateId } = await createTestTemplate(db, a.userId)
-    await expect(db.insert(templateVersions).values({ id: '01900000-0000-7000-8000-000000000003', templateId, number: 1, design: {}, createdBy: a.userId })).rejects.toThrow()
-    await db.insert(templateVersions).values({ id: '01900000-0000-7000-8000-000000000004', templateId, number: 2, design: {}, createdBy: a.userId })
+    await expect(db.insert(templateVersions).values({ id: '01900000-0000-7000-8000-000000000003', templateId, number: 1, design: blankDesign(800, 520), createdBy: a.userId })).rejects.toThrow()
+    await db.insert(templateVersions).values({ id: '01900000-0000-7000-8000-000000000004', templateId, number: 2, design: blankDesign(800, 520), createdBy: a.userId })
     await expect(db.delete(templates).where(eq(templates.id, templateId))).rejects.toThrow()
   })
 })

@@ -69,9 +69,9 @@ erDiagram
 
 ## `templates`, `template_versions`, `template_shops`, `images` (owner: `templates`)
 
-**Status:** tables built in step 1; the studio (S1–S5) and the platform screens (step 2) build their code.
+**Status:** tables built in step 1. S1 built the templates' and images' code: create (blank, photo, copy), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 builds attachments and archive.
 
-`templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited), `version`, `created_by` (→ `user.id`), timestamps.
+`templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.
 - **Archived, never deleted.** Its versions and the orders made on them stay.
 
@@ -149,7 +149,7 @@ The phone check's table (`telegram_pending`) comes back in step 4 only if the ow
 | `id` | text PK | UUID v7 |
 | `shop_id` | text null | FK → `organization.id`, restrict. The shop the action happened **in**; `null` for a platform action, whose shop is the target ([D19](../decisions.md#d19-platform-actions-and-their-audit-rows)) |
 | `actor_user_id` | text | Plain text, no FK: the trail outlives account changes |
-| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `shop.settings.update`, `owner.reset-password`, `owner.revoke-sessions` |
+| `action` | text | `resource.verb`: `shop.create`, `shop.update`, `shop.suspend`, `shop.resume`, `shop.settings.update`, `owner.reset-password`, `owner.revoke-sessions`, `template.create`, `template.rename`, `template.publish`, `image.upload`. A template's draft autosave (about once a second while editing) writes none: a draft reaches no shop until it's published |
 | `target_type`, `target_id` | text | `shop` + the shop's id |
 | `data` | json null | Which fields changed, ids; never passwords or personal values |
 | `request_id` | text null | Leads to the request's log lines |

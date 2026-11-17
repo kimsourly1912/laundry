@@ -128,7 +128,8 @@
   },
   "platform": {
     "nav": {
-      "shops": "ហាង"
+      "shops": "ហាង",
+      "templates": "គំរូ"
     },
     "shops": {
       "title": "ហាង",

@@ -128,7 +128,8 @@
   },
   "platform": {
     "nav": {
-      "shops": "Shops"
+      "shops": "Shops",
+      "templates": "Templates"
     },
     "shops": {
       "title": "Shops",
@@ -206,5 +207,86 @@
     "support": "Need a change or help?",
     "supportDescription": "A change to your slip, a problem: message us and we'll set it up for you.",
     "contactSupport": "Contact support"
+  },
+  "studio": {
+    "title": "Studio",
+    "back": "Templates",
+    "name": "Template name",
+    "rename": "Rename {name}",
+    "status": {
+      "draft": "Draft",
+      "published": "Published",
+      "archived": "Archived"
+    },
+    "save": {
+      "saved": "Saved",
+      "pending": "Not saved yet",
+      "saving": "Saving…",
+      "failed": "Not saved",
+      "conflict": "Not saved",
+      "conflictMessage": "This template changed in another window. Reload to see it."
+    },
+    "desktopOnly": {
+      "title": "Open the studio on a computer",
+      "description": "The studio needs a screen at least 1280 pixels wide."
+    },
+    "preview": {
+      "open": "Preview",
+      "title": "Preview",
+      "description": "The picture the customer gets, with sample values.",
+      "alt": "The slip as the customer gets it",
+      "failed": "The preview couldn't be made. Try again."
+    },
+    "publish": {
+      "open": "Publish",
+      "title": "Publish version {number}?",
+      "description": "New orders use it at once. Orders already made keep the version they were made on.",
+      "confirm": "Publish version {number}",
+      "done": "Version {number} is published."
+    },
+    "list": {
+      "title": "Templates",
+      "search": "Search by name",
+      "tabs": {
+        "current": "Current"
+      },
+      "empty": "No templates yet",
+      "emptyDescription": "Start one from a photo of a shop's paper slip.",
+      "noMatch": "No templates match",
+      "version": "Version {number}",
+      "neverPublished": "Not published yet",
+      "updated": "Changed {date}"
+    },
+    "new": {
+      "title": "New template",
+      "start": "Start from",
+      "photo": "A photo of the paper slip",
+      "photoHint": "The canvas takes the photo's size; the photo is the background.",
+      "blank": "A blank canvas",
+      "blankHint": "A preset or a size of your own.",
+      "copy": "A copy of a template",
+      "copyHint": "The same design, as a new draft.",
+      "choosePhoto": "Choose a photo",
+      "photoRules": "PNG or JPEG, up to 1 MB, 200–2000 pixels a side. Straighten and crop it first.",
+      "photoTooLarge": "The photo is larger than 1 MB.",
+      "uploading": "Uploading…",
+      "photoReady": "Photo uploaded: {width} × {height} px.",
+      "softPhoto": "This photo is under {side} pixels on its long side: the customer's picture will look soft.",
+      "size": "Size",
+      "presets": {
+        "wide": "Wide slip",
+        "narrow": "Narrow receipt",
+        "a6": "A6 portrait",
+        "square": "Square",
+        "custom": "Custom size"
+      },
+      "width": "Width (px)",
+      "height": "Height (px)",
+      "sizeRange": "{min}–{max} pixels a side",
+      "copyFrom": "Template to copy",
+      "chooseTemplate": "Choose a template",
+      "copyName": "Copy of {name}",
+      "create": "Create and open"
+    }
   }
 }

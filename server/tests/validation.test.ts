@@ -62,9 +62,9 @@ describe('readValidQuery', () => {
 describe('readValidBody (over HTTP)', () => {
   const bodySchema = v.strictObject({ name: v.pipe(v.string(), v.trim(), v.maxLength(5)) })
 
-  async function send(body: string, options: { length?: boolean } = {}) {
-    const { length } = options
-    const app = createApp().use(eventHandler(event => readValidBody(event, bodySchema)))
+  async function send(body: string, options: { length?: boolean, maxBytes?: number } = {}) {
+    const { length, maxBytes } = options
+    const app = createApp().use(eventHandler(event => readValidBody(event, bodySchema, { maxBytes })))
     const server = createServer(toNodeListener(app))
     await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
     try {
@@ -98,5 +98,11 @@ describe('readValidBody (over HTTP)', () => {
     // Khmer letters are 3 bytes each in UTF-8.
     expect((await send(JSON.stringify({ name: 'ក'.repeat(MAX_JSON_BYTES / 2) }))).status).toBe(413)
     expect((await send('{invalid')).status).toBe(400)
+  })
+
+  it('takes a larger limit when the route asks for one', async () => {
+    const body = JSON.stringify({ name: ' '.repeat(MAX_JSON_BYTES) + 'ok' })
+    expect((await send(body)).status).toBe(413)
+    expect(await send(body, { maxBytes: MAX_JSON_BYTES * 2 })).toEqual({ status: 200, body: '{"name":"ok"}' })
   })
 })

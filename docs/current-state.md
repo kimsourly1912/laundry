@@ -6,9 +6,10 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
-- **Done, in review (PR A):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps): customers, pricing, the old orders, receipts, slip templates and reminders deleted; fresh migrations (`0000_init`, `0001_member_one_shop`) with the new tables ([data-model](server/data-model.md)). The shop's home is a placeholder Overview until step 3.
-- **Before this PR deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
-- **Next:** PR B, the studio: [S1](plan.md#9-steps) (design format and rendering). Delete the spike's code (`*/spike-studio`, the dev-only route in `nuxt.config.ts`, as S1 replaces it; `fontkit`, `vue3-moveable` and `vue3-selecto` move from dev dependencies to dependencies.
+- **Done (PR A, merged):** the studio spike and its decisions (D32, D33), and [plan step 1, Reset](plan.md#9-steps). **Before it deploys:** the staging database must be emptied once ([operations → Reset a database](server/operations.md#reset-a-database-plan-step-1)); the owner runs it.
+- **PR B, the studio (in progress, one commit per step):**
+  - **S1 done:** the design format (`shared/contracts/slip-design.ts`), the shared SVG builder with fontkit text and its HarfBuzz test ([reference/slip.md](reference/slip.md)), `/api/platform/templates` (list, create from a photo, blank or a copy, autosave at `version`, publish, preview PNG), `/api/platform/images` (upload, list, bytes), the templates list, New template, and the studio page (the slip at Fit, rename, save status, Preview, Publish). The spike is deleted.
+  - **Next:** [S2](plan.md#9-steps), the canvas core.
 - **Studio details agreed (2026-11-17):** [plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only), D32, D33. Still open: [Q11 and Q7](plan.md#10-open-questions), needed by steps 4 and 3.
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 

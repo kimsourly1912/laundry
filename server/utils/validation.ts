@@ -22,9 +22,18 @@ export function parseInput<T extends v.GenericSchema>(schema: T, input: unknown)
   throw apiError(400, ErrorCodes.VALIDATION_FAILED, 'Some of the submitted data is invalid.', { fieldErrors })
 }
 
-/** The JSON body, size-limited (`MAX_JSON_BYTES`) and validated. An empty body validates as `{}`. */
-export async function readValidBody<T extends v.GenericSchema>(event: H3Event, schema: T): Promise<v.InferOutput<T>> {
-  const bytes = await readLimitedBody(event, MAX_JSON_BYTES)
+interface BodyOptions {
+  /**
+   * A larger limit for a route that needs one (the studio's design, `MAX_DESIGN_BYTES`). The Worker's
+   * own cap for the path (`workerBodyLimit`) must allow it too.
+   */
+  maxBytes?: number
+}
+
+/** The JSON body, size-limited (`MAX_JSON_BYTES` unless the route says) and validated. An empty body validates as `{}`. */
+export async function readValidBody<T extends v.GenericSchema>(event: H3Event, schema: T, options: BodyOptions = {}): Promise<v.InferOutput<T>> {
+  const { maxBytes = MAX_JSON_BYTES } = options
+  const bytes = await readLimitedBody(event, maxBytes)
   let body: unknown
   try {
     body = bytes.length ? JSON.parse(new TextDecoder().decode(bytes)) : {}

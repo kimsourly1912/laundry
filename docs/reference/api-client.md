@@ -21,6 +21,14 @@ await apiFetch('/auth/sign-in/username', { method: 'POST', body: { username, pas
 - **A response to a request started before the session changed** (sign-out, sign-in, 401) is dropped as `kind: 'aborted'`: another person's data never reaches the screen.
 - Better Auth's endpoints go through it too (`/auth/…`, [D20](../decisions.md#d20-the-app-shell)).
 
+## `apiBlob(path, options?)`
+
+`apiFetch` for a file: resolves to the response's bytes as a `Blob` (the studio's Preview PNG). Same errors and session rules.
+
+```ts
+const png = await apiBlob(`/platform/templates/${id}/preview`, { method: 'POST', body: { design } })
+```
+
 ## `ApiError`
 
 | Field | |
