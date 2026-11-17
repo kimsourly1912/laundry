@@ -1,32 +1,100 @@
 import { sql } from 'drizzle-orm'
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
-import type { TemplateDefinition } from '#shared/contracts/templates'
+import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 
 /**
- * Slip templates (D25, docs/server/data-model.md → slip_templates): the platform's ready-made price
- * lists. Platform-owned, so no `shop_id`: a shop never reads one, it gets a copy when it's created.
- * The definition is one JSON document, checked by `templateDefinitionSchema` on every write: it's
- * read whole and copied, never queried inside. Archived, never deleted.
+ * Slip templates (D31, plan §5, §7; docs/server/data-model.md → templates). The platform designs them
+ * in the studio and attaches them to shops. `templates`, `template_versions` and `images` are
+ * platform tables (no `shop_id`); `template_shops` is shop-owned.
+ *
+ * A design is one JSON document, checked by its Valibot schema on every write (S1): read whole,
+ * never queried inside. Templates are archived, never deleted; versions never change.
  */
 
-const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`
+export const TEMPLATE_STATUSES = ['draft', 'published', 'archived'] as const
+export type TemplateStatus = typeof TEMPLATE_STATUSES[number]
 
-export const TEMPLATE_STATUSES = ['active', 'archived'] as const
+/** The design document's shape is the studio's contract (S1); the database only stores it. */
+export type StoredDesign = Record<string, unknown>
 
-export const slipTemplates = sqliteTable('slip_templates', {
+export const templates = sqliteTable('templates', {
   id: text().primaryKey(),
   name: text().notNull(),
-  currency: text({ enum: ['KHR', 'USD'] }).notNull(),
-  definition: text({ mode: 'json' }).$type<TemplateDefinition>().notNull(),
-  status: text({ enum: TEMPLATE_STATUSES }).notNull().default('active'),
+  /** `draft`: never published. `published`: has a version. `archived`: hidden, kept for its orders. */
+  status: text({ enum: TEMPLATE_STATUSES }).notNull().default('draft'),
+  /** The design being edited; each publish copies it into `template_versions`. */
+  design: text({ mode: 'json' }).$type<StoredDesign>().notNull(),
   version: integer().notNull().default(1),
-  createdAt: integer({ mode: 'timestamp_ms' }).notNull().default(nowMs),
-  updatedAt: integer({ mode: 'timestamp_ms' }).notNull().default(nowMs),
+  createdBy: createdBy(),
+  createdAt: timestamp().notNull().default(nowMs),
+  updatedAt: timestamp().notNull().default(nowMs),
 }, table => [
-  // Two templates never share a name, whatever the case: the admin picks one by name.
-  uniqueIndex('slip_templates_name_unique').on(sql`lower(${table.name})`),
-  index('slip_templates_status_name_idx').on(table.status, table.name),
-  check('slip_templates_status_check', sql`${table.status} in ('active', 'archived')`),
-  check('slip_templates_currency_check', sql`${table.currency} in ('KHR', 'USD')`),
-  check('slip_templates_definition_check', sql`json_valid(${table.definition})`),
+  // The platform finds a template by name: two never share one, whatever the case.
+  uniqueIndex('templates_name_unique').on(sql`lower(${table.name})`),
+  index('templates_status_updated_idx').on(table.status, table.updatedAt),
+  check('templates_status_check', sql`${table.status} in (${inList(TEMPLATE_STATUSES)})`),
+  check('templates_design_check', sql`json_valid(${table.design})`),
+])
+
+/**
+ * A published design, fixed forever: an order keeps the version it was made on, so its slip never
+ * changes (plan §4). The latest one is the highest `number`.
+ */
+export const templateVersions = sqliteTable('template_versions', {
+  id: text().primaryKey(),
+  templateId: text().notNull().references(() => templates.id, { onDelete: 'restrict' }),
+  number: integer().notNull(),
+  design: text({ mode: 'json' }).$type<StoredDesign>().notNull(),
+  createdBy: createdBy(),
+  createdAt: timestamp().notNull().default(nowMs),
+}, table => [
+  // Also the "latest version" lookup: (template_id, number desc).
+  uniqueIndex('template_versions_template_number_unique').on(table.templateId, table.number),
+  check('template_versions_number_check', sql`${table.number} >= 1`),
+  check('template_versions_design_check', sql`json_valid(${table.design})`),
+])
+
+/**
+ * Which templates a shop may use, and its default (plan §4). The default is a flag here, not a column
+ * on `shop_settings`, so it can only be an attached template, and detaching it clears it.
+ */
+export const templateShops = sqliteTable('template_shops', {
+  shopId: shopId(),
+  templateId: text().notNull().references(() => templates.id, { onDelete: 'restrict' }),
+  isDefault: integer({ mode: 'boolean' }).notNull().default(false),
+  attachedAt: timestamp().notNull().default(nowMs),
+}, table => [
+  primaryKey({ name: 'template_shops_pk', columns: [table.shopId, table.templateId] }),
+  // At most one default per shop.
+  uniqueIndex('template_shops_default_unique').on(table.shopId).where(sql`${table.isDefault}`),
+  // The shops a template is attached to (the template's page).
+  index('template_shops_template_idx').on(table.templateId),
+])
+
+export const IMAGE_TYPES = ['image/png', 'image/jpeg'] as const
+export type ImageType = typeof IMAGE_TYPES[number]
+export const IMAGE_MAX_BYTES = 1024 * 1024
+export const IMAGE_MIN_SIDE = 200
+export const IMAGE_MAX_SIDE = 2000
+
+/**
+ * The platform's uploaded images (plan §5.9): slip backgrounds, pictures on a slip, shop logos.
+ * Shared by every template; base64 in the row, as D28 did: an image is read whole, on every render.
+ */
+export const images = sqliteTable('images', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  type: text({ enum: IMAGE_TYPES }).notNull(),
+  width: integer().notNull(),
+  height: integer().notNull(),
+  /** The file's size in bytes, before base64. */
+  size: integer().notNull(),
+  data: text().notNull(),
+  createdBy: createdBy(),
+  createdAt: timestamp().notNull().default(nowMs),
+}, table => [
+  index('images_created_idx').on(table.createdAt),
+  check('images_type_check', sql`${table.type} in (${inList(IMAGE_TYPES)})`),
+  check('images_size_check', sql`${table.size} between 1 and ${sql.raw(String(IMAGE_MAX_BYTES))}`),
+  check('images_sides_check', sql`${table.width} between ${sql.raw(String(IMAGE_MIN_SIDE))} and ${sql.raw(String(IMAGE_MAX_SIDE))} and ${table.height} between ${sql.raw(String(IMAGE_MIN_SIDE))} and ${sql.raw(String(IMAGE_MAX_SIDE))}`),
 ])

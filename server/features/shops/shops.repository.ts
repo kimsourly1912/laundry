@@ -67,15 +67,13 @@ export async function listShops(db: Db, query: ShopListQuery): Promise<{ rows: S
 
 interface NewSettings {
   shopId: string
-  /** The template's (D25); the default (riel) without one. */
-  currency?: Currency
   now: Date
 }
 
-/** A new shop's settings: active, version 1, the defaults of spec §6. */
+/** A new shop's settings: active, version 1, the table's defaults (riel, English). */
 export function insertSettingsStatement(db: Db, settings: NewSettings): Statement {
-  const { shopId, currency, now } = settings
-  return db.insert(shopSettings).values({ shopId, status: 'active', currency, version: 1, createdAt: now, updatedAt: now })
+  const { shopId, now } = settings
+  return db.insert(shopSettings).values({ shopId, status: 'active', version: 1, createdAt: now, updatedAt: now })
 }
 
 /** The settings an owner edits (spec §3 → Shop settings); the name is the organization's. */
@@ -83,9 +81,6 @@ export interface SettingsFields {
   phone: string | null
   address: string | null
   currency: Currency
-  policyTextKm: string | null
-  policyTextEn: string | null
-  reminderAfterDays: number
   language: ShopLanguage
 }
 
@@ -95,8 +90,6 @@ interface SettingsChange {
   now: Date
   status?: ShopStatus
   fields?: SettingsFields
-  /** The currency alone (a template copied into the shop, D30). */
-  currency?: Currency
 }
 
 /**
@@ -105,9 +98,9 @@ interface SettingsChange {
  * `requireOneChange`.
  */
 export function updateSettingsAtVersion(db: Db, change: SettingsChange): Statement {
-  const { shopId, version, now, status, fields, currency } = change
+  const { shopId, version, now, status, fields } = change
   return db.update(shopSettings)
-    .set({ ...fields, ...(status ? { status } : {}), ...(currency ? { currency } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
+    .set({ ...fields, ...(status ? { status } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
     .where(and(eq(shopSettings.shopId, shopId), eq(shopSettings.version, version)))
 }
 
@@ -116,9 +109,6 @@ const settingsColumns = {
   phone: shopSettings.phone,
   address: shopSettings.address,
   currency: shopSettings.currency,
-  policyTextKm: shopSettings.policyTextKm,
-  policyTextEn: shopSettings.policyTextEn,
-  reminderAfterDays: shopSettings.reminderAfterDays,
   language: shopSettings.language,
   version: shopSettings.version,
 }

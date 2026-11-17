@@ -1,12 +1,6 @@
-/**
- * What a queued message says: the order's receipt (right after the person links), the order is
- * ready, the order was collected, the order is still waiting to be collected (spec §8.5).
- */
-export const NOTIFICATION_KINDS = ['receipt', 'ready', 'collected', 'reminder'] as const
+/** What a queued message says: the order's filled slip, right after the person links (plan §4). */
+export const NOTIFICATION_KINDS = ['slip'] as const
 export type NotificationKind = typeof NOTIFICATION_KINDS[number]
-
-/** Reminders an order sends to one chat, in all (spec §8.5). */
-export const MAX_REMINDERS = 3
 
 /**
  * `pending`: to send (again) at `next_attempt_at`. `sent`. `skipped`: not sent and never will be

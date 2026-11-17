@@ -2,7 +2,7 @@
 
 ← [Docs](../README.md) · Server: [architecture](../server/architecture.md) · UI: [ui](./ui.md), [page-patterns](./page-patterns.md)
 
-How every feature (pricing, customers, orders, tickets, notifications) is planned, built and verified, so they all behave the same. This page links to the rules instead of repeating them.
+How every feature (templates, orders, notifications, telegram) is planned, built and verified, so they all behave the same. This page links to the rules instead of repeating them.
 
 ---
 
@@ -11,7 +11,7 @@ How every feature (pricing, customers, orders, tickets, notifications) is planne
 Not every unknown is the same kind.
 
 - **[Choice]:** a reversible presentation or implementation detail the spec leaves open (sort order with no sort UI, a page size). Pick a sensible option, write it in the plan, keep it easy to change.
-- **[Open]:** a business or permission rule only the owner can decide (rounding, who may cancel, whether an archived price item can be picked). **Never invent it.** Record the exact question in [current-state → Open questions](../current-state.md#open-questions), build what doesn't depend on it, and leave the affected behavior out or visibly incomplete.
+- **[Open]:** a business or permission rule only the owner can decide (rounding, who may cancel, whether an archived template's orders can be reprinted). **Never invent it.** Record the exact question in [current-state → Open questions](../current-state.md#open-questions), build what doesn't depend on it, and leave the affected behavior out or visibly incomplete.
 
 API mechanics (absent vs `null`, versions, error codes, ids, units) are **not** open: [architecture](../server/architecture.md) defines them.
 
@@ -69,7 +69,7 @@ server/features/<f>/               app/features/<f>/
 ```
 
 - **Server:** [architecture → Features](../server/architecture.md#features).
-- **App public API** (`index.ts`) exports **building blocks only:** pickers (`CustomerSelect`, `PriceItemSelect`), display parts (a status badge), option composables, types, navigation. **Never** pages or forms: a page is used through its route.
+- **App public API** (`index.ts`) exports **building blocks only:** pickers (`TemplateSelect`), display parts (a status badge), option composables, types, navigation. **Never** pages or forms: a page is used through its route.
 - **A public building block doesn't import another feature.** It stays small and reusable.
 - **Pages are thin:** `app/pages/**` holds `definePageMeta({ title, permission })` and one `<Feature>Page.vue` component.
 - **Promote to shared roots** (`app/components`, `app/composables`, `app/utils`) only when a second feature or the shell needs it. Duplicate a little first; extract once the pattern is clear.
@@ -89,8 +89,8 @@ server/features/<f>/               app/features/<f>/
 
 ## 6. Pickers
 
-- A feature that owns records others pick exports a picker (`CustomerSelect`, `PriceItemSelect`). Other features use it through `index.ts`.
-- A picker of records searches on the server when the list can grow (customers), or locally with virtual scroll when it stays small (price items).
+- A feature that owns records others pick exports a picker (`TemplateSelect`). Other features use it through `index.ts`.
+- A picker of records searches on the server when the list can grow (orders), or locally when it stays small (a shop's attached templates).
 - **Archived records** aren't offered for new relationships, but a current value that is archived still shows, labelled.
 
 ## 7. Definition of done

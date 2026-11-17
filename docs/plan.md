@@ -239,17 +239,18 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | Table | Holds |
 |---|---|
 | Better Auth tables | Users, sessions, organizations (an organization is a shop), members |
-| `shop_settings` | name, phone, address, logo image id, currency, language, `default_template_id`, `version` |
-| `templates` | name, status (`draft`, `published`, `archived`), the draft design (JSON), latest published version id, `version` |
+| `shop_settings` | phone, address, logo image id, currency, language, status, `version` (the name is the organization's) |
+| `templates` | name, status (`draft`, `published`, `archived`), the draft design (JSON), `version`. The latest version is the highest `number` in `template_versions` |
 | `template_versions` | template id, number, design (JSON), created at. Never changes |
-| `template_shops` | which templates are attached to which shop |
+| `template_shops` | which templates are attached to which shop, and **the shop's default** (a flag, at most one per shop) |
 | `images` | uploaded backgrounds and logos (≤ 1 MB, base64 as in D28), shared by the platform's templates; one used by a template version can't be deleted |
 | `orders` | `shop_id`, number, date, `template_version_id`, the values (JSON), **a copy of the shop's details** (JSON: name, phone, address, logo image id, currency, language, as at saving), phone, amount, paid, status, paid at, picked up at, `version` |
 | `order_counters`, `idempotency_keys`, `audit_events` | as today |
-| Telegram tables | invites, pending, links, `notifications` (outbox), as today but pointing at orders only (§8) |
+| Telegram tables | invites, links, `notifications` (outbox), pointing at orders only (§8). `telegram_pending` comes back in step 4 only if the phone check stays (Q11) |
 
 - **🤖 Claude Code:** `templates`, `template_versions` and `images` are platform tables with no `shop_id`. `template_shops`, `shop_settings`, `orders` and everything below them are shop-owned and need two-shop isolation tests.
 - **🤖 Claude Code:** the owner reads a template version only through an attached template or through their own order. Another shop's template answers `404`.
+- **Built in step 1** (2026-11-17), with three changes from the first draft of this table, all in [data-model.md](server/data-model.md): the default template is a flag on `template_shops` (so it is always attached, and detaching clears it); there is no "latest version" column (derived); no `telegram_pending` until Q11 is answered.
 
 ## 8. What happens to the current code
 
@@ -276,7 +277,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 
 | # | Step | PR | Size | Status |
 |---|---|---|---|---|
-| 1 | **Reset:** delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | A | Medium | In progress |
+| 1 | **Reset:** delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | A | Medium | Done, in review |
 | S1 | **Design format + rendering:** the Valibot design schema, the shared SVG builder with fontkit text (and its HarfBuzz comparison test), server PNG from a design, templates with autosave, `version`, publish and versions; images upload; start from a photo, blank or a copy (§5.2) | B | Large | |
 | S2 | **Canvas core:** zoom and pan, select, drag, resize, rotate, snapping, keyboard, undo and redo, the Layers tab | B | Large | |
 | S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | |
@@ -300,7 +301,7 @@ Each step includes:
 
 Answered on 2026-11-17:
 - **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
-- **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only) the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
+- **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only), the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
 
 | # | Question | Recommendation | Needed by |
 |---|---|---|---|

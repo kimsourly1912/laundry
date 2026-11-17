@@ -2,18 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements, isKnownPermission, platformStatements, shopStatements } from '#server/features/identity/identity.permissions'
 
 describe('shop roles (spec §5)', () => {
-  it('give the owner every shop statement but changing prices: the platform keeps the price list (D26)', () => {
-    expect(grantedShopStatements('owner').sort()).toEqual([
-      'customer:anonymize', 'customer:read', 'customer:write',
-      'order:cancel', 'order:create', 'order:read', 'order:transition', 'order:update',
-      'payment:record', 'price:read', 'report:read', 'shop:read', 'shop:update', 'ticket:bind',
-    ])
+  it('give the owner the shop\'s settings; orders come back with the owner portal (plan step 3)', () => {
+    expect(grantedShopStatements('owner').sort()).toEqual(['shop:read', 'shop:update'])
   })
 
-  it('give staff the counter work only: no settings, prices, anonymize, cancel or reports', () => {
-    const staff = grantedShopStatements('staff')
-    expect(staff).toEqual(expect.arrayContaining(['order:transition', 'payment:record', 'customer:write', 'ticket:bind', 'price:read']))
-    for (const statement of ['shop:update', 'price:write', 'customer:anonymize', 'order:cancel', 'report:read']) expect(staff).not.toContain(statement)
+  it('give staff reading only: no settings changes', () => {
+    expect(grantedShopStatements('staff')).toEqual(['shop:read'])
   })
 
   it('never grant Better Auth\'s own organization statements', () => {
@@ -31,11 +25,8 @@ describe('platform roles', () => {
   it('give the super admin the platform statements and nothing of Better Auth\'s admin endpoints', () => {
     expect(grantedPlatformStatements('superadmin').sort()).toEqual([
       'owner:create', 'owner:reset-password', 'owner:revoke-sessions',
-      'price:read', 'price:write',
-      'receipt:read', 'receipt:write',
       'shop:create', 'shop:read', 'shop:suspend', 'shop:update',
       'template:read', 'template:write',
-      'ticketBatch:create', 'ticketBatch:read', 'ticketBatch:void',
     ])
     expect(grantedPlatformStatements('user')).toEqual([])
   })
@@ -43,9 +34,9 @@ describe('platform roles', () => {
 
 describe('isKnownPermission', () => {
   it('accepts known statements and refuses unknown resources or actions', () => {
-    expect(isKnownPermission(shopStatements, { order: ['transition'] })).toBe(true)
-    expect(isKnownPermission(shopStatements, { order: ['transit'] })).toBe(false)
-    expect(isKnownPermission(shopStatements, { orders: ['read'] })).toBe(false)
+    expect(isKnownPermission(shopStatements, { shop: ['update'] })).toBe(true)
+    expect(isKnownPermission(shopStatements, { shop: ['updates'] })).toBe(false)
+    expect(isKnownPermission(shopStatements, { shops: ['read'] })).toBe(false)
     expect(isKnownPermission(platformStatements, { shop: ['suspend'] })).toBe(true)
   })
 })

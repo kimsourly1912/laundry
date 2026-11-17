@@ -46,14 +46,12 @@ Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboard
 | Page | Full width | Full width | Beside the sidebar |
 | Shop content | Full width | Up to 640px, centred (`max-w-page`) | Up to 640px, centred |
 
-**Shop screens are mobile first and 640px wide at most** ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)): the body's content column is `mx-auto w-full max-w-page` (a theme token, `--container-page: 40rem`), and so is the bottom bar. The platform's editors (templates, the price grid) use the full width.
-
-The public ticket page `/t/:token` has no shell: one column, mobile only, server-rendered.
+**Shop screens are mobile first and 640px wide at most** ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)): the body's content column is `mx-auto w-full max-w-page` (a theme token, `--container-page: 40rem`), and so is the bottom bar. The platform's editors (the studio, desktop only, plan §5) use the full width.
 
 ## 4. Navigation
 
 - **Compact and medium:** `UDashboardNavbar` is the app bar (menu button, page title, the page's one primary action). The drawer holds the full navigation.
-- **The shop has three destinations** ([D27](../decisions.md#d27-the-owners-two-pages)): **Orders** (the board, the home), **New order**, and **More** (customers, prices, settings, account, contact support). Bottom navigation stays off: the board's navbar has New order, and the saved slip has Next order, so the daily loop needs no menu.
+- **The shop's destinations:** **Overview** (the home) and **More** (settings, account, contact support). The owner portal (plan step 3) makes them Overview, Templates and Orders, with Create order on Overview.
 - **One source for navigation:** each feature's `navigation.ts`, collected by the layout, so every width has the same destinations in the same order.
 - **Detail routes** show a Back button to their index. Back returns to the index in history when the user came from it (filters in the URL survive), otherwise to the index route.
 

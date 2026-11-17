@@ -1,11 +1,10 @@
 import type { ShopSettings, UpdateShopSettingsInput } from '#shared/contracts/shop-settings'
 import type { Db } from '#server/utils/batch'
-import { isStaleWrite, requireOneChange } from '#server/utils/batch'
+import { requireOneChange, runBatch } from '#server/utils/batch'
 import { auditStatement } from '#server/features/platform'
 import { renameShopStatement } from '#server/features/identity'
 import type { ShopActor } from '#server/features/identity'
-import { hasPriceItems, requireEmptyPriceListStatement } from '#server/features/pricing'
-import { currencyLocked, shopChanged, shopNotFound } from './shops.errors'
+import { shopChanged, shopNotFound } from './shops.errors'
 import * as repo from './shops.repository'
 import type { SettingsFields } from './shops.repository'
 
@@ -14,17 +13,17 @@ import type { SettingsFields } from './shops.repository'
  * The shop is the actor's; one batch per save, with its audit row in the shop's history.
  */
 
-const FIELDS = ['name', 'phone', 'address', 'currency', 'policyTextKm', 'policyTextEn', 'reminderAfterDays', 'language'] as const
+const FIELDS = ['name', 'phone', 'address', 'currency', 'language'] as const
 
 export async function getSettings(db: Db, actor: ShopActor): Promise<ShopSettings> {
-  const [row, locked] = await Promise.all([repo.findSettings(db, actor.shopId), hasPriceItems(db, actor.shopId)])
+  const row = await repo.findSettings(db, actor.shopId)
   if (!row) throw shopNotFound()
-  return { ...row, currencyLocked: locked }
+  return row
 }
 
 /**
- * Saves every setting at the version read (409 when stale). The currency changes only while the
- * price list is empty, checked inside the batch (D22): prices are amounts in that currency.
+ * Saves every setting at the version read (409 when stale). The currency may change at any time:
+ * each order keeps a copy of the shop's details, its currency included (D33).
  */
 export async function updateSettings(db: Db, actor: ShopActor, input: UpdateShopSettingsInput, now = new Date()): Promise<ShopSettings> {
   const { shopId } = actor
@@ -32,21 +31,11 @@ export async function updateSettings(db: Db, actor: ShopActor, input: UpdateShop
   const before = await repo.findSettings(db, shopId)
   if (!before) throw shopNotFound()
   const changed = FIELDS.filter(field => before[field] !== input[field])
-  const currencyChanges = before.currency !== fields.currency
-  try {
-    await db.batch([
-      repo.updateSettingsAtVersion(db, { shopId, version, now, fields: fields satisfies SettingsFields }),
-      requireOneChange(db),
-      ...(currencyChanges ? [requireEmptyPriceListStatement(db, shopId)] : []),
-      renameShopStatement(db, shopId, name),
-      auditStatement(db, { userId: actor.userId, shopId, requestId: actor.requestId }, { action: 'shop.settings.update', targetType: 'shop', targetId: shopId, data: { fields: changed } }, now),
-    ])
-  }
-  catch (error) {
-    if (!isStaleWrite(error)) throw error
-    // The version moved, or prices appeared since the form was opened.
-    const current = await repo.findSettings(db, shopId)
-    throw current && current.version === version && currencyChanges ? currencyLocked() : shopChanged()
-  }
+  await runBatch(db, [
+    repo.updateSettingsAtVersion(db, { shopId, version, now, fields: fields satisfies SettingsFields }),
+    requireOneChange(db),
+    renameShopStatement(db, shopId, name),
+    auditStatement(db, { userId: actor.userId, shopId, requestId: actor.requestId }, { action: 'shop.settings.update', targetType: 'shop', targetId: shopId, data: { fields: changed } }, now),
+  ], shopChanged)
   return getSettings(db, actor)
 }

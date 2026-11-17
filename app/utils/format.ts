@@ -1,7 +1,7 @@
 import type { Currency } from '#shared/contracts/shop-settings'
 import { MINOR_DIGITS } from '#shared/format'
 
-// Shared with the server (receipts, Telegram messages).
+// Shared with the server (slips, Telegram messages).
 export { formatDateTime, formatMoney } from '#shared/format'
 
 /**

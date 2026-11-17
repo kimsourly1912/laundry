@@ -20,34 +20,17 @@ export const shopStatements = {
   // used, and closed over HTTP (auth-endpoints.ts). Listed so no role gets them by accident.
   ...organizationPluginStatements,
   shop: ['read', 'update'],
-  price: ['read', 'write'],
-  customer: ['read', 'write', 'anonymize'],
-  order: ['read', 'create', 'update', 'transition', 'cancel'],
-  payment: ['record'],
-  ticket: ['bind'],
-  report: ['read'],
+  // Orders and templates come back with the owner portal (plan step 3).
 } as const
 
 export const shopAc = createAccessControl(shopStatements)
 
 export const shopRoles = {
-  // The platform keeps each shop's price list (D26): the owner reads it, never changes it.
   owner: shopAc.newRole({
     shop: ['read', 'update'],
-    price: ['read'],
-    customer: ['read', 'write', 'anonymize'],
-    order: ['read', 'create', 'update', 'transition', 'cancel'],
-    payment: ['record'],
-    ticket: ['bind'],
-    report: ['read'],
   }),
   staff: shopAc.newRole({
     shop: ['read'],
-    price: ['read'],
-    customer: ['read', 'write'],
-    order: ['read', 'create', 'update', 'transition'],
-    payment: ['record'],
-    ticket: ['bind'],
   }),
 }
 
@@ -63,13 +46,8 @@ export const platformStatements = {
   ...adminPluginStatements,
   shop: ['create', 'read', 'update', 'suspend'],
   owner: ['create', 'reset-password', 'revoke-sessions'],
-  ticketBatch: ['create', 'read', 'void'],
-  // Slip templates (D25): ready-made price lists picked when creating a shop.
+  // Slip templates, designed in the studio and attached to shops (D31; plan S1, step 2).
   template: ['read', 'write'],
-  // A shop's price list, kept by the platform (D26), through /api/platform/shops/:shopId/…
-  price: ['read', 'write'],
-  // A shop's receipt design (D28), through /api/platform/shops/:shopId/receipt
-  receipt: ['read', 'write'],
 } as const
 
 export const platformAc = createAccessControl(platformStatements)
@@ -79,10 +57,7 @@ export const platformRoles = {
   superadmin: platformAc.newRole({
     shop: ['create', 'read', 'update', 'suspend'],
     owner: ['create', 'reset-password', 'revoke-sessions'],
-    ticketBatch: ['create', 'read', 'void'],
     template: ['read', 'write'],
-    price: ['read', 'write'],
-    receipt: ['read', 'write'],
   }),
 }
 

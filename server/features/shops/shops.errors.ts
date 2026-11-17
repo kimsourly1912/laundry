@@ -17,16 +17,6 @@ export function alreadySuspended() {
   return apiError(409, ErrorCodes.INVALID_STATE, 'This shop is already suspended.')
 }
 
-/** The currency changes only while the price list is empty (D22). */
-export function currencyLocked() {
-  return apiError(409, 'CURRENCY_LOCKED', 'The currency can\'t change once the price list has items.', { fieldErrors: { currency: ['Can\'t change once the price list has items'] } })
-}
-
-/** A template is copied only into an empty price list (D30): never over the shop's own changes. */
-export function priceListNotEmpty() {
-  return apiError(409, 'PRICE_LIST_NOT_EMPTY', 'This shop already has a price list. Edit it on its price list page.')
-}
-
 export function notSuspended() {
   return apiError(409, ErrorCodes.INVALID_STATE, 'This shop is not suspended.')
 }

@@ -1,5 +1,6 @@
 /** The telegram feature's public API (docs/server/architecture.md → Features). */
-export { createInvite, deliverOrderSoon, deliverOutbox, handleUpdate, orderTelegramStatus, purgeTelegram, sendOutboxMessage, webhookSecretMatches } from './telegram.service'
-export { createTelegramBot } from './telegram.bot'
-export type { TelegramBot } from './telegram.bot'
+export { purgeTelegram, webhookSecretMatches } from './telegram.service'
+export { createTelegramBot, isChatGone, isTelegramApiError } from './telegram.bot'
+export type { TelegramApiError, TelegramBot } from './telegram.bot'
 export { telegramUpdateSchema } from './telegram.update'
+export type { TelegramUpdate } from './telegram.update'

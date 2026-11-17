@@ -50,21 +50,20 @@ Two repositories never hold the same query under two names. A feature that needs
 
 Every query on a shop's data names the shop:
 
-- **A function that reads or writes a shop table takes `shopId` and filters that table's own `shop_id`**, even when it also filters by a parent the service already checked (`linesOf(db, shopId, orderIds)`, not `linesOf(db, orderIds)`). The service's parent check is the first line of defense; this is the second, and it is what the two-shop tests prove.
+- **A function that reads or writes a shop table takes `shopId` and filters that table's own `shop_id`**, even when it also filters by a parent the service already checked (`linksOf(db, shopId, orderId)`, not `linksOf(db, orderId)`). The service's parent check is the first line of defense; this is the second, and it is what the two-shop tests prove.
 - **A joined shop table** is joined with an explicit `eq(a.shopId, b.shopId)` too.
-- **A function that works across shops on purpose** says so in its doc comment, starting with "Across shops:". Allowed only for scheduled jobs (`dueX`, `claimX`, cleanup), the Telegram webhook and the public ticket lookup (which only know a token: token → ticket → order, spec §6), and the platform console. Such a function never takes an optional `shopId`: write two functions.
+- **A function that works across shops on purpose** says so in its doc comment, starting with "Across shops:". Allowed only for scheduled jobs (`dueX`, `claimX`, cleanup), the Telegram webhook (it only knows a QR token: token → order), and the platform console. Such a function never takes an optional `shopId`: write two functions.
 - **Every new function on a shop table gets a two-shop test** through its service: seed two shops, check shop B's rows are neither read nor changed, then remove the filter and see the test fail.
 
 ## Other features' tables
 
 - **Writes only by the owner.** A repository writes only its own feature's tables.
-- **Read-only joins** to another feature's table are allowed for a few listed columns (who did something, a customer's display name on an order). The list lives here and grows only with a reason:
+- **Read-only joins** to another feature's table are allowed for a few listed columns (who did something, a shop's name). The list lives here and grows only with a reason:
 
 | Table | Owner | Columns others may read | For |
 |---|---|---|---|
 | `user` | identity | `id`, `name` | who did something (`createdBy` name) |
 | `organization` | identity | `id`, `name`, `slug`, `createdAt` | a shop's name in the platform's shop list (shops) |
-| `customers` | customers | `id`, `shopId`, `name`, `phoneE164`, `anonymizedAt` | an order's customer in lists and search |
 
 Everything else goes through the owner's `index.ts`. A condition with business meaning ("an active shop") is exported by its owner, not written again.
 
@@ -117,17 +116,17 @@ A guard is a statement in a batch that aborts the whole batch unless a check sti
 - A guard's doc comment says what aborts it; the write it protects says "Follow it with `requireOneChange`".
 
 Examples in this product:
-- An order edit: `UPDATE orders … WHERE shop_id = ? AND id = ? AND version = ? AND status IN ('received','in_progress')` → `requireOneChange`.
-- Binding a slip: `UPDATE tickets SET order_id = ? … WHERE shop_id = ? AND id = ? AND order_id IS NULL AND voided_at IS NULL` → `requireOneChange` (already bound or voided → `409`).
+- Picking up an order: `UPDATE orders … WHERE shop_id = ? AND id = ? AND version = ? AND status = 'open'` → `requireOneChange`.
+- Choosing the default template: clear the shop's old default and set the new one in one batch, with a guard that the new one is still attached (the partial unique index keeps one default per shop).
 
 ## Writes
 
 - **A write returns its statement(s)** for the service's batch. A repository never calls `db.batch` for a write.
 - **An edit is conditional on the version read** (and on the state, when the edit is only valid from it).
 - **Lists:** multi-row inserts and `IN` lists are split into chunks (D1 limits, below), one statement per chunk in the same batch.
-- **Replacing child rows** (an order's lines on edit): delete the shop's rows of that parent and insert the new ones in the same batch.
+- **Replacing child rows**: delete the shop's rows of that parent and insert the new ones in the same batch.
 - **Upserts** name their conflict target and set only what changes.
-- **Never delete** orders, order lines, order events, customers, tickets or audit rows.
+- **Never delete** orders, templates, template versions or audit rows.
 - **Database-computed values** (the order number) are computed in the same batch, never read first and written later.
 
 ### Background-task writes

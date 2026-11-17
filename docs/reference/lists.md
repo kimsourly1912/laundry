@@ -44,4 +44,4 @@ return toPage(items, query, total)
 
 Bodies use `v.strictObject`: an unknown field (a shop id, a role) is `400 VALIDATION_FAILED`, never ignored.
 
-**Whole lists.** A list with a per-shop cap (the price list, D22) is answered whole, as `{ items }`, without pages.
+**Whole lists.** A list with a small cap (a shop's attached templates) is answered whole, as `{ items }`, without pages.

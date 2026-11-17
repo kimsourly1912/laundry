@@ -3,39 +3,27 @@ import { newId } from '#server/utils/ids'
 import { log } from '#server/utils/log'
 import * as repo from './notifications.repository'
 import type { NotificationKind } from './notifications.types'
-import { MAX_ATTEMPTS, MAX_REMINDERS } from './notifications.types'
+import { MAX_ATTEMPTS } from './notifications.types'
 
 /**
- * Who hears about a shop's orders, and the outbox of what to tell them (D28, spec §8.2–§8.3). A
- * change queues its messages in its own batch; `deliverDue` sends them later through a channel
- * (Telegram, in the telegram feature), retrying with backoff. Messages go at least once: a sender
- * that dies after sending sends again when its lease ends.
+ * Who gets an order's slip, and the outbox of what to send them (D28, plan §8). A change queues its
+ * messages in its own batch; `deliverDue` sends them later through a channel (Telegram, step 4),
+ * retrying with backoff. Messages go at least once: a sender that dies after sending sends again
+ * when its lease ends.
  */
 
-// --- Links (for the telegram feature, and the customers feature's anonymize) ---
+// --- Links and queueing (for the telegram feature, step 4) ---
 
 interface Link {
   shopId: string
-  customerId: string
-  /** `null`: all of the customer's orders, for a person who proved the customer's phone. */
-  orderId: string | null
+  orderId: string
   telegramUserId: string
   chatId: string
 }
 
-/** Links a chat; nothing when that live link exists already. */
+/** Links a chat to an order; nothing when that live link exists already. */
 export function linkStatement(db: Db, link: Link, now: Date): Statement {
   return repo.insertLinkStatement(db, { ...link, id: newId(), now })
-}
-
-/** An anonymized customer's chats hear nothing more (for `anonymizeCustomer`'s batch). */
-export function revokeCustomerLinksStatement(db: Db, customer: { shopId: string, customerId: string }, now: Date): Statement {
-  return repo.revokeCustomerLinksStatement(db, customer, now)
-}
-
-/** How many chats hear about an order: the customer's links and the order's own. */
-export function countOrderListeners(db: Db, order: { shopId: string, orderId: string, customerId: string }): Promise<number> {
-  return repo.countLinksTo(db, order)
 }
 
 /** What the order's chats were sent (the order page), newest first, without the chats. */
@@ -43,26 +31,7 @@ export async function orderMessages(db: Db, order: { shopId: string, orderId: st
   return repo.orderMessages(db, order)
 }
 
-// --- Queueing (in the batch of the change) ---
-
-/**
- * The order's change, to every chat linked to it (for the orders feature's batch). `key` makes
- * the message unique: a `ready` after a rework is a new one (`ready` at the new version).
- */
-export function queueOrderMessagesStatement(db: Db, message: { shopId: string, orderId: string, customerId: string, kind: NotificationKind, key: string }, now: Date): Statement {
-  return repo.queueOrderMessagesStatement(db, { ...message, now })
-}
-
-/**
- * Today's reminder that the order is still waiting (spec §8.5), to each chat linked to it: once a
- * day (`day` is the shop's date), and at most `MAX_REMINDERS` to a chat in all.
- */
-export function queueReminderStatement(db: Db, order: { shopId: string, orderId: string, customerId: string, day: string }, now: Date): Statement {
-  const { day, ...rest } = order
-  return repo.queueOrderMessagesStatement(db, { ...rest, kind: 'reminder', key: day, now, maxOfKind: MAX_REMINDERS })
-}
-
-/** One message to one chat: the receipt for someone who just linked. Once per order and chat. */
+/** One message to one chat: the slip for someone who just linked. Once per order and chat. */
 export function queueChatMessageStatement(db: Db, message: { shopId: string, orderId: string, chatId: string, kind: NotificationKind }, now: Date): Statement {
   return repo.queueChatMessageStatement(db, { ...message, now })
 }

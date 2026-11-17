@@ -68,7 +68,7 @@ Use Nuxt UI's `--ui-radius`. Don't set `rounded-*` on Nuxt UI components. Plain 
 | Level | Style | Where |
 |---|---|---|
 | Page title | `UDashboardNavbar` `title` | One per page |
-| Record title on a detail page | `text-xl font-semibold text-highlighted` (`h2`) | Order #61, a customer's name |
+| Record title on a detail page | `text-xl font-semibold text-highlighted` (`h2`) | Order #61, a template's name |
 | Section heading | `font-semibold text-highlighted` (`h2`/`h3`) | Card and form sections |
 | Body | `text-sm` | Lists, forms |
 | Supporting | `text-sm text-muted` | Meta lines, help |
@@ -126,11 +126,11 @@ From the page outwards:
 | Primary | `UButton` solid, `color="primary"` | **One per page** (the navbar's right, or the bottom bar on a phone), at most one per card or overlay footer |
 | Secondary | `color="neutral" variant="outline"` | Cancel, View, Print |
 | Tertiary | `variant="ghost"` or `variant="link"` | Inline, low-emphasis actions |
-| Destructive trigger | `color="error" variant="soft"` | Cancel order, Anonymize customer, Void slip |
+| Destructive trigger | `color="error" variant="soft"` | Cancel order, Archive template, Suspend shop |
 | Destructive confirm | The confirm dialog's error button | Only inside a confirm dialog |
 | Overflow | `⋮` `UDropdownMenu` (a bottom sheet on a phone) | Everything beyond the one or two visible actions |
 
-- A destructive action is never the primary button, never the only visible action, and always confirms with its effect in words ("Cancel order #61? The customer gets no message.").
+- A destructive action is never the primary button, never the only visible action, and always confirms with its effect in words ("Cancel order #61? It stays in the list as cancelled.").
 - A disabled action stays visible with its reason (tooltip on wide screens, description in menus and sheets).
 - Labels are verb + object. Icons don't replace labels on primary and secondary actions.
 - **Order status actions** (Start, Mark ready, Rework, Collect) follow the same rule: the one next step the order is most likely to take is primary; the rest are secondary or in `⋮`.
@@ -138,7 +138,7 @@ From the page outwards:
 ## 10. Status and badges
 
 - Status is a `UBadge variant="subtle"` **with text**, plus an icon where it helps. Color alone never carries it.
-- Badges are for status and counts. Plain attributes (a price, a service) are text. A row shows at most two badges.
+- Badges are for status and counts. Plain attributes (an amount, a phone) are text. A row shows at most two badges.
 - **One mapping app-wide**, defined once in the orders feature (M2.3) and reused everywhere:
 
 | Status | Color |

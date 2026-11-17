@@ -65,7 +65,7 @@ The first super admin comes from `NUXT_PLATFORM_ADMIN_USERNAME` / `NUXT_PLATFORM
 
   Then sign in at the site and change the password. Running it again creates nothing.
 
-Local development: `pnpm dev:accounts` (M1.5/M2) creates 1 super admin and 2 shops with owners, prices and sample orders.
+Local development: create the first super admin with the seed task; shops and templates come from the platform screens.
 
 ## Migrations
 
@@ -75,8 +75,23 @@ Local development: `pnpm dev:accounts` (M1.5/M2) creates 1 super admin and 2 sho
 - **Locally**, NuxtHub applies pending migrations when the dev server starts.
 - **Deployed**, apply with `wrangler d1 migrations apply DB --remote` **before** deploying the Worker (NUK's `db:migrate:*` scripts).
 - **Migrations are backwards compatible** (expand, then contract): the old Worker keeps working against the migrated database for the moment between the migration and the new Worker. A column removal is a second migration in a later deploy.
-- A migration never deletes business data (orders, customers, tickets).
+- A migration never deletes business data (orders, templates, shops).
+- **The reset (plan step 1, D31)** restarted the migrations from `0000_init`, with only test data anywhere. A database that ran the old migrations (`0000_identity` … `0009_reminders`) must be emptied first, once: see [Reset a database](#reset-a-database-plan-step-1).
 - The server tests build their SQLite database from the same migrations ([reference/test-harness.md](../reference/test-harness.md)), so a broken migration fails CI.
+
+### Reset a database (plan step 1)
+
+Once per environment, before the first deploy of the reset. It deletes everything in that database: only test data existed. Locally, delete `.data/` and restart the dev server. On staging (the owner runs it; never production without a fresh decision):
+
+1. Record the Time Travel bookmark: `pnpm exec wrangler d1 time-travel info laundry-staging`.
+2. Drop the old tables and the migrations record:
+
+   ```bash
+   pnpm exec wrangler d1 execute laundry-staging --remote --command "PRAGMA defer_foreign_keys = on; DROP TABLE IF EXISTS telegram_pending; DROP TABLE IF EXISTS telegram_invites; DROP TABLE IF EXISTS notifications; DROP TABLE IF EXISTS telegram_links; DROP TABLE IF EXISTS receipt_designs; DROP TABLE IF EXISTS order_events; DROP TABLE IF EXISTS order_lines; DROP TABLE IF EXISTS orders; DROP TABLE IF EXISTS order_counters; DROP TABLE IF EXISTS customers; DROP TABLE IF EXISTS price_items; DROP TABLE IF EXISTS service_types; DROP TABLE IF EXISTS slip_templates; DROP TABLE IF EXISTS idempotency_keys; DROP TABLE IF EXISTS audit_events; DROP TABLE IF EXISTS shop_settings; DROP TABLE IF EXISTS invitation; DROP TABLE IF EXISTS member; DROP TABLE IF EXISTS organization; DROP TABLE IF EXISTS session; DROP TABLE IF EXISTS account; DROP TABLE IF EXISTS verification; DROP TABLE IF EXISTS rate_limit; DROP TABLE IF EXISTS user; DROP TABLE IF EXISTS d1_migrations;"
+   ```
+
+3. Merge: the staging deploy applies `0000_init` and `0001_member_one_shop` to the empty database.
+4. Create the super admin again ([First platform admin](#first-platform-admin)) and the Telegram webhook if it was set.
 
 ## Deploys
 
@@ -95,17 +110,16 @@ Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nux
 
 | Cron (UTC) | Job | Does | Step |
 |---|---|---|---|
-| `* * * * *` | `notifications:deliver` | Send due Telegram messages, backoff 1 / 5 / 15 / 60 min, max 5 attempts. Does nothing without a bot token | Built (D28) |
 | `15 20 * * *` | `platform:expire-idempotency-keys` | Delete keys older than 24 h | Built (M2.3) |
-| `30 20 * * *` | `notifications:purge` | Delete sent, skipped and failed messages older than 90 days; expired QR tokens and waiting scans | Built (D28) |
-| `0 2 * * *` (09:00 Phnom Penh) | `orders:remind-uncollected` | Queue a reminder for orders ready at least the shop's "reminder after" days (default 3): once a day, 3 in all per chat; then send (spec §8.5). Does nothing without a bot token | Built |
+| `30 20 * * *` | `notifications:purge` | Delete sent, skipped and failed messages older than 90 days, and expired QR tokens | Built (D28) |
+| `* * * * *` | `notifications:deliver` | Send due Telegram messages, backoff 1 / 5 / 15 / 60 min, max 5 attempts. Does nothing without a bot token | Step 4 (removed in the reset, D31) |
 
 - A job must be safe to run twice and safe to overlap with itself (claims and dedupe keys, never "read then write").
 - In local dev Nitro runs the jobs itself.
 
 ## Telegram
 
-**Status:** Built ([D28](../decisions.md#d28-the-receipt-on-telegram)). One platform bot for all shops (spec P9); every message names the shop. Until the bot is set up, the app shows no QR and nothing is sent.
+**Status:** the bot's transport is built (D28): the Bot API client, the webhook and its secret check. **Until step 4 the webhook accepts updates and does nothing,** and nothing is sent. One platform bot for all shops (spec P9); every message names the shop.
 
 ### Values
 
@@ -125,15 +139,14 @@ Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nux
    curl -sS "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://<site>/api/webhooks/telegram" -d "secret_token=<WEBHOOK_SECRET>" -d 'allowed_updates=["message"]'
    ```
    It answers `{"ok":true,…}`. Check it later with `getWebhookInfo` (same address, that method): `last_error_message` says what failed.
-4. Try it: save an order with your own phone, scan the QR on the saved screen with your phone's camera, share your number. The receipt arrives; mark the order ready and a message follows within a minute.
+4. Try it (from step 4): save an order, scan the QR on the saved screen with your phone's camera. The slip arrives.
 
 Local development: a separate dev bot, and a tunnel to the dev server for its webhook; or leave the token empty (no QR, nothing sent).
 
 ### How it behaves
 - **The webhook** answers 404 unless the secret header matches (constant-time) and a token is set, is rate-limited per address, and reads only private messages from people. A 200 tells Telegram the update is handled; an error makes it send the update again.
-- **Linking** ([D28](../decisions.md#d28-the-receipt-on-telegram), spec §8.2): the QR's token (a day) → the order → if the customer has a phone, the bot asks for the person's own contact (10 minutes) → the customer's phone links every order, anything else this order only → the receipt is sent at once.
-- **Sending**: ready and collected are queued in the order's batch and sent right after the response (or by the next minute's job); the receipt right after a link; reminders at 09:00 Phnom Penh. A blocked bot (`403`) or a deleted chat ends every link to that chat. Telegram's `429` wait is honoured.
-- **Receipt rendering** costs ~0.1–0.7 s of CPU per image (Workers Paid; the default 30 s limit is far off).
+- **From step 4** (plan §8): the QR's token (a day) → that one order → the slip is sent as a PNG. Whether the bot also asks for the person's phone is open (plan Q11). A blocked bot (`403`) or a deleted chat ends every link to that chat. Telegram's `429` wait is honoured.
+- **Slip rendering** costs about 25–50 ms for an 800 × 520 slip with text drawn as paths (D32: measured in the spike, dev server); the old receipt renderer took 0.1–0.7 s.
 
 ## Monitoring
 

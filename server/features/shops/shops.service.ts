@@ -1,17 +1,14 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { ApplyTemplateInput, CreateShopInput, PlatformShop, PlatformShopDetail, ResetOwnerPasswordInput, ShopListQuery, ShopStatus, ShopStatusChangeInput, UpdateShopInput } from '#shared/contracts/platform-shops'
+import type { CreateShopInput, PlatformShop, PlatformShopDetail, ResetOwnerPasswordInput, ShopListQuery, ShopStatus, ShopStatusChangeInput, UpdateShopInput } from '#shared/contracts/platform-shops'
 import type { Db, Statement } from '#server/utils/batch'
-import { isStaleWrite, isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
+import { isUniqueViolation, requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { auditStatement } from '#server/features/platform'
 import type { AuditEntry } from '#server/features/platform'
 import { newShopStatements, ownerPasswordResetStatements, renameShopStatement, requireShopNamesAvailable, revokeSessionsStatements, shopOwner, shopOwners } from '#server/features/identity'
 import type { PlatformActor } from '#server/features/identity'
-import { hasPriceList, newPriceListStatements, requireNoPriceListStatement } from '#server/features/pricing'
-import type { PriceActor } from '#server/features/pricing'
-import { requireActiveTemplateStatement, templateForNewShop } from '#server/features/templates'
-import { alreadySuspended, notSuspended, ownerNotFound, priceListNotEmpty, shopChanged, shopNotFound } from './shops.errors'
+import { alreadySuspended, notSuspended, ownerNotFound, shopChanged, shopNotFound } from './shops.errors'
 import * as repo from './shops.repository'
 import type { ShopRow } from './shops.repository'
 
@@ -45,73 +42,29 @@ async function loadShop(db: Db, shopId: string): Promise<ShopRow> {
 
 export async function getShop(db: Db, shopId: string): Promise<PlatformShopDetail> {
   const [shop] = await toPlatformShops(db, [await loadShop(db, shopId)])
-  return { ...shop!, priceListEmpty: !await hasPriceList(db, shopId) }
+  return shop!
 }
 
 /**
  * A new shop and its owner in one batch: the organization, settings, owner account and membership,
- * the price list copied from the chosen template (D25), and the audit row. All of it or nothing.
- * 409 `USERNAME_TAKEN` / `SLUG_TAKEN` name the field; `TEMPLATE_UNAVAILABLE` when the template was
- * archived, even between the read and the batch (its guard is in the batch).
+ * and the audit row. All of it or nothing. 409 `USERNAME_TAKEN` / `SLUG_TAKEN` name the field.
+ * Templates are attached afterwards (plan step 2).
  */
 export async function createShop(db: Db, actor: PlatformActor, input: CreateShopInput, now = new Date()): Promise<PlatformShopDetail> {
-  const { name, slug, owner, templateId } = input
+  const { name, slug, owner } = input
   const shopId = newId()
-  const template = templateId ? await templateForNewShop(db, templateId) : undefined
   const statements = await newShopStatements(db, { shopId, name, slug, owner, now })
   try {
     await db.batch([
-      audit(db, actor, shopId, { action: 'shop.create', data: templateId ? { ownerUsername: owner.username, templateId } : { ownerUsername: owner.username } }, now),
+      audit(db, actor, shopId, { action: 'shop.create', data: { ownerUsername: owner.username } }, now),
       ...statements,
-      repo.insertSettingsStatement(db, { shopId, currency: template?.currency, now }),
-      ...(template ? [requireActiveTemplateStatement(db, templateId!), ...newPriceListStatements(db, { shopId, definition: template.definition, now })] : []),
+      repo.insertSettingsStatement(db, { shopId, now }),
     ])
   }
   catch (error) {
     // Another save took the username or short name since the check: say which.
     if (isUniqueViolation(error)) await requireShopNamesAvailable(db, { username: owner.username, slug })
-    if (template && isStaleWrite(error)) await templateForNewShop(db, templateId!)
     throw error
-  }
-  return getShop(db, shopId)
-}
-
-/**
- * A super admin acting on a shop's configuration (D26: its price list), the shop named in the
- * path: 404 when there is no such shop. Never a way into orders or customers.
- */
-export async function platformShopActor(db: Db, actor: PlatformActor, shopId: string): Promise<PriceActor> {
-  await loadShop(db, shopId)
-  return { userId: actor.userId, shopId, requestId: actor.requestId }
-}
-
-/**
- * Copies an active template's price list and currency into an existing shop (D30), like a new
- * shop gets one (D25), but only while the shop's price list is empty, archived included: a copy
- * never overwrites the shop's own prices. One batch with its guards: the shop's version, the empty
- * list and the template still active; when one stops it, the error says which.
- */
-export async function applyTemplate(db: Db, actor: PlatformActor, shopId: string, input: ApplyTemplateInput, now = new Date()): Promise<PlatformShopDetail> {
-  const { version, templateId } = input
-  await loadShop(db, shopId)
-  const template = await templateForNewShop(db, templateId)
-  if (await hasPriceList(db, shopId)) throw priceListNotEmpty()
-  try {
-    await db.batch([
-      repo.updateSettingsAtVersion(db, { shopId, version, now, currency: template.currency }),
-      requireOneChange(db),
-      requireNoPriceListStatement(db, shopId),
-      requireActiveTemplateStatement(db, templateId),
-      ...newPriceListStatements(db, { shopId, definition: template.definition, now }),
-      audit(db, actor, shopId, { action: 'shop.apply-template', data: { templateId } }, now),
-    ])
-  }
-  catch (error) {
-    if (!isStaleWrite(error)) throw error
-    // Something changed since the read: the template, the price list, else the shop's version.
-    await templateForNewShop(db, templateId)
-    if (await hasPriceList(db, shopId)) throw priceListNotEmpty()
-    throw shopChanged()
   }
   return getShop(db, shopId)
 }

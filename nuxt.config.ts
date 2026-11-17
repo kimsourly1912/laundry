@@ -149,7 +149,7 @@ export default defineNuxtConfig({
   },
   compatibilityDate: '2025-07-15',
   nitro: {
-    // `wasm`: the receipt renderer's WebAssembly (server/features/receipts/receipts.png.ts, D28).
+    // `wasm`: resvg's WebAssembly, for the slip renderer (server/features/templates/templates.assets.mjs, D32).
     experimental: { tasks: true, wasm: true },
     // Cron in UTC. On Cloudflare they become Worker cron triggers; in dev Nitro runs them itself.
     scheduledTasks: SCHEDULED_TASKS,

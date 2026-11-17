@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * Shop settings (spec §3 → settings pattern): name, contact, currency, policy texts, reminder days,
- * the customers' language. One form, saved at the version it opened with.
+ * Shop settings (spec §3 → settings pattern): name, contact, currency, the customers' language.
+ * Orders keep a copy of these details when saved (D33). One form, saved at the version it opened with.
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { ShopSettings } from '#shared/contracts/shop-settings'
-import { CURRENCIES, POLICY_TEXT_MAX, REMINDER_DAYS_MAX, REMINDER_DAYS_MIN, SHOP_LANGUAGES } from '#shared/contracts/shop-settings'
+import { CURRENCIES, SHOP_LANGUAGES } from '#shared/contracts/shop-settings'
 import { useShopSettings } from '../composables/useShopSettings'
 import type { SettingsForm } from '../schemas/settings-form'
 import { settingsFormSchema, toSettingsForm, toSettingsRequest } from '../schemas/settings-form'
@@ -14,7 +14,7 @@ const { t, te } = useI18n()
 const { can } = useSession()
 const settings = useShopSettings()
 const schema = computed(() => settingsFormSchema(t))
-const state = reactive<SettingsForm>({ name: '', phone: '', address: '', currency: 'KHR', policyTextKm: '', policyTextEn: '', reminderAfterDays: 3, language: 'en' })
+const state = reactive<SettingsForm>({ name: '', phone: '', address: '', currency: 'KHR', language: 'en' })
 const baseline = ref('')
 const form = useTemplateRef('form')
 useFormErrorRecheck(form)
@@ -154,13 +154,12 @@ const readOnly = computed(() => !can('shop:update'))
           >
             <UFormField
               :label="t('settings.currency')"
-              :help="settings.data.value?.currencyLocked ? t('settings.currencyLocked') : t('settings.currencyHelp')"
+              :help="t('settings.currencyHelp')"
               name="currency"
             >
               <USelect
                 v-model="state.currency"
                 :items="currencies"
-                :disabled="settings.data.value?.currencyLocked"
                 class="w-full sm:w-56"
               />
             </UFormField>
@@ -179,41 +178,6 @@ const readOnly = computed(() => !can('shop:update'))
                 v-model="state.language"
                 :items="languages"
                 class="w-full sm:w-56"
-              />
-            </UFormField>
-            <UFormField
-              :label="t('settings.reminderAfterDays')"
-              :help="t('settings.reminderHelp', { min: REMINDER_DAYS_MIN, max: REMINDER_DAYS_MAX })"
-              name="reminderAfterDays"
-            >
-              <UInputNumber
-                v-model="state.reminderAfterDays"
-                :min="REMINDER_DAYS_MIN"
-                :max="REMINDER_DAYS_MAX"
-                class="w-full sm:w-40"
-              />
-            </UFormField>
-            <UFormField
-              :label="t('settings.policyTextKm')"
-              :help="t('settings.policyHelp', { max: POLICY_TEXT_MAX })"
-              name="policyTextKm"
-            >
-              <UTextarea
-                v-model="state.policyTextKm"
-                :rows="3"
-                autoresize
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField
-              :label="t('settings.policyTextEn')"
-              name="policyTextEn"
-            >
-              <UTextarea
-                v-model="state.policyTextEn"
-                :rows="3"
-                autoresize
-                class="w-full"
               />
             </UFormField>
           </UPageCard>

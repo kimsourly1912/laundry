@@ -1,5 +1,5 @@
-import khmerBoldUrl from '~~/server/features/receipts/fonts/NotoSansKhmer-Bold.ttf?url'
-import khmerRegularUrl from '~~/server/features/receipts/fonts/NotoSansKhmer-Regular.ttf?url'
+import khmerBoldUrl from '~~/server/features/templates/fonts/NotoSansKhmer-Bold.ttf?url'
+import khmerRegularUrl from '~~/server/features/templates/fonts/NotoSansKhmer-Regular.ttf?url'
 import { createSlipText } from '#shared/spike-studio/slip-text'
 import type { SlipText } from '#shared/spike-studio/slip-text'
 

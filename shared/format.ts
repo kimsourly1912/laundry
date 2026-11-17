@@ -1,9 +1,8 @@
 import type { Currency } from './contracts/shop-settings'
-import type { PriceUnit } from './contracts/pricing'
 
 /**
  * Formatters the app and the server both need (docs/standards/i18n.md → Money, numbers and dates):
- * the app shows them on screen (through app/utils/format.ts), the server writes them on receipts
+ * the app shows them on screen (through app/utils/format.ts), the server writes them on slips
  * and Telegram messages. Dates are stored in UTC and shown in Phnom Penh time.
  */
 
@@ -27,12 +26,4 @@ export function formatMoney(minor: number, currency: Currency, _locale: string):
   const digits = MINOR_DIGITS[currency]
   const amount = new Intl.NumberFormat('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(minor / 10 ** digits)
   return currency === 'KHR' ? `${amount}៛` : `$${amount}`
-}
-
-/** Pieces as `3`; grams as kilograms, `2500` → `2.5`. */
-export function formatQuantity(unit: PriceUnit, quantity: number): string {
-  if (unit === 'piece') return String(quantity)
-  const whole = Math.floor(quantity / 1000)
-  const fraction = String(quantity % 1000).padStart(3, '0').replace(/0+$/, '')
-  return fraction ? `${whole}.${fraction}` : String(whole)
 }

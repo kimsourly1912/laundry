@@ -1,5 +1,5 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
-import { khmerBold, khmerRegular, resvgWasm } from '#server/features/receipts/receipts.assets.mjs'
+import { khmerBold, khmerRegular, resvgWasm } from '#server/features/templates/templates.assets.mjs'
 import { slipSvg } from '#shared/spike-studio/slip-svg'
 import { createSlipText } from '#shared/spike-studio/slip-text'
 import type { SlipDesign, SlipValues } from '#shared/spike-studio/design'
