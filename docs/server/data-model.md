@@ -61,7 +61,7 @@ erDiagram
 | `shop_id` | text PK | FK → `organization.id`, restrict |
 | `phone` | text null | As the shop writes it |
 | `address` | text null | |
-| `logo_image_id` | text null | FK → `images.id`, restrict. The Shop info logo (plan §5.4.4); set by the platform (step 2) |
+| `logo_image_id` | text null | FK → `images.id`, restrict. Unused since D35 (the artwork carries the shop's look); kept for the order's copy of the shop's details |
 | `currency` | text | `KHR` (default) \| `USD`. May change at any time: each order keeps a copy ([D33](../decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)) |
 | `language` | text | `en` (default) \| `km`: customer-facing messages ([D6](../decisions.md#d6-shop-language-column)) |
 | `status` | text | `active` \| `suspended` |
@@ -69,7 +69,7 @@ erDiagram
 
 ## `templates`, `template_versions`, `template_shops`, `images` (owner: `templates`)
 
-**Status:** tables built in step 1. S1 built the templates' and images' code: create (blank, photo, copy), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
+**Status:** tables built in step 1. S1 built the templates' and images' code: create (from an artwork or a copy; blank and photo before D35), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.

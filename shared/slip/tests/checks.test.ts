@@ -11,7 +11,7 @@ function design(elements: SlipElement[], extra: Partial<SlipDesign> = {}): SlipD
 }
 const codes = (problems: { code: string, key?: string }[]) => problems.map(problem => problem.key ? `${problem.code}:${problem.key}` : problem.code)
 
-describe('publishProblems (plan §5.8)', () => {
+describe('publishProblems (plan §5.6)', () => {
   it('passes a complete slip with no warnings', () => {
     const slip = design([
       createElement('orderNo', { id: 'no' }),
@@ -38,13 +38,13 @@ describe('publishProblems (plan §5.8)', () => {
   it('warns about a field off the canvas, no amount, no phone and no fields', () => {
     const only = design([createElement('orderNo', { id: 'no', x: 790, y: 10, w: 40 })])
     expect(codes(publishProblems(only).warnings)).toEqual(['offCanvas:no', 'noAmount', 'noPhone', 'noFields'])
-    // Rotated inside the canvas: fine; rotated across its edge: off.
-    const rotated = design([createElement('number', { id: 'n', x: 0, y: 0, w: 100, h: 20 }, { label, rotation: 90 })])
-    expect(codes(publishProblems(rotated).warnings)).toContain('offCanvas:n')
+    // Right on the edges: fine; one pixel over: off.
+    expect(codes(publishProblems(design([createElement('number', { id: 'n', x: 0, y: 0, w: 800, h: 20 }, { label })])).warnings)).not.toContain('offCanvas:n')
+    expect(codes(publishProblems(design([createElement('number', { id: 'n', x: -1, y: 0, w: 20, h: 20 }, { label })])).warnings)).toContain('offCanvas:n')
   })
 })
 
-describe('checkFill (plan §5.4)', () => {
+describe('checkFill (plan §5.3)', () => {
   const slip = design([
     createElement('number', { id: 'n' }, { label, min: 0, max: 99, decimals: 1, required: true }),
     createElement('textField', { id: 't' }, { label, maxLength: 3 }),

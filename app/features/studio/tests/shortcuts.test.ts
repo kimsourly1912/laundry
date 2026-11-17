@@ -5,7 +5,7 @@ const press = (key: string, mods: { ctrl?: boolean, meta?: boolean, shift?: bool
   shortcutOf({ key, ctrlKey: Boolean(mods.ctrl), metaKey: Boolean(mods.meta), shiftKey: Boolean(mods.shift) })
 
 describe('shortcutOf (plan §5.7)', () => {
-  it('maps editing, selecting, layers and zoom keys, Ctrl or ⌘', () => {
+  it('maps editing, selecting and zoom keys, Ctrl or ⌘', () => {
     expect(press('z', { ctrl: true })).toEqual({ kind: 'undo' })
     expect(press('Z', { meta: true, shift: true })).toEqual({ kind: 'redo' })
     expect(press('y', { ctrl: true })).toEqual({ kind: 'redo' })
@@ -13,8 +13,7 @@ describe('shortcutOf (plan §5.7)', () => {
     expect(press('d', { ctrl: true })).toEqual({ kind: 'duplicate' })
     expect(press('c', { ctrl: true })).toEqual({ kind: 'copy' })
     expect(press('v', { meta: true })).toEqual({ kind: 'paste' })
-    expect(press(']', { ctrl: true })).toEqual({ kind: 'layer', move: 'forward' })
-    expect(press('[', { ctrl: true })).toEqual({ kind: 'layer', move: 'backward' })
+    expect(press(']', { ctrl: true })).toBeUndefined()
     expect(press('=', { ctrl: true })).toEqual({ kind: 'zoomIn' })
     expect(press('-', { ctrl: true })).toEqual({ kind: 'zoomOut' })
     expect(press('0', { ctrl: true })).toEqual({ kind: 'fit' })

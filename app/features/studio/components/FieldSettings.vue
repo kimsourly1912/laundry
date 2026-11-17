@@ -15,12 +15,12 @@ const { editor } = props
 
 const LABELLED = new Set(['number', 'textField', 'checkbox', 'option', 'phone', 'amount', 'paid'])
 const REQUIRABLE = new Set(['number', 'textField', 'checkbox', 'phone', 'amount'])
-const STYLED = new Set(['number', 'textField', 'orderNo', 'date', 'phone', 'amount', 'shopInfo'])
+const STYLED = new Set(['number', 'textField', 'orderNo', 'date', 'phone', 'amount'])
 const BORDERED = new Set(['number', 'textField', 'checkbox', 'option', 'orderNo', 'date', 'phone', 'amount', 'paid'])
 
 const element = computed(() => props.element)
 const group = computed(() => (element.value.type === 'option' ? editor.design.value.groups.find(item => item.id === (element.value as { group: string }).group) : undefined))
-const styled = computed(() => STYLED.has(element.value.type) && !(element.value.type === 'shopInfo' && element.value.info === 'logo'))
+const styled = computed(() => STYLED.has(element.value.type))
 
 /** Any field of the element: TypeScript can't follow a key across the union, the schema checks it on save. */
 function set(update: Record<string, unknown>) {

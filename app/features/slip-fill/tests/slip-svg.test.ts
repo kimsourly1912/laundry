@@ -15,35 +15,34 @@ import { SlipSvg } from '../components/slip-svg'
 
 const text = testSlipText()
 const imageHref = (id: string) => `/api/platform/images/${id}`
-const IMAGE = '0190f2a0-0000-7000-8000-000000000001'
+const ARTWORK = '0190f2a0-0000-7000-8000-000000000001'
 
 function slip(): SlipDesign {
   const group = createGroup('service', { label: { en: 'Service', km: 'សេវា' } })
   return {
     ...blankDesign(800, 600),
-    background: { color: '#fffbeb', imageId: IMAGE },
+    background: { color: '#fffbeb', imageId: ARTWORK },
     groups: [group],
     elements: [
-      { ...createElement('text', { id: 't', x: 20, y: 30, w: 300 }, { text: 'ហាងបោកអ៊ុត Linda Laundry and more words to wrap' }), rotation: 12, opacity: 0.5 },
-      createElement('rect', { id: 'r', x: 50, y: 300, w: 120, h: 60 }, { stroke: '#111827', dashed: true }),
-      createElement('ellipse', { id: 'e', x: 200, y: 300 }),
-      createElement('line', { id: 'l', x: 10, y: 500, w: 400 }),
-      createElement('icon', { id: 'i', x: 600, y: 20 }, { icon: 'star' }),
-      createElement('image', { id: 'img', x: 600, y: 100, w: 100, h: 80 }, { imageId: IMAGE }),
       createElement('number', { id: 'n', x: 400, y: 200, w: 60, h: 40 }, { border: true }),
-      createElement('textField', { id: 'tf', x: 400, y: 260, w: 120, h: 60 }),
+      createElement('textField', { id: 'tf', x: 20, y: 30, w: 300, h: 80 }, { maxLength: 200 }),
+      createElement('checkbox', { id: 'c', x: 50, y: 300 }),
       createElement('option', { id: 'o', x: 400, y: 340 }, { group: 'service' }),
+      createElement('option', { id: 'o2', x: 460, y: 340 }, { group: 'service' }),
       createElement('orderNo', { id: 'no', x: 600, y: 400 }),
-      { ...createElement('rect', { id: 'hidden' }), hidden: true },
+      createElement('date', { id: 'd', x: 600, y: 460 }),
+      createElement('phone', { id: 'p', x: 20, y: 500 }),
+      createElement('amount', { id: 'a', x: 300, y: 500 }),
+      createElement('paid', { id: 'pd', x: 600, y: 20 }),
     ],
   }
 }
 
-/** The drawn slip's content, without the plain `<g>`s the components hold each piece in. */
+/** The drawn slip's content, without the plain `<g>`s the components hold each piece in, or Vue's placeholders for a field with nothing to draw. */
 function drawn(root: Element): string {
   const svg = root.cloneNode(true) as Element
   for (const g of [...svg.querySelectorAll('g')].filter(g => g.attributes.length === 0)) g.replaceWith(...g.childNodes)
-  return svg.innerHTML
+  return svg.innerHTML.replace(/<!--.*?-->/g, '')
 }
 
 function expected(design: SlipDesign, data: SlipData): string {
@@ -60,38 +59,29 @@ describe('SlipSvg', () => {
     const wrapper = mount(SlipSvg, { props: { design, data, text } })
     await nextTick()
     expect(drawn(wrapper.element)).toBe(expected(design, data))
-    expect(pieces(wrapper.element)).toHaveLength(10)
+    // The second option isn't chosen and has no border: nothing to draw.
+    expect(pieces(wrapper.element)).toHaveLength(9)
   })
 
   it('follows a move, a resize and a new value, drawing again only what changed', async () => {
     const design = reactive(slip())
     const data = reactive(sampleData(design, { date: '2026-11-17' }))
+    data.values.tf = 'ហាងបោកអ៊ុត Linda Laundry and more words to wrap'
     const wrapper = mount(SlipSvg, { props: { design, data, text } })
     await nextTick()
     const before = pieces(wrapper.element).map(piece => piece.firstChild)
 
-    design.elements[1]!.x += 40
-    design.elements[0]!.w = 200
+    design.elements[2]!.x += 40
+    design.elements[1]!.w = 200
     data.values.n = 7
     await nextTick()
     await nextTick()
 
     expect(drawn(wrapper.element)).toBe(expected(design, data))
     const after = pieces(wrapper.element).map(piece => piece.firstChild)
-    expect(after[1]).toBe(before[1]) // the moved rectangle: same nodes
-    expect(after[2]).toBe(before[2]) // an untouched ellipse: same nodes
-    expect(after[0]).not.toBe(before[0]) // the narrower text: wrapped again
-    expect(after[6]).not.toBe(before[6]) // the number's new value
-  })
-
-  it('leaves out hidden elements and draws them once shown', async () => {
-    const design = reactive(slip())
-    const data = sampleData(design, { date: '2026-11-17' })
-    const wrapper = mount(SlipSvg, { props: { design, data, text } })
-    design.elements[10]!.hidden = false
-    await nextTick()
-    await nextTick()
-    expect(drawn(wrapper.element)).toBe(expected(design, data))
-    expect(pieces(wrapper.element)).toHaveLength(11)
+    expect(after[2]).toBe(before[2]) // the moved checkbox: same nodes
+    expect(after[4]).toBe(before[4]) // an untouched Order No.: same nodes
+    expect(after[1]).not.toBe(before[1]) // the narrower text field: wrapped again
+    expect(after[0]).not.toBe(before[0]) // the number's new value
   })
 })

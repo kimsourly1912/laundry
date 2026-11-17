@@ -458,6 +458,8 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 ## D34. The studio canvas: our own interaction layer
 **Owner, 2026-11-17.** Replaces D32's choice of Moveable + Selecto (the fontkit part of D32 stays).
 
+**Mostly superseded by D35** the same day: with AI-made artwork and fields only, the canvas keeps Moveable + Selecto. What stays from D34: each element drawn as its own piece (R1), the behaviour spec (cut to fields), and our own interaction layer as the fallback.
+
 **Context.** The owner tested the studio built in PR B and found it worked badly. Measured with the CPU slowed 4× (a normal laptop) on a 50-element slip: frames of 150–200 ms while dragging, and a group drag blocked for 24 s. Causes:
 - every pointer move rebuilt the whole slip SVG and re-shaped every text with fontkit;
 - the SVG was re-parsed each time;
@@ -489,3 +491,36 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - `vue3-moveable` and `vue3-selecto` are removed in R3.
 - The canvas e2e tests drive the overlay's own elements.
 - New canvas behaviour is added to `studio-behaviour.md` first, then built.
+
+## D35. AI-made artwork and fields only
+**Owner, 2026-11-17.** Replaces the Canva-like studio of D31 and plan §5; D33's main use (a slip with fields on it) becomes the only use.
+
+**Context.** The studio was being rebuilt as a full design editor (D34): text, shapes, icons, images, rotation, snapping and text editing, with a spec of about 110 rules. The owner observed that AI tools now design a slip, or redesign a photo of a shop's paper slip, faster and better than a hand-made editor would let the platform do. The app only needs to say **where the owner's values go** on that slip.
+
+**Decision.**
+- **The slip's look is artwork made outside the app** (AI or any design tool) and uploaded. It carries everything printed: the shop's name, contact details, labels, boxes and lines.
+- **The studio only places form fields** on the artwork: the field types of plan §5.3, choice groups, fixed-meaning fields, the fill order, Try it, publish checks. No text, shapes, lines, icons, images, shop info elements or rotation; the design's elements are fields only.
+- **Artwork formats:**
+  - **PNG and JPEG** are stored as uploaded.
+  - **SVG is drawn to a PNG in the platform's browser** at upload; only the PNG is stored. The browser shapes Khmer correctly and, drawing an SVG as an image, runs no scripts and fetches nothing. The server's resvg would draw an SVG's `<text>` with wrong Khmer and no fonts (D32), and an SVG would need cleaning before it could be trusted. The platform sees the PNG before saving.
+  - **Over 1 MB:** re-encoded in the browser as JPEG to fit the existing limit (D28).
+- **Size:** the canvas, and the customer's PNG, take the artwork's size (200–2000 px a side).
+- **AI stays outside the app** for now: no API keys, no cost per design, no prompts to maintain.
+- **Kept:**
+  - the server: templates, versions, publish, attach, the PNG through the shared SVG builder and resvg;
+  - fontkit for the values (text fields can hold Khmer, the amount shows ៛);
+  - the canvas's Moveable + Selecto (D32), with rotation turned off;
+  - each element drawn as its own piece (R1).
+
+**Alternatives.**
+- **The Canva-like studio** (D31, D34): far more code and edge cases for what an AI tool does better.
+- **An AI button inside the app:** cost and keys now; later, once we know which tool makes good slips.
+- **Storing the SVG and drawing it with resvg:** wrong Khmer, missing fonts, and SVG cleaning.
+- **PNG and JPEG only:** simpler still, but AI tools often give SVG.
+
+**Consequences.**
+- **Element types removed** from the design schema: text, rect, ellipse, triangle, line, icon, image, shopInfo. **Base fields removed:** rotation, opacity, locked, hidden, name. The staging database has test data only; templates made before this must be made again.
+- **Templates start** from an artwork or a copy (no blank canvas).
+- **Studio code removed:** the Text, Elements, Shop info, Uploads and Layers tabs and the Resize dialog.
+- **The behaviour spec is cut** to the rules that apply to fields.
+- The shop's logo and the Shop info preview (plan §5.4.4 before) are dropped; the order still keeps a copy of the shop's details for its currency and language (D33).

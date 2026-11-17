@@ -1,7 +1,7 @@
 /**
  * A slip drawn by the shared SVG builder (plan §6.2), as inline SVG: the markup the server turns
- * into the customer's PNG. Each element is its own piece, so a change redraws only the elements it
- * touched (D34): a move changes one `<g>`'s `transform`, never the element's drawing.
+ * into the customer's PNG. The artwork, then each field as its own piece, so a change redraws only
+ * the fields it touched (D34, D35): a move changes one `<g>`'s `transform`, never the drawing.
  *
  * Render functions rather than single-file components so the unit tests mount them without the
  * Nuxt test environment (`tests/slip-svg.test.ts`). Inline SVG, not `<img>`, so the slip's images
@@ -41,10 +41,7 @@ const SvgMarkup = defineComponent({
   },
 })
 
-/**
- * One element: its drawing comes from `elementBodySvg`, which reads none of the element's position,
- * rotation or opacity, so a move only changes this `<g>`'s `transform`.
- */
+/** One field: its drawing comes from `elementBodySvg`, which reads neither x nor y, so a move only changes this `<g>`'s `transform`. */
 const SlipElementSvg = defineComponent({
   name: 'SlipElementSvg',
   props: {
@@ -65,7 +62,7 @@ const SlipElementSvg = defineComponent({
     }))
     const placement = computed(() => elementPlacement(props.element))
     return () => body.value
-      ? h('g', { transform: placement.value.transform, opacity: placement.value.opacity }, [h(SvgMarkup, { markup: body.value })])
+      ? h('g', { transform: placement.value }, [h(SvgMarkup, { markup: body.value })])
       : null
   },
 })
@@ -93,7 +90,7 @@ export const SlipSvg = defineComponent({
       'aria-hidden': 'true',
     }, [
       h(SvgMarkup, { markup: background.value }),
-      ...props.design.elements.filter(element => !element.hidden).map(element => h(SlipElementSvg, {
+      ...props.design.elements.map(element => h(SlipElementSvg, {
         key: element.id,
         element,
         design: props.design,

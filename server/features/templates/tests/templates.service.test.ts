@@ -42,18 +42,23 @@ function jpegHeader(width: number, height: number) {
   return new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0, 4, 0, 0, 0xFF, 0xC0, 0, 11, 8, height >> 8, height & 0xFF, width >> 8, width & 0xFF, 1, 1, 0x11, 0])
 }
 
-const blank = { kind: 'blank' as const, width: 1200, height: 800 }
+/** An artwork start (D35): a PNG of that size uploaded as the template's artwork. */
+async function artwork(width = 1200, height = 800) {
+  const image = await uploadImage(db, actor, { bytes: await pngOf(width, height), name: 'artwork.png' })
+  return { kind: 'artwork' as const, imageId: image.id }
+}
 
 /** A draft that passes the publish checks: it has an Order No. */
 async function publishable(template: { id: string, design: SlipDesign, version: number }) {
   return updateTemplate(db, actor, template.id, { version: template.version, design: { ...template.design, elements: [createElement('orderNo', { id: 'no' })] } })
 }
 let names = 0
-const create = (start: Parameters<typeof createTemplate>[2]['start'] = blank, name = `Template ${++names}`) => createTemplate(db, actor, { name, start })
+const create = async (start?: Parameters<typeof createTemplate>[2]['start'], name = `Template ${++names}`) => createTemplate(db, actor, { name, start: start ?? await artwork() })
 const auditOf = (targetId: string) => db.select({ action: auditEvents.action, shopId: auditEvents.shopId, data: auditEvents.data }).from(auditEvents).where(eq(auditEvents.targetId, targetId)).orderBy(auditEvents.createdAt, auditEvents.id)
 
-function withText(design: SlipDesign, text = 'សេវា'): SlipDesign {
-  return { ...design, elements: [...design.elements, createElement('text', { id: `t${design.elements.length}` }, { text })] }
+/** The design with one more field, labelled `label`. */
+function withField(design: SlipDesign, label = 'សេវា'): SlipDesign {
+  return { ...design, elements: [...design.elements, createElement('number', { id: `n${design.elements.length}` }, { label: { en: label, km: label } })] }
 }
 
 describe('images', () => {
@@ -84,15 +89,14 @@ describe('images', () => {
 })
 
 describe('createTemplate', () => {
-  it('starts blank, from a photo (its size, the photo as background) or as a copy of a draft', async () => {
-    const plain = await create(blank, 'Wide slip')
-    expect(plain).toMatchObject({ name: 'Wide slip', status: 'draft', version: 1, latestVersion: null, width: 1200, height: 800, hasUnpublishedChanges: true, design: blankDesign(1200, 800) })
+  it('starts from an artwork (its size, no fields yet) or as a copy of a draft', async () => {
+    const start = await artwork(900, 600)
+    const plain = await create(start, 'Wide slip')
+    expect(plain).toMatchObject({ name: 'Wide slip', status: 'draft', version: 1, latestVersion: null, width: 900, height: 600, hasUnpublishedChanges: true })
+    expect(plain.design).toEqual({ ...blankDesign(900, 600), background: { color: '#ffffff', imageId: start.imageId } })
+    expect(await auditOf(plain.id)).toEqual([{ action: 'template.create', shopId: null, data: { start: 'artwork' } }])
 
-    const photo = await uploadImage(db, actor, { bytes: await pngOf(900, 600), name: '' })
-    const fromPhoto = await create({ kind: 'photo', imageId: photo.id })
-    expect(fromPhoto.design).toEqual({ ...blankDesign(900, 600), background: { color: '#ffffff', imageId: photo.id } })
-
-    const edited = await updateTemplate(db, actor, plain.id, { version: 1, design: withText(plain.design) })
+    const edited = await updateTemplate(db, actor, plain.id, { version: 1, design: withField(plain.design) })
     const copy = await create({ kind: 'copy', templateId: plain.id }, 'Copy of Wide slip')
     expect(copy).toMatchObject({ status: 'draft', version: 1, latestVersion: null, design: edited.design })
     expect(copy.id).not.toBe(plain.id)
@@ -100,11 +104,11 @@ describe('createTemplate', () => {
     expect(await auditOf(copy.id)).toEqual([{ action: 'template.create', shopId: null, data: { start: 'copy', from: plain.id } }])
   })
 
-  it('refuses a name another template has, whatever its case, and a photo or template that doesn\'t exist', async () => {
-    await create(blank, 'Linda')
-    expect(await refusal(create(blank, 'LINDA'))).toBe('409 TEMPLATE_NAME_TAKEN')
+  it('refuses a name another template has, whatever its case, and an artwork or template that doesn\'t exist', async () => {
+    await create(undefined, 'Linda')
+    expect(await refusal(create(undefined, 'LINDA'))).toBe('409 TEMPLATE_NAME_TAKEN')
     const missing = '0190f2a0-0000-7000-8000-000000000009'
-    expect(await refusal(create({ kind: 'photo', imageId: missing }))).toBe('404 NOT_FOUND')
+    expect(await refusal(create({ kind: 'artwork', imageId: missing }))).toBe('404 NOT_FOUND')
     expect(await refusal(create({ kind: 'copy', templateId: missing }))).toBe('404 NOT_FOUND')
     expect(await db.$count(templates)).toBe(1)
   })
@@ -112,9 +116,9 @@ describe('createTemplate', () => {
 
 describe('updateTemplate (autosave)', () => {
   it('saves the draft and the name at the version read, auditing only the rename', async () => {
-    const template = await create(blank, 'Draft')
-    const saved = await updateTemplate(db, actor, template.id, { version: 1, design: withText(template.design) })
-    expect(saved).toMatchObject({ version: 2, name: 'Draft', design: { elements: [{ type: 'text', text: 'សេវា' }] } })
+    const template = await create(undefined, 'Draft')
+    const saved = await updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design) })
+    expect(saved).toMatchObject({ version: 2, name: 'Draft', design: { elements: [{ type: 'number', label: { en: 'សេវា' } }] } })
     const renamed = await updateTemplate(db, actor, template.id, { version: 2, name: 'Linda slip' })
     expect(renamed).toMatchObject({ version: 3, name: 'Linda slip', design: saved.design })
     expect((await auditOf(template.id)).map(row => row.action)).toEqual(['template.create', 'template.rename'])
@@ -122,17 +126,16 @@ describe('updateTemplate (autosave)', () => {
 
   it('refuses a stale version and changes nothing', async () => {
     const template = await create()
-    await updateTemplate(db, actor, template.id, { version: 1, design: withText(template.design, 'first') })
-    expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, design: withText(template.design, 'second') }))).toBe('409 VERSION_CONFLICT')
-    expect((await getTemplate(db, template.id)).design.elements).toMatchObject([{ text: 'first' }])
+    await updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design, 'first') })
+    expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, design: withField(template.design, 'second') }))).toBe('409 VERSION_CONFLICT')
+    expect((await getTemplate(db, template.id)).design.elements).toMatchObject([{ label: { en: 'first' } }])
   })
 
-  it('refuses an image that was never uploaded, a taken name, an archived or a missing template', async () => {
-    const template = await create(blank, 'One')
-    await create(blank, 'Two')
+  it('refuses an artwork that was never uploaded, a taken name, an archived or a missing template', async () => {
+    const template = await create(undefined, 'One')
+    await create(undefined, 'Two')
     const missing = '0190f2a0-0000-7000-8000-000000000009'
     expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, design: { ...template.design, background: { color: '#ffffff', imageId: missing } } }))).toBe('422 UNKNOWN_IMAGE')
-    expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, design: { ...template.design, elements: [createElement('image', { id: 'i' }, { imageId: missing })] } }))).toBe('422 UNKNOWN_IMAGE')
     expect(await refusal(updateTemplate(db, actor, template.id, { version: 1, name: 'two' }))).toBe('409 TEMPLATE_NAME_TAKEN')
     expect(await refusal(updateTemplate(db, actor, missing, { version: 1, name: 'Three' }))).toBe('404 NOT_FOUND')
 
@@ -147,7 +150,7 @@ describe('publishTemplate', () => {
     const first = await publishTemplate(db, actor, template.id, { version: 2 })
     expect(first).toMatchObject({ status: 'published', version: 3, latestVersion: 1, hasUnpublishedChanges: false })
 
-    const edited = await updateTemplate(db, actor, template.id, { version: 3, design: withText(template.design) })
+    const edited = await updateTemplate(db, actor, template.id, { version: 3, design: withField(template.design) })
     expect(edited.hasUnpublishedChanges).toBe(true)
     const second = await publishTemplate(db, actor, template.id, { version: 4 })
     expect(second).toMatchObject({ latestVersion: 2, version: 5, hasUnpublishedChanges: false })
@@ -164,7 +167,7 @@ describe('publishTemplate', () => {
     expect(await refusal(publishTemplate(db, actor, template.id, { version: 1 }))).toBe('409 VERSION_CONFLICT')
     await publishTemplate(db, actor, template.id, { version: 2 })
     expect(await refusal(publishTemplate(db, actor, template.id, { version: 3 }))).toBe('409 INVALID_STATE')
-    await updateTemplate(db, actor, template.id, { version: 3, design: withText(template.design) })
+    await updateTemplate(db, actor, template.id, { version: 3, design: withField(template.design) })
     await db.update(templates).set({ status: 'archived' }).where(eq(templates.id, template.id))
     expect(await refusal(publishTemplate(db, actor, template.id, { version: 4 }))).toBe('409 INVALID_STATE')
     expect(await db.$count(templateVersions, eq(templateVersions.templateId, template.id))).toBe(1)
@@ -187,9 +190,9 @@ describe('listTemplates', () => {
   })
 
   it('lists the latest changed first, leaves archived ones out unless asked, and searches the name', async () => {
-    const a = await create(blank, 'Linda slip')
-    const b = await create(blank, 'Sokha receipt')
-    const c = await create(blank, 'Old Linda')
+    const a = await create(undefined, 'Linda slip')
+    const b = await create(undefined, 'Sokha receipt')
+    const c = await create(undefined, 'Old Linda')
     await db.update(templates).set({ status: 'archived' }).where(eq(templates.id, c.id))
     await updateTemplate(db, actor, a.id, { version: 1, name: 'Linda slip 2' }, new Date(Date.now() + 1000))
 
@@ -203,18 +206,14 @@ describe('listTemplates', () => {
 })
 
 describe('previewTemplate', () => {
-  it('draws the design on screen as a PNG of the canvas\'s size, with its images', async () => {
-    const template = await create({ kind: 'blank', width: 600, height: 1000 })
-    const photo = await uploadImage(db, actor, { bytes: await pngOf(300, 300), name: '' })
-    const design: SlipDesign = {
-      ...withText(template.design, 'ហាងបោកអ៊ុត'),
-      background: { color: '#fffbeb', imageId: photo.id },
-    }
+  it('draws the design on screen as a PNG of the canvas\'s size, with its artwork', async () => {
+    const template = await create(await artwork(600, 1000))
+    const design: SlipDesign = { ...withField(template.design, 'ហាងបោកអ៊ុត'), background: { ...template.design.background, color: '#fffbeb' } }
     const png = await previewTemplate(db, template.id, { design })
     expect(imageInfo(png)).toEqual({ type: 'image/png', width: 600, height: 1000 })
   })
 
-  it('refuses an image that was never uploaded, and a missing template', async () => {
+  it('refuses an artwork that was never uploaded, and a missing template', async () => {
     const template = await create()
     const missing = '0190f2a0-0000-7000-8000-000000000009'
     expect(await refusal(previewTemplate(db, template.id, { design: { ...template.design, background: { color: '#ffffff', imageId: missing } } }))).toBe('422 UNKNOWN_IMAGE')

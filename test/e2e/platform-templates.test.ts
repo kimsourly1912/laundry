@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, inject, it, onTestFailed } from 
 import type { Browser, Page } from 'playwright-core'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import type { TemplateDetail } from '#shared/contracts/templates'
-import { blankDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
+import { createTemplateWithArtwork } from './support/templates'
 import { launchBrowser, newDevice, screenshotOnFailure, signIn } from './support/browser'
 
 // Templates attached to shops (plan §4, step 2): chosen when a shop is created, attached and
@@ -31,8 +31,8 @@ async function api<T>(page: Page, path: string, init: { method: string, body: un
 
 /** A published template, made through the API. */
 async function publishedTemplate(page: Page, name: string) {
-  const created = await api<TemplateDetail>(page, '/platform/templates', { method: 'POST', body: { name, start: { kind: 'blank', width: 800, height: 500 } } })
-  const design: SlipDesign = { ...blankDesign(800, 500), elements: [createElement('orderNo', { id: 'no' })] }
+  const created = await createTemplateWithArtwork(page, { name, width: 800, height: 500 })
+  const design: SlipDesign = { ...created.design, elements: [createElement('orderNo', { id: 'no' })] }
   const saved = await api<TemplateDetail>(page, `/platform/templates/${created.id}`, { method: 'PATCH', body: { version: 1, design } })
   return api<TemplateDetail>(page, `/platform/templates/${created.id}/publish`, { method: 'POST', body: { version: saved.version } })
 }

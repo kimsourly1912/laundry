@@ -14,10 +14,17 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
   - **S4 done:** the Text tab (heading, subheading, body; double-click edits the text in place in the same font; side handles rewrap, corners scale the size; the height always fits the text), the Elements tab (lines, rectangles, circles, triangles, tick, star), the Uploads tab (upload, add in proportion, set as background), their toolbars with the slip's recent colours, and Resize.
   - **S5 done:** align (left, centre, right, top, middle, bottom) and spread evenly for several elements; Copy and Paste (Ctrl+C / Ctrl+V and the ⋯ menu), kept in the browser so a copy can go into another template, checked against the element schema when pasted; options bring their choice group, and a fixed-meaning field the template already has is left out.
   - **Step 2 done:** attach a published template to a shop and detach it (`/api/platform/templates/:id/shops`, `/api/platform/shops/:shopId/templates`; two-shop tests), archive and restore (archive detaches it everywhere), the templates list with thumbnails and shop counts, the studio's Shops dialog and ⋯ menu, the shop page's Templates card, and a template chosen when a shop is created (attached by a second request right after; on failure the shop page offers it).
-  - **Not in PR B:** choosing an attached shop for the studio's Shop info preview (plan §5.4.4) and a shop's logo (the platform sets `logo_image_id`; no screen yet). Both are small and can come with PR C.
+  - **Not in PR B:** a shop's logo and the Shop info preview, both dropped by D35 (the artwork carries the shop's look).
   - **Khmer to review:** `slipFill.*`, `platform.nav.templates`, `platform.shop.templates.*`, `platform.newShop.template`, `templateHelp`, `noTemplates` in `km.json`.
-- **PR B merged (#13).** The owner found the studio's canvas worked badly (measured: 150–200 ms frames on a normal laptop).
-- **Next: PR B2, the studio rework (R1–R6, [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer)).** Built to the agreed [studio behaviour spec](studio-behaviour.md) (Phase 0 research, answers Q-S1–Q-S5 on 2026-11-17).
+- **PR B merged (#13).** The owner found the studio's canvas worked badly (measured: 150–200 ms frames on a normal laptop) and then simplified the product ([D35](decisions.md#d35-ai-made-artwork-and-fields-only)): **the slip's look is artwork made by AI or a designer and uploaded; the studio only places form fields on it.**
+- **PR B2, the studio simplified (#14, branch `claude/affectionate-ritchie-mtyfdr`):** R1 (each field drawn as its own piece, equal to the server's SVG) and K1 done:
+  - the drawing element types, rotation, locking and hiding removed from the design, the studio and the server;
+  - New template = an artwork (PNG, JPEG, or SVG drawn to PNG in the browser; `app/features/studio/utils/artwork.ts`) or a copy; **Replace artwork** in the ⋯ menu;
+  - the Fields panel is the only side panel;
+  - Ctrl turns snapping off, Shift keeps proportions, the wheel zooms at Figma's rates.
+
+  **Still to build** (marked in [studio-behaviour.md](studio-behaviour.md)): Shift axis lock and Alt-drag copy, Esc cancels a gesture, thin outlines at any zoom, hover outline and labels, tiny fields, equal-gap snapping.
+- **Staging:** templates made before D35 no longer match the design format: archive them and make them again from an artwork.
 - **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. **Q7 answered: a saved order can be edited**; its rules must be settled before step 3 ([plan §10](plan.md#10-open-questions)).
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 

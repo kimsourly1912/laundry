@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * The Form tab (plan §5.3, §5.4): add the fields the owner fills and the fixed-meaning ones, then the
- * fill order, dragged to reorder. A fixed-meaning field can be added once (plan §5.4.3).
+ * The Fields panel (plan §5.1, §5.3): add the fields the owner fills and the fixed-meaning ones,
+ * then the fill order, dragged to reorder. A fixed-meaning field can be added once (plan §5.3.3).
  */
 import type { ElementType, SlipElement } from '#shared/contracts/slip-design'
 import { PAID_KEY } from '#shared/contracts/slip-design'
@@ -9,6 +9,7 @@ import { createElement, createGroup, newKey, UNPAID_LABEL } from '#shared/slip/e
 import { fillOrderOf } from '#shared/slip/fields'
 import type { StudioEditor } from '../composables/useStudioEditor'
 import { addElements, placeInFillOrder } from '../utils/design-ops'
+import { fieldName } from '../utils/field-name'
 
 const props = defineProps<{ editor: StudioEditor }>()
 const { t } = useI18n()
@@ -42,19 +43,19 @@ function add(kind: Addable) {
   if (kind === 'choice') {
     groups = [createGroup(id)]
     elements = [
-      createElement('option', { id: newKey(), name: t('studio.form.optionName', { n: 1 }) }, { group: id }),
-      createElement('option', { id: newKey(), x: 120, name: t('studio.form.optionName', { n: 2 }) }, { group: id }),
+      createElement('option', { id: newKey() }, { group: id }),
+      createElement('option', { id: newKey(), x: 120 }, { group: id }),
     ]
   }
   else if (kind === 'paid') {
     elements = [
-      createElement('paid', { id, name: t('studio.form.types.paid') }),
-      createElement('paid', { id: newKey(), x: 160, name: t('studio.form.notPaid') }, { value: 'unpaid', label: UNPAID_LABEL }),
+      createElement('paid', { id }),
+      createElement('paid', { id: newKey(), x: 160 }, { value: 'unpaid', label: UNPAID_LABEL }),
     ]
     fillKeys = [PAID_KEY]
   }
   else {
-    elements = [createElement(kind, { id, name: t(`studio.form.types.${kind}`) })]
+    elements = [createElement(kind, { id })]
     if (kind === 'orderNo' || kind === 'date') fillKeys = []
   }
   const next = addElements(design.value, elements, { groups, fillKeys })
@@ -62,7 +63,7 @@ function add(kind: Addable) {
   editor.select(elements.map(element => element.id))
 }
 
-// --- Fill order (plan §5.4.5) ---
+// --- Fill order (plan §5.3.4) ---
 
 const order = computed(() => fillOrderOf(design.value))
 
@@ -71,8 +72,7 @@ function nameOf(key: string): string {
   const group = design.value.groups.find(item => item.id === key)
   if (group) return group.label.en || t('studio.form.types.choice')
   const element = editor.element(key)
-  if (element && 'label' in element && element.label.en) return element.label.en
-  return element?.name ?? key
+  return element ? fieldName(element, t) : key
 }
 
 function idsOf(key: string): string[] {

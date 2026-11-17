@@ -1,26 +1,25 @@
 <script setup lang="ts">
 /**
- * The studio's canvas (plan §5.6, §5.7, D32): the slip on a grey workspace, with zoom, pan, select,
- * drag, resize, rotate and snap.
+ * The studio's canvas (plan §5.5, D32, D35): the artwork and its fields on a grey workspace, with
+ * zoom, pan, select, drag, resize and snap. No rotation.
  *
- * The design is the only state. The slip is the shared builder's SVG; transparent boxes over it, one
- * per element, are what Moveable and Selecto handle. They never own the design: each drag, resize or
- * rotate event writes x, y, w, h or rotation into the editor's design, and the SVG is redrawn from
- * it. A gesture is committed (one undo step, one save) when it ends.
+ * The design is the only state. The slip is the shared builder's SVG, each field its own piece;
+ * transparent boxes over it, one per field, are what Moveable and Selecto handle. They never own
+ * the design: each drag or resize event writes x, y, w and h into the editor's design. A gesture is
+ * committed (one undo step, one save) when it ends.
  */
 import Moveable from 'vue3-moveable'
 import VueSelecto from 'vue3-selecto'
-import type { OnDrag, OnDragGroup, OnDragGroupStart, OnDragStart, OnResize, OnResizeGroup, OnResizeGroupStart, OnResizeStart, OnRotate, OnRotateGroup, OnRotateGroupStart, OnRotateStart } from 'vue3-moveable'
+import type { OnDrag, OnDragGroup, OnDragGroupStart, OnDragStart, OnResize, OnResizeGroup, OnResizeGroupStart, OnResizeStart } from 'vue3-moveable'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import * as v from 'valibot'
 import { elementSchema, groupSchema } from '#shared/contracts/slip-design'
 import type { SlipData, SlipElement } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
 import type { StudioEditor } from '../composables/useStudioEditor'
-import { copyElements, duplicateElements, moveLayers, nudgeElements, pasteElements, removeElements, roundBox, updateElements } from '../utils/design-ops'
-import type { Clipboard, LayerMove } from '../utils/design-ops'
+import { copyElements, duplicateElements, nudgeElements, pasteElements, removeElements, roundBox } from '../utils/design-ops'
+import type { Clipboard } from '../utils/design-ops'
 import { isTyping, shortcutOf } from '../utils/shortcuts'
-import { textHeight } from '#shared/slip/svg'
 import { SlipSvg } from '~/features/slip-fill'
 
 const props = defineProps<{
@@ -35,10 +34,6 @@ const design = computed(() => editor.design.value)
 
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 4
-/** Fields have no ink of their own until filled: a faint outline shows where they are. */
-const FIELD_TYPES = new Set<SlipElement['type']>(['number', 'textField', 'checkbox', 'option', 'orderNo', 'date', 'phone', 'amount', 'paid'])
-/** Corner handles keep these in proportion; side handles never do (plan §5.6). */
-const KEEP_RATIO_TYPES = new Set<SlipElement['type']>(['image', 'icon', 'text'])
 const MIN_SIDE = 4
 
 const viewport = ref<HTMLElement>()
@@ -46,12 +41,14 @@ const stage = ref<HTMLElement>()
 const page = ref<HTMLElement>()
 const moveable = ref<InstanceType<typeof Moveable>>()
 
-// --- Zoom and pan (plan §5.6) ---
+// --- Zoom and pan (plan §5.5) ---
 
 const zoom = ref(1)
 const pan = ref({ x: 0, y: 0 })
 const spaceHeld = ref(false)
-const altHeld = ref(false)
+/** Ctrl (or ⌘) held: move and resize without snapping; Shift held: keep proportions (studio-behaviour.md). */
+const ctrlHeld = ref(false)
+const shiftHeld = ref(false)
 
 function viewportRect() {
   return viewport.value?.getBoundingClientRect() ?? new DOMRect()
@@ -84,7 +81,13 @@ function fit() {
 
 function onWheel(event: WheelEvent) {
   event.preventDefault()
-  if (event.ctrlKey || event.metaKey) zoomAt(zoom.value * Math.exp(-event.deltaY * 0.01), event.clientX, event.clientY)
+  if (event.ctrlKey || event.metaKey) {
+    // Figma's rates (studio-behaviour.md V2): a trackpad pinch arrives as small Ctrl+wheel steps
+    // and zooms by 2^(−Δ/50); a mouse wheel notch (about 100) by e^(−0.005 Δ). Never 10× at once.
+    const perDelta = Math.abs(event.deltaY) < 50 ? Math.LN2 / 50 : 0.005
+    const exponent = Math.max(-Math.LN10, Math.min(Math.LN10, -event.deltaY * perDelta))
+    zoomAt(zoom.value * Math.exp(exponent), event.clientX, event.clientY)
+  }
   else pan.value = { x: pan.value.x - (event.shiftKey ? event.deltaY : event.deltaX), y: pan.value.y - (event.shiftKey ? 0 : event.deltaY) }
 }
 
@@ -115,7 +118,7 @@ const zoomPercent = computed({
 // --- Boxes and targets ---
 
 function boxStyle(element: SlipElement) {
-  return { width: `${element.w}px`, height: `${element.h}px`, transform: `translate(${element.x}px, ${element.y}px) rotate(${element.rotation}deg)` }
+  return { width: `${element.w}px`, height: `${element.h}px`, transform: `translate(${element.x}px, ${element.y}px)` }
 }
 
 /** Writes the box straight to its overlay too: Moveable reads it before Vue's next render. */
@@ -132,9 +135,9 @@ const guidelines = computed(() => [page.value, ...boxes().filter(box => !targets
 const gesturing = ref(false)
 
 /** The boxes of what the handles act on, once Vue has drawn them. */
-watch(() => editor.movable.value.map(element => element.id).join(','), () => {
+watch(() => editor.selection.value.join(','), () => {
   void nextTick(() => {
-    const ids = new Set(editor.movable.value.map(element => element.id))
+    const ids = new Set(editor.selection.value)
     const next = boxes().filter(box => ids.has(box.dataset.id ?? ''))
     // Selecto already handed Moveable these boxes: a new array would restart its gesture.
     const same = next.length === targets.value.length && next.every(box => targets.value.includes(box))
@@ -155,10 +158,6 @@ watch([zoom, pan], updateRect, { deep: true })
 
 // --- Moveable: one element ("frame" pattern: start from the design's values) ---
 
-const keepRatio = ref(false)
-/** A text box's width and font size when its resize started: corners scale the text (plan §5.6). */
-const textStart = new Map<string, { w: number, size: number, corner: boolean }>()
-
 function onDragStart(e: OnDragStart) {
   gesturing.value = true
   const element = elementOf(e.target)
@@ -175,9 +174,6 @@ function onDrag(e: OnDrag) {
 function onResizeStart(e: OnResizeStart) {
   gesturing.value = true
   const element = elementOf(e.target)
-  const corner = Boolean(e.direction[0] && e.direction[1])
-  keepRatio.value = corner && editor.movable.value.length === 1 && KEEP_RATIO_TYPES.has(element.type)
-  if (element.type === 'text') textStart.set(element.id, { w: element.w, size: element.size, corner })
   e.setOrigin(['%', '%'])
   e.setMin([MIN_SIDE, MIN_SIDE])
   if (e.dragStart) e.dragStart.set([element.x, element.y])
@@ -187,32 +183,8 @@ function onResize(e: OnResize) {
   const element = elementOf(e.target)
   element.w = roundBox(Math.max(MIN_SIDE, e.width))
   element.h = roundBox(Math.max(MIN_SIDE, e.height))
-  const start = element.type === 'text' ? textStart.get(element.id) : undefined
-  if (element.type === 'text' && start) {
-    // Side handles rewrap the text at the new width; corners scale its size with the box. Either
-    // way the height is the text's own.
-    if (start.corner) element.size = Math.round(Math.min(400, Math.max(6, start.size * element.w / start.w)) * 10) / 10
-    element.h = roundBox(Math.max(1, textHeight(element, props.text)))
-  }
   element.x = roundBox(e.drag.beforeTranslate[0]!)
   element.y = roundBox(e.drag.beforeTranslate[1]!)
-  applyBox(e.target, element)
-}
-
-function onRotateStart(e: OnRotateStart) {
-  gesturing.value = true
-  e.set(elementOf(e.target).rotation)
-}
-
-/** Degrees as stored: -180 to 180, one decimal. */
-function normalAngle(degrees: number): number {
-  const turned = ((degrees % 360) + 540) % 360 - 180
-  return Math.round(turned * 10) / 10
-}
-
-function onRotate(e: OnRotate) {
-  const element = elementOf(e.target)
-  element.rotation = normalAngle(e.beforeRotation)
   applyBox(e.target, element)
 }
 
@@ -227,7 +199,6 @@ function onDragGroup(e: OnDragGroup) {
 }
 
 function onResizeGroupStart(e: OnResizeGroupStart) {
-  keepRatio.value = false
   e.events.forEach(onResizeStart)
 }
 
@@ -235,28 +206,8 @@ function onResizeGroup(e: OnResizeGroup) {
   e.events.forEach(onResize)
 }
 
-function onRotateGroupStart(e: OnRotateGroupStart) {
-  gesturing.value = true
-  e.events.forEach((event) => {
-    const element = elementOf(event.target)
-    event.set(element.rotation)
-    if (event.dragStart) event.dragStart.set([element.x, element.y])
-  })
-}
-
-function onRotateGroup(e: OnRotateGroup) {
-  e.events.forEach((event) => {
-    const element = elementOf(event.target)
-    element.rotation = normalAngle(event.beforeRotation)
-    element.x = roundBox(event.drag.beforeTranslate[0]!)
-    element.y = roundBox(event.drag.beforeTranslate[1]!)
-    applyBox(event.target, element)
-  })
-}
-
 function onGestureEnd() {
   gesturing.value = false
-  textStart.clear()
   editor.commit()
 }
 
@@ -306,22 +257,11 @@ function duplicateSelected() {
   editor.select(result.ids)
 }
 
-function moveSelected(move: LayerMove) {
-  if (selectedIds.value.length) editor.apply(moveLayers(design.value, selectedIds.value, move))
-}
-
-const allLocked = computed(() => editor.selected.value.length > 0 && editor.selected.value.every(element => element.locked))
-function toggleLock() {
-  const locked = !allLocked.value
-  editor.apply(updateElements(design.value, selectedIds.value, element => ({ ...element, locked })))
-}
-
 function nudge(dx: number, dy: number) {
-  const ids = editor.movable.value.map(element => element.id)
-  if (ids.length) editor.apply(nudgeElements(design.value, ids, dx, dy))
+  if (selectedIds.value.length) editor.apply(nudgeElements(design.value, selectedIds.value, dx, dy))
 }
 
-// Copy and paste (plan §5.7): kept in this browser, so a copy can go into another template.
+// Copy and paste (plan §5.5): kept in this browser, so a copy can go into another template.
 const CLIPBOARD_KEY = 'laundry.studio.clipboard'
 const clipboardSchema = v.object({ elements: v.array(elementSchema), groups: v.array(groupSchema) })
 let clipboard: Clipboard | undefined
@@ -362,74 +302,23 @@ function paste() {
 const layerItems = computed<DropdownMenuItem[][]>(() => [[
   { label: t('studio.canvas.copy'), kbds: ['ctrl', 'c'], onSelect: copySelected },
   { label: t('studio.canvas.paste'), kbds: ['ctrl', 'v'], onSelect: paste },
-], [
-  { label: t('studio.canvas.bringForward'), kbds: ['ctrl', ']'], onSelect: () => moveSelected('forward') },
-  { label: t('studio.canvas.sendBackward'), kbds: ['ctrl', '['], onSelect: () => moveSelected('backward') },
-  { label: t('studio.canvas.bringToFront'), onSelect: () => moveSelected('front') },
-  { label: t('studio.canvas.sendToBack'), onSelect: () => moveSelected('back') },
 ]])
 
 /** The floating toolbar sits above the selection's bounding box, in screen pixels. */
 const toolbarAt = computed(() => {
-  const chosen = editor.selected.value.filter(element => !element.hidden)
+  const chosen = editor.selected.value
   if (!chosen.length) return undefined
-  let top = Infinity
-  let left = Infinity
-  let right = -Infinity
-  for (const element of chosen) {
-    const angle = element.rotation * Math.PI / 180
-    const cx = element.x + element.w / 2
-    const cy = element.y + element.h / 2
-    const halfW = (Math.abs(Math.cos(angle)) * element.w + Math.abs(Math.sin(angle)) * element.h) / 2
-    const halfH = (Math.abs(Math.sin(angle)) * element.w + Math.abs(Math.cos(angle)) * element.h) / 2
-    top = Math.min(top, cy - halfH)
-    left = Math.min(left, cx - halfW)
-    right = Math.max(right, cx + halfW)
-  }
+  const top = Math.min(...chosen.map(element => element.y))
+  const left = Math.min(...chosen.map(element => element.x))
+  const right = Math.max(...chosen.map(element => element.x + element.w))
   return { left: pan.value.x + (left + right) / 2 * zoom.value, top: pan.value.y + top * zoom.value - 56 }
 })
 
-// --- Editing text on the canvas (plan §5.6, D32): an editor in the same font over the box ---
-
-const editing = ref<string>()
-const editText = ref('')
-const textArea = ref<HTMLTextAreaElement>()
-const editingElement = computed(() => {
-  const element = editing.value ? editor.element(editing.value) : undefined
-  return element?.type === 'text' ? element : undefined
-})
-
-function startEditing(id: string) {
-  const element = editor.element(id)
-  if (element?.type !== 'text' || element.locked) return
-  editing.value = id
-  editText.value = element.text
-  editor.select([])
-  void nextTick(() => {
-    textArea.value?.focus()
-    textArea.value?.select()
-  })
-}
-
-/** Esc or a click outside finishes; the text changes as one step. */
-function finishEditing() {
-  const id = editing.value
-  if (!id) return
-  editing.value = undefined
-  const value = editText.value.slice(0, 2000)
-  editor.apply(updateElements(design.value, [id], element => (element.type === 'text' ? { ...element, text: value } : element)))
-  editor.select([id])
-}
-
-function onDoubleClick(event: MouseEvent) {
-  const box = (event.target as HTMLElement).closest<HTMLElement>('.studio-box')
-  if (box?.dataset.id) startEditing(box.dataset.id)
-}
-
-// --- Keyboard (plan §5.7): never while typing in a field ---
+// --- Keyboard (plan §5.5): never while typing in a field ---
 
 function onKeyDown(event: KeyboardEvent) {
-  if (event.key === 'Alt') altHeld.value = true
+  if (event.key === 'Control' || event.key === 'Meta') ctrlHeld.value = true
+  if (event.key === 'Shift') shiftHeld.value = true
   if (isTyping(event)) return
   if (event.code === 'Space') {
     spaceHeld.value = true
@@ -442,13 +331,12 @@ function onKeyDown(event: KeyboardEvent) {
   switch (action.kind) {
     case 'undo': return editor.undo()
     case 'redo': return editor.redo()
-    case 'selectAll': return editor.select(design.value.elements.filter(element => !element.locked && !element.hidden).map(element => element.id))
+    case 'selectAll': return editor.select(design.value.elements.map(element => element.id))
     case 'deselect': return editor.select([])
     case 'delete': return removeSelected()
     case 'duplicate': return duplicateSelected()
     case 'copy': return copySelected()
     case 'paste': return paste()
-    case 'layer': return moveSelected(action.move)
     case 'nudge': return nudge(action.dx, action.dy)
     case 'zoomIn': return zoomTo(zoom.value * 1.25)
     case 'zoomOut': return zoomTo(zoom.value / 1.25)
@@ -458,12 +346,14 @@ function onKeyDown(event: KeyboardEvent) {
 
 function onKeyUp(event: KeyboardEvent) {
   if (event.code === 'Space') spaceHeld.value = false
-  if (event.key === 'Alt') altHeld.value = false
+  if (event.key === 'Control' || event.key === 'Meta') ctrlHeld.value = false
+  if (event.key === 'Shift') shiftHeld.value = false
 }
 
 function onBlur() {
   spaceHeld.value = false
-  altHeld.value = false
+  ctrlHeld.value = false
+  shiftHeld.value = false
 }
 
 // --- Start at Fit ---
@@ -497,7 +387,7 @@ onBeforeUnmount(() => {
   observer?.disconnect()
 })
 
-defineExpose({ fit, zoomTo, startEditing })
+defineExpose({ fit, zoomTo })
 </script>
 
 <template>
@@ -506,7 +396,6 @@ defineExpose({ fit, zoomTo, startEditing })
     class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-elevated select-none"
     :class="{ 'cursor-grab': spaceHeld }"
     data-testid="studio-viewport"
-    @dblclick="onDoubleClick"
     @pointerdown.capture="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
@@ -530,39 +419,11 @@ defineExpose({ fit, zoomTo, startEditing })
       </div>
       <div
         v-for="element in design.elements"
-        v-show="!element.hidden"
         :key="element.id"
-        class="studio-box absolute top-0 left-0"
-        :class="{
-          'is-locked pointer-events-none': element.locked,
-          'cursor-move': !element.locked,
-          'is-field': FIELD_TYPES.has(element.type),
-          'is-selected-locked': element.locked && selectedIds.includes(element.id),
-        }"
+        class="studio-box is-field absolute top-0 left-0 cursor-move"
         :data-id="element.id"
         :data-testid="`box-${element.id}`"
         :style="boxStyle(element)"
-      />
-      <textarea
-        v-if="editingElement"
-        ref="textArea"
-        v-model="editText"
-        class="absolute top-0 left-0 resize-none overflow-hidden bg-white/95 p-0 outline-2 outline-primary"
-        :style="{
-          ...boxStyle(editingElement),
-          height: `${Math.max(editingElement.h, editingElement.size * editingElement.lineHeight)}px`,
-          fontFamily: '\'Noto Sans Khmer\', sans-serif',
-          fontSize: `${editingElement.size}px`,
-          fontWeight: editingElement.bold ? 700 : 400,
-          lineHeight: editingElement.lineHeight,
-          color: editingElement.color,
-          textAlign: editingElement.align,
-        }"
-        :aria-label="t('studio.text.editing')"
-        data-testid="text-editor"
-        @keydown.esc.prevent="finishEditing"
-        @blur="finishEditing"
-        @pointerdown.stop
       />
     </div>
 
@@ -571,40 +432,31 @@ defineExpose({ fit, zoomTo, startEditing })
       :target="targets"
       :draggable="true"
       :resizable="true"
-      :rotatable="true"
-      :keep-ratio="keepRatio"
-      :snappable="!altHeld"
+      :rotatable="false"
+      :keep-ratio="shiftHeld"
+      :snappable="!ctrlHeld"
       :snap-threshold="6"
       :is-display-snap-digit="true"
       :snap-directions="{ top: true, left: true, bottom: true, right: true, center: true, middle: true }"
       :element-snap-directions="{ top: true, left: true, bottom: true, right: true, center: true, middle: true }"
       :element-guidelines="guidelines"
-      :snap-rotation-degrees="[0, 45, 90, 135, 180, 225, 270, 315]"
-      :snap-rotation-threshold="3"
       :origin="false"
-      rotation-position="bottom"
       @drag-start="onDragStart"
       @drag="onDrag"
       @drag-end="onGestureEnd"
       @resize-start="onResizeStart"
       @resize="onResize"
       @resize-end="onGestureEnd"
-      @rotate-start="onRotateStart"
-      @rotate="onRotate"
-      @rotate-end="onGestureEnd"
       @drag-group-start="onDragGroupStart"
       @drag-group="onDragGroup"
       @drag-group-end="onGestureEnd"
       @resize-group-start="onResizeGroupStart"
       @resize-group="onResizeGroup"
       @resize-group-end="onGestureEnd"
-      @rotate-group-start="onRotateGroupStart"
-      @rotate-group="onRotateGroup"
-      @rotate-group-end="onGestureEnd"
     />
     <VueSelecto
       :drag-container="viewport"
-      :selectable-targets="['.studio-box:not(.is-locked)']"
+      :selectable-targets="['.studio-box']"
       :hit-rate="0"
       :select-by-click="true"
       :select-from-inside="false"
@@ -627,14 +479,6 @@ defineExpose({ fit, zoomTo, startEditing })
         size="sm"
         :aria-label="t('studio.canvas.duplicate')"
         @click="duplicateSelected"
-      />
-      <UButton
-        :icon="allLocked ? 'i-lucide-lock-open' : 'i-lucide-lock'"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        :aria-label="allLocked ? t('studio.canvas.unlock') : t('studio.canvas.lock')"
-        @click="toggleLock"
       />
       <UButton
         icon="i-lucide-trash-2"
@@ -686,8 +530,5 @@ defineExpose({ fit, zoomTo, startEditing })
 .studio-box.is-field {
   outline: 1px dashed rgb(59 130 246 / 0.6);
   outline-offset: -1px;
-}
-.studio-box.is-selected-locked {
-  outline: 2px dashed rgb(234 88 12 / 0.9);
 }
 </style>

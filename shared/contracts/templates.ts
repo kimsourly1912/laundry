@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { idSchema, nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
-import { canvasSideSchema, designSchema } from './slip-design'
+import { designSchema } from './slip-design'
 import type { SlipDesign } from './slip-design'
 
 /**
@@ -15,12 +15,10 @@ export type TemplateStatus = typeof TEMPLATE_STATUSES[number]
 export const TEMPLATE_NAME_MAX = 80
 export const templateNameSchema = nameSchema(TEMPLATE_NAME_MAX, 'Template name')
 
-/** How a new template starts (plan §5.2). */
+/** How a new template starts (plan §5.2, D35). */
 export const templateStartSchema = v.variant('kind', [
-  /** A white canvas of a preset or custom size. */
-  v.strictObject({ kind: v.literal('blank'), width: canvasSideSchema, height: canvasSideSchema }),
-  /** An uploaded photo of the shop's paper slip: the canvas takes its size, the photo is the background. */
-  v.strictObject({ kind: v.literal('photo'), imageId: idSchema }),
+  /** An uploaded artwork (made by AI or a designer): the canvas takes its size. */
+  v.strictObject({ kind: v.literal('artwork'), imageId: idSchema }),
   /** Another template's draft, as a new draft. */
   v.strictObject({ kind: v.literal('copy'), templateId: idSchema }),
 ])

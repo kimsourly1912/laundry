@@ -1,12 +1,11 @@
 <script setup lang="ts">
 /**
- * The studio (plan §5, desktop only, platform only): one template's draft on a grey workspace, saved
- * by itself, with undo and redo, Preview (the server's PNG) and Publish. English only (D33). The
- * left rail's tabs open their panels; the form fields (S3) and drawing tools (S4) add tabs.
+ * The studio (plan §5, D35; desktop only, platform only): one template's artwork with its form
+ * fields on a grey workspace, saved by itself, with undo and redo, Try it, Preview (the server's
+ * PNG), Replace artwork and Publish. English only (D33).
  */
-import type { TemplateDetail } from '#shared/contracts/templates'
+import type { ImageSummary, TemplateDetail } from '#shared/contracts/templates'
 import { sampleData, SAMPLE_SHOP } from '#shared/slip/fields'
-import { CANVAS_MAX_SIDE, CANVAS_MIN_SIDE } from '#shared/contracts/slip-design'
 import type { SlipData } from '#shared/contracts/slip-design'
 import { publishProblems } from '#shared/slip/checks'
 import { emptyFill, fillData, SlipFiller, SlipSvg, useSlipText } from '~/features/slip-fill'
@@ -14,14 +13,11 @@ import type { SlipFill } from '#shared/slip/values'
 import { useStudioEditor } from '../composables/useStudioEditor'
 import { useTemplateDraft } from '../composables/useTemplateDraft'
 import { useWideScreen } from '../composables/useWideScreen'
-import { fitTextHeights } from '../utils/design-ops'
+import { fieldName } from '../utils/field-name'
+import ArtworkPicker from './ArtworkPicker.vue'
 import ElementToolbar from './ElementToolbar.vue'
-import DrawingPanels from './DrawingPanels.vue'
 import FormPanel from './FormPanel.vue'
 import TemplateShopsModal from './TemplateShopsModal.vue'
-import UploadsPanel from './UploadsPanel.vue'
-import ShopInfoPanel from './ShopInfoPanel.vue'
-import LayersPanel from './LayersPanel.vue'
 import StudioCanvas from './StudioCanvas.vue'
 
 const props = defineProps<{ template: TemplateDetail }>()
@@ -31,30 +27,10 @@ const toast = useToast()
 const wide = useWideScreen()
 const { text, failed: fontsFailed, reload: reloadFonts } = useSlipText()
 const fontError = new ApiError({ kind: 'network', status: 0 })
-// Text boxes keep their height fitted to their text (plan §5.6) once the fonts are in.
-watch(text, (shaper) => {
-  if (shaper) editor.setNormalize(next => fitTextHeights(next, shaper))
-}, { immediate: true })
 const draft = useTemplateDraft(props.template)
 const editor = useStudioEditor(props.template.design, draft)
 const { status, saved } = draft
 const design = editor.design
-
-// --- Left rail (plan §5.3): a tab opens its panel; clicking it again closes it ---
-
-const TABS = [
-  { key: 'form', icon: 'i-lucide-square-check' },
-  { key: 'text', icon: 'i-lucide-type' },
-  { key: 'elements', icon: 'i-lucide-shapes' },
-  { key: 'shop', icon: 'i-lucide-store' },
-  { key: 'uploads', icon: 'i-lucide-upload' },
-  { key: 'layers', icon: 'i-lucide-layers' },
-] as const
-type Tab = typeof TABS[number]['key']
-const tab = ref<Tab | undefined>('form')
-function toggleTab(key: Tab) {
-  tab.value = tab.value === key ? undefined : key
-}
 
 // --- Name ---
 
@@ -103,7 +79,9 @@ const canvas = ref<InstanceType<typeof StudioCanvas>>()
 
 const shopsOpen = ref(false)
 const archiveOpen = ref(false)
-const moreItems = computed(() => [[saved.value.status === 'archived'
+const moreItems = computed(() => [[
+  { label: t('studio.artwork.replace'), icon: 'i-lucide-image-up', onSelect: openReplace },
+], [saved.value.status === 'archived'
   ? { label: t('studio.archive.restore'), icon: 'i-lucide-archive-restore', onSelect: () => runStatus('restore') }
   : { label: t('studio.archive.archive'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } }]])
 async function runStatus(action: 'archive' | 'restore') {
@@ -117,24 +95,23 @@ async function runStatus(action: 'archive' | 'restore') {
   }
 }
 
-// --- Resize the canvas (plan §5.1): 200–2000 px a side; the PNG is this size ---
+// --- Replace the artwork (plan §5.2): the canvas takes its size; the fields stay where they are ---
 
-const resizeOpen = ref(false)
-const resizeTo = reactive({ width: 0, height: 0 })
-const resizeValid = computed(() => [resizeTo.width, resizeTo.height].every(side => Number.isInteger(side) && side >= CANVAS_MIN_SIDE && side <= CANVAS_MAX_SIDE))
-function openResize() {
-  resizeTo.width = design.value.width
-  resizeTo.height = design.value.height
-  resizeOpen.value = true
+const replaceOpen = ref(false)
+const replacement = shallowRef<ImageSummary>()
+function openReplace() {
+  replacement.value = undefined
+  replaceOpen.value = true
 }
-function applyResize() {
-  if (!resizeValid.value) return
-  editor.apply({ ...design.value, width: resizeTo.width, height: resizeTo.height })
-  resizeOpen.value = false
+function applyReplace() {
+  const image = replacement.value
+  if (!image) return
+  editor.apply({ ...design.value, width: image.width, height: image.height, background: { ...design.value.background, imageId: image.id } })
+  replaceOpen.value = false
   void nextTick(() => canvas.value?.fit())
 }
 
-// --- Try it (plan §5.4.5): the owner's form in a phone-sized frame; nothing is saved ---
+// --- Try it (plan §5.3.4): the owner's form in a phone-sized frame; nothing is saved ---
 
 const tryOpen = ref(false)
 const tryFill = ref<SlipFill>(emptyFill())
@@ -155,14 +132,15 @@ function checkTry() {
 // --- Publish ---
 
 const publishOpen = ref(false)
-/** The publish checks (plan §5.8): the server refuses the same errors. */
+/** The publish checks (plan §5.6): the server refuses the same errors. */
 const problems = computed(() => publishProblems(design.value))
 
 function problemName(key: string | undefined): string {
   if (!key) return ''
   const group = design.value.groups.find(item => item.id === key)
   if (group) return group.label.en || t('studio.form.types.choice')
-  return editor.element(key)?.name ?? key
+  const element = editor.element(key)
+  return element ? fieldName(element, t) : key
 }
 
 /** Selects what a problem is about, so the platform can fix it. */
@@ -267,13 +245,6 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
         :disabled="!editor.canRedo.value"
         @click="editor.redo()"
       />
-      <UButton
-        :label="t('studio.resize.open')"
-        icon="i-lucide-scaling"
-        color="neutral"
-        variant="ghost"
-        @click="openResize"
-      />
 
       <div class="ms-auto flex items-center gap-2">
         <span
@@ -348,54 +319,11 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
     />
 
     <div class="flex min-h-0 flex-1">
-      <nav
-        class="flex w-16 shrink-0 flex-col items-center gap-1 border-e border-default py-2"
-        :aria-label="t('studio.rail')"
-      >
-        <UButton
-          v-for="item in TABS"
-          :key="item.key"
-          :icon="item.icon"
-          :label="t(`studio.tabs.${item.key}`)"
-          color="neutral"
-          :variant="tab === item.key ? 'soft' : 'ghost'"
-          size="xs"
-          class="w-14 flex-col gap-0.5 text-[11px]"
-          :aria-pressed="tab === item.key"
-          @click="toggleTab(item.key)"
-        />
-      </nav>
-      <aside
-        v-if="tab"
-        class="w-72 shrink-0 overflow-y-auto border-e border-default p-3"
-      >
-        <FormPanel
-          v-if="tab === 'form'"
-          :editor="editor"
-        />
-        <ShopInfoPanel
-          v-else-if="tab === 'shop'"
-          :editor="editor"
-        />
-        <DrawingPanels
-          v-else-if="tab === 'text' || tab === 'elements'"
-          :editor="editor"
-          :tab="tab"
-        />
-        <UploadsPanel
-          v-else-if="tab === 'uploads'"
-          :editor="editor"
-        />
-        <LayersPanel
-          v-else-if="tab === 'layers'"
-          :editor="editor"
-        />
+      <aside class="w-72 shrink-0 overflow-y-auto border-e border-default p-3">
+        <FormPanel :editor="editor" />
       </aside>
       <div class="flex min-w-0 flex-1 flex-col">
-        <ElementToolbar
-          :editor="editor"
-          @edit-text="canvas?.startEditing($event)"
-        />
+        <ElementToolbar :editor="editor" />
         <PageLoadError
           v-if="fontsFailed"
           :error="fontError"
@@ -476,30 +404,12 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
     </UModal>
 
     <UModal
-      v-model:open="resizeOpen"
-      :title="t('studio.resize.title')"
-      :description="t('studio.resize.description')"
+      v-model:open="replaceOpen"
+      :title="t('studio.artwork.replaceTitle')"
+      :description="t('studio.artwork.replaceDescription')"
     >
       <template #body>
-        <div class="flex gap-3">
-          <UFormField
-            :label="t('studio.new.width')"
-            :error="resizeValid ? undefined : t('studio.new.sizeRange', { min: CANVAS_MIN_SIDE, max: CANVAS_MAX_SIDE })"
-          >
-            <UInputNumber
-              v-model="resizeTo.width"
-              :min="CANVAS_MIN_SIDE"
-              :max="CANVAS_MAX_SIDE"
-            />
-          </UFormField>
-          <UFormField :label="t('studio.new.height')">
-            <UInputNumber
-              v-model="resizeTo.height"
-              :min="CANVAS_MIN_SIDE"
-              :max="CANVAS_MAX_SIDE"
-            />
-          </UFormField>
-        </div>
+        <ArtworkPicker v-model="replacement" />
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
@@ -507,12 +417,12 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
             :label="t('common.actions.cancel')"
             color="neutral"
             variant="ghost"
-            @click="resizeOpen = false"
+            @click="replaceOpen = false"
           />
           <UButton
-            :label="t('studio.resize.apply')"
-            :disabled="!resizeValid"
-            @click="applyResize"
+            :label="t('studio.artwork.replaceApply')"
+            :disabled="!replacement"
+            @click="applyReplace"
           />
         </div>
       </template>

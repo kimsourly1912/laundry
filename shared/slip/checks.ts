@@ -2,7 +2,7 @@ import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { FIXED_TYPES, isOwnerField } from './fields'
 
 /**
- * What a template needs before it's published (plan §5.8). Errors stop Publish, in the studio and on
+ * What a template needs before it's published (plan §5.6). Errors stop Publish, in the studio and on
  * the server; warnings are shown and the platform may go ahead. Each problem names the element or
  * group it's about, so the studio can select it.
  */
@@ -32,18 +32,11 @@ export interface PublishProblems {
 
 const hasBothLabels = (label: { en: string, km: string }) => Boolean(label.en.trim() && label.km.trim())
 
-/** Whether any part of the element's box (rotated) is outside the canvas. */
+/** Whether any part of the field's box is outside the canvas. */
 export function isOffCanvas(element: SlipElement, design: Pick<SlipDesign, 'width' | 'height'>): boolean {
-  const angle = element.rotation * Math.PI / 180
-  const cx = element.x + element.w / 2
-  const cy = element.y + element.h / 2
-  const halfW = (Math.abs(Math.cos(angle)) * element.w + Math.abs(Math.sin(angle)) * element.h) / 2
-  const halfH = (Math.abs(Math.sin(angle)) * element.w + Math.abs(Math.cos(angle)) * element.h) / 2
   const slack = 0.5
-  return cx - halfW < -slack || cy - halfH < -slack || cx + halfW > design.width + slack || cy + halfH > design.height + slack
+  return element.x < -slack || element.y < -slack || element.x + element.w > design.width + slack || element.y + element.h > design.height + slack
 }
-
-const FIELD_LIKE = new Set<SlipElement['type']>(['number', 'textField', 'checkbox', 'option', 'orderNo', 'date', 'phone', 'amount', 'paid'])
 
 export function publishProblems(design: SlipDesign): PublishProblems {
   const errors: Problem<PublishError>[] = []
@@ -70,12 +63,12 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   for (const element of elements) {
     const labelled = isOwnerField(element) || element.type === 'option' || element.type === 'paid'
     if (labelled && 'label' in element && !hasBothLabels(element.label)) errors.push({ code: 'missingLabel', key: element.id })
-    if (FIELD_LIKE.has(element.type) && isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
+    if (isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
   }
 
   if (!elements.some(element => element.type === 'amount')) warnings.push({ code: 'noAmount' })
   if (!elements.some(element => element.type === 'phone')) warnings.push({ code: 'noPhone' })
-  if (!elements.some(element => FIELD_LIKE.has(element.type) && element.type !== 'orderNo')) warnings.push({ code: 'noFields' })
+  if (!elements.some(element => element.type !== 'orderNo')) warnings.push({ code: 'noFields' })
 
   return { errors, warnings }
 }
