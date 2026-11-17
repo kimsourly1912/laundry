@@ -7,7 +7,8 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
 - **Next:** [plan step 1, Reset](plan.md#9-steps): delete the removed features and restart the migrations.
-- **Still being planned with the owner:** the studio details ([plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only)) and the [open questions Q9–Q12](plan.md#10-open-questions). Settle them before S2.
+- **Studio spike done (2026-11-17), waiting for the owner:** [D32 (proposed)](decisions.md#d32-studio-canvas-and-slip-text-proposed-from-the-studio-spike) and plan Q13–Q14. resvg draws common Khmer words wrong (D28's receipts too). The spike's code (`*/spike-studio`, page `/spike/studio` on the dev server only) is throwaway: delete it once S1 replaces it.
+- **Still being planned with the owner:** the studio details ([plan §5](plan.md#5-the-studio-canva-like-desktop-platform-only)) and the [open questions Q9–Q14](plan.md#10-open-questions). Settle them before S2.
 - The table below is the history of what was built **before D31**. Much of it gets deleted in step 1 (see [plan §8](plan.md#8-what-happens-to-the-current-code)).
 
 ## Where we are (before D31)

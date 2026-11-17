@@ -411,3 +411,27 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - The spec's step plan (§18) and D22–D27 and D30 no longer guide work; `plan.md` does.
 - The rule "the server recomputes totals" has nothing to recompute: the server still sets the order number, date and template version, and checks every value against the template version.
 - A shop with no attached template can't take orders, so the platform attaches one when it creates the shop.
+
+## D32. Studio canvas and slip text (proposed, from the studio spike)
+**Status: proposed 2026-11-17, waiting for the owner's approval.** Nothing is adopted until then. Changes D28 (text) and plan §6.3–6.4 once approved.
+
+**Context.** Plan §6.4 asked for a spike before choosing the studio's interaction library, and §6.3 kept D28's Khmer fix (resvg, one `<text>` per word). The spike (`app/spike-studio`, `shared/spike-studio`, `server/spike-studio`; page `/spike/studio` on the dev server only) built a small studio on the plan's design: one JSON design, one shared SVG builder, Moveable + Selecto over the SVG, and the same SVG rendered by resvg on the server. Findings:
+- **resvg shapes Khmer wrongly, even one word at a time:** `សេវា` draws as `សោ`, `ប្រើប្រាស់` and `ខោ` lose or misplace vowels. 2.6.2 (installed, latest stable) and 2.7.0-alpha.2 draw the same wrong glyphs. So D28's receipts are wrong for common words today.
+- **fontkit 3.0.0** (pure JavaScript, MIT) shapes Khmer **glyph-for-glyph the same as HarfBuzz** (glyph ids and positions compared on 5 test strings, including whole mixed Khmer + Latin lines). **fontkit 2.0.4 does not** (a stray glyph before `ស្ត្រី`, a wrong mark in `ក្រុម`). It runs in the browser and in workerd (tested with wrangler): ~5 ms to lay out a line and ~6 ms to rasterise it once warm, no `nodejs_compat` needed. Bundle: ~387 KB minified, ~158 KB gzip.
+- **harfbuzzjs still can't run on Workers** (D28's reason, re-tested with 1.6.4: its start-up compiles WebAssembly at runtime, which workerd forbids).
+- With text drawn as glyph paths, **the studio's SVG is byte-identical to the server's**, and the browser's pixels match the server PNG (0 of 24,640 ink pixels differ by more than 25%).
+- **Moveable 0.53 / vue3-moveable 0.28 and Selecto 1.26 / vue3-selecto 1.12** work on Nuxt 4 / Vue 3.5 over an SVG canvas, at any zoom: press-and-drag, resize, rotate, shift-click and box selection, group drag, snapping to the canvas centre and to other elements, plus our own undo/redo, arrow nudges, Ctrl+scroll zoom about the pointer and Space+drag pan (16 Playwright checks pass). Neither package has had a release since December 2023.
+
+**Decision (proposed).**
+- **Text is shaped by fontkit 3 in the shared builder and written as glyph `<path>`s.** The SVG holds no `<text>`; resvg only rasterises, with no fonts. The same font files (`NotoSansKhmer-Regular/Bold.ttf`) are loaded by the studio and the server. This replaces D28's one-word-per-`<text>` fix.
+- **Moveable + Selecto drive the canvas, and never own the design.** Transparent boxes over the SVG, one per element, are their targets; each drag, resize or rotate event writes x, y, w, h or rotation into the design JSON, and the SVG is rebuilt from it. Swapping the library later touches only this layer.
+- **Guard fontkit with tests:** a unit test compares fontkit with harfbuzzjs (which runs in Node) on a corpus of Khmer and mixed strings, so an upgrade that breaks Khmer fails in CI.
+
+**Alternatives.** Keep resvg's text (wrong Khmer). harfbuzzjs (not on Workers). fontkit 2.0.4 (wrong Khmer). Measure in the browser with canvas and draw `<text>` (the server still draws with resvg, so the customer's image stays wrong). Fabric or Konva (two drawing paths, rejected in D31). Writing our own handles (more work now; still possible later, since the library only drives the JSON).
+
+**Consequences.**
+- fontkit 3.0.0 was published on 2026-11-11, so it is very new: pin the exact version and keep the HarfBuzz comparison test.
+- Moveable and Selecto are unmaintained: pin them and keep them behind the studio's canvas component; fork (MIT) if a bug needs fixing.
+- **On-canvas text editing needs an HTML editor over the SVG** (the SVG has no text to edit): show a `contenteditable` box in the same font while editing, and redraw paths when it closes.
+- Khmer has no spaces between words, and each runtime's `Intl.Segmenter` splits words differently (workerd and Node gave different results). For now lines wrap only at spaces and newlines, so the browser and the server always break the same way (Q14).
+- A Vue detail the spike hit: after a click selects an element, Vue passes Moveable its new target one tick later, so Moveable's "start dragging" must run only while the mouse button is still down. Otherwise the next gesture drags instead of resizing.
