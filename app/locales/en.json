@@ -42,7 +42,6 @@
     "code": {
       "INVALID_USERNAME_OR_PASSWORD": "Wrong username or password.",
       "INVALID_PASSWORD": "The current password is wrong.",
-      "PASSWORD_COMPROMISED": "This password appears in a list of leaked passwords. Choose another one.",
       "RATE_LIMITED": "Too many attempts. Wait a few minutes and try again.",
       "VERSION_CONFLICT": "Someone else changed this meanwhile. Reload to see the change, then try again.",
       "USERNAME_TAKEN": "This username is already used by another account.",
@@ -68,7 +67,8 @@
       "TEMPLATE_LIST_FULL": "Too many active templates. Archive some first.",
       "RECEIPT_IMAGE_INVALID": "Upload a PNG or JPEG image of at most 1 MB.",
       "RECEIPT_IMAGE_SIZE": "The image must be between 200 and 2000 pixels on each side.",
-      "TELEGRAM_OFF": "Telegram isn't set up yet. Ask support."
+      "TELEGRAM_OFF": "Telegram isn't set up yet. Ask support.",
+      "PRICE_LIST_NOT_EMPTY": "This shop already has a price list. Edit it on its price list page."
     }
   },
   "account": {
@@ -295,6 +295,11 @@
       "priceList": "Price list",
       "priceListDescription": "Its services and prices, in {currency}. The owner sees them; only the platform changes them.",
       "openPriceList": "Open the price list",
+      "applyTemplate": "Start from a template",
+      "applyTemplateDescription": "The price list is empty. Copy a template’s services, items and prices into this shop; its currency becomes the template’s. You can change them afterwards.",
+      "applyTemplateButton": "Copy into this shop",
+      "templateApplied": "Template copied into the shop’s price list.",
+      "noTemplates": "No active template yet. Make one under Templates.",
       "receipt": "Receipt",
       "receiptDescription": "The image a customer gets on Telegram: the shop's own slip, filled in with the order.",
       "openReceipt": "Design the receipt"

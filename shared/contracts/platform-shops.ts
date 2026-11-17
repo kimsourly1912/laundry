@@ -57,6 +57,16 @@ export type ShopStatusChangeInput = v.InferOutput<typeof shopStatusChangeSchema>
 export const resetOwnerPasswordSchema = v.strictObject({ password: passwordSchema })
 export type ResetOwnerPasswordInput = v.InferOutput<typeof resetOwnerPasswordSchema>
 
+/**
+ * `POST …/apply-template`: copies an active template's price list and currency into a shop whose
+ * price list is still empty (D30), at the version the admin saw.
+ */
+export const applyTemplateSchema = v.strictObject({
+  version: versionSchema,
+  templateId: idSchema,
+})
+export type ApplyTemplateInput = v.InferOutput<typeof applyTemplateSchema>
+
 /** `GET /api/platform/shops?status=&search=&page=&pageSize=`: search is the name or short name. */
 export const shopListQuerySchema = v.object({
   ...pageQuerySchema,
@@ -88,4 +98,10 @@ export interface PlatformShop {
   currency: Currency
   /** `null` only if the shop lost its owner (never by our routes). */
   owner: ShopOwner | null
+}
+
+/** One shop (`GET /api/platform/shops/:shopId` and every change to it). */
+export interface PlatformShopDetail extends PlatformShop {
+  /** No service type or price item yet, archived included: a template can still be applied (D30). */
+  priceListEmpty: boolean
 }

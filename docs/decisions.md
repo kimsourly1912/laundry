@@ -218,7 +218,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Decision.**
 - The **shops** feature owns the use cases (`shops.service.ts`). It asks **identity** for the organization and owner statements (Better Auth's tables are identity's) and **platform** for the audit row, and runs one batch.
 - A platform action's audit row has `shop_id` **null** and the shop as its target (`target_type: 'shop'`). A shop's own history (M2) will have its `shop_id`.
-- The super admin types the owner's **temporary password** (spec §4 screen). It's hashed on the server with Better Auth's `hashPassword`, never logged or audited, and must be changed at the first sign-in, where Better Auth's leaked-password check applies.
+- The super admin types the owner's **temporary password** (spec §4 screen). It's hashed on the server with Better Auth's `hashPassword`, never logged or audited, and must be changed at the first sign-in (password rules: D29).
 - Versions: `shop_settings.version` is the shop's version for every platform change (rename, suspend, resume). The batch's `requireOneChange` decides a stale write; there is no separate early check.
 - `authorizeShop` refuses a super admin with `403 NO_SHOP` **even if a membership row exists**, and the owner lookups skip super admins, so a stray row can't let the platform act in a shop.
 
@@ -326,7 +326,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 - **The rule narrows, it doesn't go:** a super admin still never reads a shop's orders or customers, and `/api/shop/**` still answers them `403 NO_SHOP`. A price list is configuration the platform sets, not the shop's customers' data.
 - The app shows the same price list pages in both places; a scope (`providePlatformPriceScope`) says where they read, write and link.
 
-**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes).
+**Alternatives.** The owner keeps editing (the learning cost D25 removes). The platform signs in as the owner, or impersonates (no honest audit trail, shares a password). A copy-from-template-again button instead of editing (loses the shop's own changes). D30 allows a copy only into an empty price list, where there are no changes to lose.
 
 **Consequences.** A price change needs the platform; a "contact support" link comes with the owner's pages. The shop's settings (phone, address, currency while the list is empty) stay the owner's for now.
 
@@ -361,3 +361,27 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 **Alternatives.** Satori (no Khmer shaping). HarfBuzz in WebAssembly for text (harfbuzzjs builds its callbacks with runtime WebAssembly compilation, which Workers forbid). A fixed receipt layout with the shop's colours (no shop's own look). Browser Rendering (a headless Chrome per receipt: a paid add-on, slower, and a second code path for tests). The background in R2 (another binding and an orphaned-file problem for a file read whole on every render). Pre-printed QR slips first (printing and stock to manage before any shop asked).
 
 **Consequences.** Spec steps M3.1–M4.2 are replaced: no ticket batches, no `/t/:token` page yet. M4.3 follows the spec: reminders (§8.5) through the same outbox, and the order page shows whether the customer is on Telegram and what was sent. A shop without a receipt design still gets text receipts. A verified link follows the customer, not the phone: a later phone change on the customer doesn't move it. Text on the canvas in the browser and in the PNG can differ slightly in Latin letters (the designer falls back to the app's sans font); Preview is the reference.
+
+## D29. A 6-character password, nothing else
+
+**Context.** Spec §12 asked for at least 10 characters and a leaked-password check (Better Auth's `haveIBeenPwned`). The owner chose a shorter, free password (2026-11-17): staff sign in on a shared counter phone, and the check refused short, easy passwords that shops want to use.
+
+**Decision.** A password is **6–128 characters, any characters**: `MIN_PASSWORD_LENGTH = 6` in `shared/contracts/identity.ts`, the one rule for the app's forms, the contracts, Better Auth (`minPasswordLength`), the seed task and `pnpm admin:sql`. The `haveIBeenPwned` plugin is removed, so sign-in and password changes call no outside service.
+
+**Alternatives.** Keep 10 characters with the check (the spec). Keep the check with 6 characters (it would still refuse `123456` and most short passwords people choose).
+
+**Consequences.** Weaker passwords, accepted by the owner. What still protects accounts: sign-in limits per address and per username (D18), the platform admin can sign an owner out everywhere and reset the password, and a super admin's session is short (D14). Revisit with the first real shop, or if an account is taken over.
+
+## D30. A template into an existing shop, while its price list is empty
+
+**Context.** D25 copies a template only when a shop is created. A shop created without one (or before its slip's template existed) could only be filled item by item. D26 rejected copying a template again because it would overwrite the shop's own changes.
+
+**Decision.**
+- `POST /api/platform/shops/:shopId/apply-template` `{ version, templateId }` (platform `price: ['write'], template: ['read']`) copies an active template's price list and currency into the shop, exactly as a new shop gets them (`newPriceListStatements`).
+- **Only while the price list is empty:** no service type and no price item, archived included. Otherwise `409 PRICE_LIST_NOT_EMPTY`. Nothing is ever replaced or merged.
+- One batch with its guards: the shop's version (`shop_settings.version`, D19), the empty list and the template still active, so a price or an archive landing between the read and the write stops it. Audit `shop.apply-template` in the platform's rows (D19), the template id in `data`.
+- The shop's detail (`PlatformShopDetail`) says `priceListEmpty`; the shop page offers the template picker only then.
+
+**Alternatives.** Replace or merge into an existing list (loses the shop's changes, and orders' lines keep the old price items). Only on the price list page (shared with the owner's read-only view, D26).
+
+**Consequences.** A shop's price list starts from at most one template; after that it's edited by hand. The currency follows the template, which is allowed because the list is empty (D22).

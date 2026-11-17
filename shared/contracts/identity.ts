@@ -5,7 +5,8 @@ import * as v from 'valibot'
  * in Better Auth's configuration (identity.auth.ts) and wherever it sets a password itself.
  */
 
-export const MIN_PASSWORD_LENGTH = 10
+/** Length is the only password rule (D29): no character classes, no leaked-password check. */
+export const MIN_PASSWORD_LENGTH = 6
 export const MAX_PASSWORD_LENGTH = 128
 export const MIN_USERNAME_LENGTH = 3
 export const MAX_USERNAME_LENGTH = 32

@@ -1,5 +1,5 @@
 import { APIError, createAuthMiddleware, isAPIError } from 'better-auth/api'
-import { admin, haveIBeenPwned, organization, username } from 'better-auth/plugins'
+import { admin, organization, username } from 'better-auth/plugins'
 import type { ServerAuthConfig } from '@nuxtjs/better-auth/config'
 import { newId } from '#server/utils/ids'
 import { authEndpointAllowlist } from './auth-endpoints'
@@ -15,8 +15,6 @@ export const USERNAME_SIGN_IN_LIMIT = { window: 10 * MINUTE_S, max: 10 }
 export interface IdentityAuthSettings {
   /** The public site URL (`NUXT_PUBLIC_SITE_URL`): the only trusted origin besides the request's own. */
   siteUrl?: string
-  /** Check new passwords against Have I Been Pwned. Off only in tests (it calls an outside API). */
-  checkLeakedPasswords?: boolean
 }
 
 interface RateLimitRow {
@@ -48,7 +46,7 @@ async function consumeUsernameTry(ctx: Parameters<Parameters<typeof createAuthMi
  * `defineServerAuth`; the identity tests run it against the real migration.
  */
 export function identityAuthOptions(settings: IdentityAuthSettings = {}) {
-  const { siteUrl, checkLeakedPasswords = true } = settings
+  const { siteUrl } = settings
   return {
     emailAndPassword: {
       // The password behind the username plugin. No sign-up (spec P1: the platform creates owners).
@@ -159,7 +157,6 @@ export function identityAuthOptions(settings: IdentityAuthSettings = {}) {
         // Shops are suspended, never deleted (spec §6).
         disableOrganizationDeletion: true,
       }),
-      haveIBeenPwned({ enabled: checkLeakedPasswords }),
     ] as const,
   } satisfies ServerAuthConfig
 }

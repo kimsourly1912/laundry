@@ -95,6 +95,8 @@ interface SettingsChange {
   now: Date
   status?: ShopStatus
   fields?: SettingsFields
+  /** The currency alone (a template copied into the shop, D30). */
+  currency?: Currency
 }
 
 /**
@@ -103,9 +105,9 @@ interface SettingsChange {
  * `requireOneChange`.
  */
 export function updateSettingsAtVersion(db: Db, change: SettingsChange): Statement {
-  const { shopId, version, now, status, fields } = change
+  const { shopId, version, now, status, fields, currency } = change
   return db.update(shopSettings)
-    .set({ ...fields, ...(status ? { status } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
+    .set({ ...fields, ...(status ? { status } : {}), ...(currency ? { currency } : {}), version: sql`${shopSettings.version} + 1`, updatedAt: now })
     .where(and(eq(shopSettings.shopId, shopId), eq(shopSettings.version, version)))
 }
 

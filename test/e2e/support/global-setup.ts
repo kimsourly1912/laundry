@@ -2,7 +2,7 @@ import { execSync, spawn } from 'node:child_process'
 import { copyFileSync, existsSync, rmSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { join } from 'node:path'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import type { TestProject } from 'vitest/node'
 import { E2E_ACCOUNTS, seedE2e } from './seed'
 import type { E2eAccounts } from './seed'
@@ -40,7 +40,7 @@ export default async function ({ provide }: TestProject) {
 
   const port = await freePort()
   const host = `http://127.0.0.1:${port}`
-  const server = spawn(process.execPath, ['--import', pathToFileURL(join(rootDir, 'test/e2e/support/fake-password-ranges.mjs')).href, '.output/server/index.mjs'], {
+  const server = spawn(process.execPath, ['.output/server/index.mjs'], {
     cwd: rootDir,
     env: {
       ...process.env,

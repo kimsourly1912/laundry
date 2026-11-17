@@ -80,7 +80,7 @@ Hash a password with Better Auth's `hashPassword` from `better-auth/crypto`. The
 
 | Export | Use |
 |---|---|
-| `MIN_PASSWORD_LENGTH` (10), `MAX_PASSWORD_LENGTH` (128), `MIN_USERNAME_LENGTH` (3), `MAX_USERNAME_LENGTH` (32) | Re-exported from `shared/contracts/identity.ts`, shared with the app ([lists](./lists.md)) |
+| `MIN_PASSWORD_LENGTH` (6), `MAX_PASSWORD_LENGTH` (128), `MIN_USERNAME_LENGTH` (3), `MAX_USERNAME_LENGTH` (32) | Re-exported from `shared/contracts/identity.ts`, shared with the app ([lists](./lists.md)) |
 | `normalizeUsername(name)` | Trimmed, lowercase: one spelling per username, also at sign-in |
 | `placeholderEmail(userId)` | `<userId>@users.invalid`: the email Better Auth requires, never shown or mailed ([D15](../decisions.md#d15-accounts-username-and-a-placeholder-email)) |
 
