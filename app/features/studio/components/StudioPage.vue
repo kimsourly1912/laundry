@@ -4,6 +4,7 @@
  * fields on a grey workspace, saved by itself, with undo and redo, Try it, Preview (the server's
  * PNG), Replace artwork and Publish. English only (D33).
  */
+import { PAPER_MAX_MM, PAPER_MIN_MM } from '#shared/contracts/slip-design'
 import type { ImageSummary, TemplateDetail } from '#shared/contracts/templates'
 import { sampleData, SAMPLE_SHOP } from '#shared/slip/fields'
 import type { SlipData } from '#shared/contracts/slip-design'
@@ -81,6 +82,7 @@ const shopsOpen = ref(false)
 const archiveOpen = ref(false)
 const moreItems = computed(() => [[
   { label: t('studio.artwork.replace'), icon: 'i-lucide-image-up', onSelect: openReplace },
+  { label: t('studio.paper.menu'), icon: 'i-lucide-ruler', onSelect: openPaper },
 ], [saved.value.status === 'archived'
   ? { label: t('studio.archive.restore'), icon: 'i-lucide-archive-restore', onSelect: () => runStatus('restore') }
   : { label: t('studio.archive.archive'), icon: 'i-lucide-archive', onSelect: () => { archiveOpen.value = true } }]])
@@ -93,6 +95,27 @@ async function runStatus(action: 'archive' | 'restore') {
   catch (error) {
     toast.add({ title: errorText(error, t, te), color: 'error', icon: 'i-lucide-circle-alert' })
   }
+}
+
+// --- Paper size (D39): millimetres for printing, kept with each published version ---
+
+const paperOpen = ref(false)
+const paperWidth = ref<number | null>(null)
+const paperHeight = ref<number | null>(null)
+function openPaper() {
+  paperWidth.value = design.value.paper?.widthMm ?? null
+  paperHeight.value = design.value.paper?.heightMm ?? null
+  paperOpen.value = true
+}
+/** The height that keeps the artwork's proportions for a width. */
+function proportionalHeight(width: number) {
+  return Math.round(width * design.value.height / design.value.width * 10) / 10
+}
+const paperValid = computed(() => [paperWidth.value, paperHeight.value].every(side => typeof side === 'number' && side >= PAPER_MIN_MM && side <= PAPER_MAX_MM))
+function applyPaper() {
+  if (!paperValid.value) return
+  editor.apply({ ...design.value, paper: { widthMm: paperWidth.value!, heightMm: paperHeight.value! } })
+  paperOpen.value = false
 }
 
 // --- Replace the artwork (plan §5.2): the canvas takes its size; the fields stay where they are ---
@@ -566,4 +589,59 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
       </template>
     </UModal>
   </div>
+  <UModal
+    v-model:open="paperOpen"
+    :title="t('studio.paper.title')"
+    :description="t('studio.paper.description')"
+  >
+    <template #body>
+      <div class="flex flex-wrap items-end gap-3">
+        <UFormField :label="t('studio.paper.width')">
+          <UInputNumber
+            v-model="paperWidth"
+            :min="PAPER_MIN_MM"
+            :max="PAPER_MAX_MM"
+            :step="1"
+            :step-snapping="false"
+            :format-options="{ maximumFractionDigits: 1 }"
+            data-testid="paper-width"
+          />
+        </UFormField>
+        <UFormField :label="t('studio.paper.height')">
+          <UInputNumber
+            v-model="paperHeight"
+            :min="PAPER_MIN_MM"
+            :max="PAPER_MAX_MM"
+            :step="1"
+            :step-snapping="false"
+            :format-options="{ maximumFractionDigits: 1 }"
+            data-testid="paper-height"
+          />
+        </UFormField>
+        <UButton
+          :label="t('studio.paper.proportional')"
+          color="neutral"
+          variant="outline"
+          :disabled="!paperWidth"
+          @click="paperHeight = proportionalHeight(paperWidth!)"
+        />
+      </div>
+    </template>
+    <template #footer>
+      <div class="flex w-full justify-end gap-2">
+        <UButton
+          :label="t('common.actions.cancel')"
+          color="neutral"
+          variant="ghost"
+          @click="paperOpen = false"
+        />
+        <UButton
+          :label="t('studio.paper.apply')"
+          :disabled="!paperValid"
+          data-testid="paper-apply"
+          @click="applyPaper"
+        />
+      </div>
+    </template>
+  </UModal>
 </template>

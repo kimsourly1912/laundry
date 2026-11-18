@@ -135,10 +135,24 @@ export type ChoiceGroup = v.InferOutput<typeof groupSchema>
 /** The key of the paid / not paid pair in the fill order (plan §5.3.4). */
 export const PAID_KEY = 'paid'
 
+/** Paper sides in millimetres (D39): from a small ticket to A4. */
+export const PAPER_MIN_MM = 20
+export const PAPER_MAX_MM = 400
+const paperSideSchema = v.pipe(v.number(), v.finite(), v.minValue(PAPER_MIN_MM, `At least ${PAPER_MIN_MM} mm`), v.maxValue(PAPER_MAX_MM, `At most ${PAPER_MAX_MM} mm`))
+
+/**
+ * The printed slip's size (D39; guide → Print): the canvas is pixels for the screen and Telegram;
+ * paper is millimetres, kept with each published version so a reprint comes out the same size.
+ */
+export const paperSchema = v.strictObject({ widthMm: paperSideSchema, heightMm: paperSideSchema })
+export type Paper = v.InferOutput<typeof paperSchema>
+
 export const designSchema = v.pipe(
   v.strictObject({
     width: canvasSideSchema,
     height: canvasSideSchema,
+    /** Absent: printed at the paper's width (D37). */
+    paper: v.optional(paperSchema),
     /** The artwork (plan §5.2, D35) over a colour; `null` only before one is uploaded (tests). */
     background: v.strictObject({ color: colorSchema, imageId: v.nullable(idSchema) }),
     elements: v.pipe(v.array(elementSchema), v.maxLength(MAX_ELEMENTS, `At most ${MAX_ELEMENTS} elements`)),

@@ -70,6 +70,7 @@ async function shot(page: Page, name: string) {
   await page.screenshot({ path: join(screenshots, `${name}.png`) })
 }
 
+const MENU = 'More'
 const printed = (page: Page) => page.evaluate(() => (window as unknown as { printed: number }).printed)
 
 beforeAll(async () => {
@@ -357,6 +358,36 @@ describe('the owner\'s counter', () => {
     await expect.poll(defaults).toEqual(['Beta Wash'])
     await page.evaluate(() => window.scrollTo({ top: 0 }))
     await shot(page, '08-paper-slips')
+  })
+
+  it('prints at the paper size the platform set on the published version (D39)', async () => {
+    await admin.goto(`${host}/platform/templates/${template.id}`)
+    await admin.getByRole('button', { name: MENU }).click()
+    await admin.getByRole('menuitem', { name: 'Paper size' }).click()
+    await admin.getByTestId('paper-width').fill('80')
+    await admin.getByTestId('paper-height').fill('52')
+    await admin.getByTestId('paper-apply').click()
+    await expect.poll(() => admin.getByTestId('save-status').textContent()).toBe('Saved')
+    const published = await admin.evaluate(async (id) => {
+      const current = await (await fetch(`/api/platform/templates/${id}`)).json() as TemplateDetail
+      const answer = await fetch(`/api/platform/templates/${id}/publish`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ version: current.version }) })
+      return answer.json() as Promise<TemplateDetail>
+    }, template.id)
+    expect(published.design.paper).toEqual({ widthMm: 80, heightMm: 52 })
+
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-paper', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
+    await page.waitForURL(`${host}/`)
+    const orderId = await page.evaluate(async (templateId) => {
+      const slips = await (await fetch('/api/shop/templates')).json() as OrderTemplate[]
+      const slip = slips.find(item => item.templateId === templateId)!
+      const answer = await fetch('/api/shop/orders', { method: 'POST', headers: { 'content-type': 'application/json', 'idempotency-key': crypto.randomUUID() }, body: JSON.stringify({ templateVersionId: slip.versionId, values: { shirt: 1 }, phone: '', amount: 2000, paid: false }) })
+      return (await answer.json()).id as string
+    }, template.id)
+    await page.goto(`${host}/orders/${orderId}`)
+    await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('style')].some(style => style.textContent?.includes('size: 80mm 52mm')))).toBe(true)
   })
 
   it('another shop\'s owner can\'t open the order or its artwork: the same 404 as a missing one', async () => {

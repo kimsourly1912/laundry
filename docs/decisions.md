@@ -627,3 +627,8 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **The promised pickup day** (`orders.due_date`, optional, not before the order's day) is set in New order and shown on the order.
 - **Migration `0005`** adds `due_date` in place (hand-edited, as `0003`).
 - **Statements:** `price:read` (owner, staff), `price:write` (owner).
+
+**Paper size** (guide → Print, Delivery order 6).
+- **A design may carry `paper: { widthMm, heightMm }`** (20–400 mm a side), set in the Studio's ⋯ → Paper size, with "Height from the artwork" to keep its proportions. Publishing fixes it in the version, so a reprint prints the same size. Missing, Publish warns (`noPaperSize`) and the slip prints at the paper's width as before.
+- **Print uses it:** the order page adds `@page { size: W mm H mm; margin: 0 }` and sizes `.print-slip` to it. The canvas stays pixels for the screen and Telegram; millimetres are for paper only.
+- **Not yet checked on a real printer** (the pilot's job, guide → Delivery order 6).

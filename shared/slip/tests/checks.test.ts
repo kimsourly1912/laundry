@@ -19,7 +19,7 @@ describe('publishProblems (plan §5.6)', () => {
       createElement('phone', { id: 'p' }),
       createElement('amount', { id: 'a' }),
     ])
-    expect(publishProblems(slip)).toEqual({ errors: [], warnings: [] })
+    expect(publishProblems({ ...slip, paper: { widthMm: 80, heightMm: 52 } })).toEqual({ errors: [], warnings: [] })
   })
 
   it('refuses no Order No., a fixed field twice, a group of one option and a missing label', () => {
@@ -37,7 +37,8 @@ describe('publishProblems (plan §5.6)', () => {
 
   it('warns about a field off the canvas, no amount, no phone and no fields', () => {
     const only = design([createElement('orderNo', { id: 'no', x: 790, y: 10, w: 40 })])
-    expect(codes(publishProblems(only).warnings)).toEqual(['offCanvas:no', 'noAmount', 'noPhone', 'noFields'])
+    expect(codes(publishProblems(only).warnings)).toEqual(['offCanvas:no', 'noAmount', 'noPhone', 'noFields', 'noPaperSize'])
+    expect(codes(publishProblems({ ...only, paper: { widthMm: 80, heightMm: 52 } }).warnings)).not.toContain('noPaperSize')
     // Right on the edges: fine; one pixel over: off.
     expect(codes(publishProblems(design([createElement('number', { id: 'n', x: 0, y: 0, w: 800, h: 20 }, { label })])).warnings)).not.toContain('offCanvas:n')
     expect(codes(publishProblems(design([createElement('number', { id: 'n', x: -1, y: 0, w: 20, h: 20 }, { label })])).warnings)).toContain('offCanvas:n')
@@ -79,5 +80,17 @@ describe('checkFill (plan §5.3)', () => {
 
   it('stores only this design\'s keys, without empty text or unticked boxes', () => {
     expect(cleanValues(slip, { n: 2, t: '', c: false, g: 'o1', x: 'y' })).toEqual({ n: 2, g: 'o1' })
+  })
+})
+
+describe('paper size (D39)', () => {
+  it('takes 20–400 mm a side, and nothing else', async () => {
+    const v = await import('valibot')
+    const { designSchema } = await import('#shared/contracts/slip-design')
+    const base = design([])
+    expect(v.safeParse(designSchema, { ...base, paper: { widthMm: 80, heightMm: 52.5 } }).success).toBe(true)
+    expect(v.safeParse(designSchema, base).success).toBe(true)
+    expect(v.safeParse(designSchema, { ...base, paper: { widthMm: 10, heightMm: 52 } }).success).toBe(false)
+    expect(v.safeParse(designSchema, { ...base, paper: { widthMm: 80, heightMm: 52, dpi: 300 } }).success).toBe(false)
   })
 })

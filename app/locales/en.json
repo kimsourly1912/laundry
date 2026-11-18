@@ -267,7 +267,8 @@
         "offCanvas": "{name} is partly off the slip.",
         "noAmount": "There's no Amount field.",
         "noPhone": "There's no Phone field.",
-        "noFields": "The owner has no fields to fill."
+        "noFields": "The owner has no fields to fill.",
+        "noPaperSize": "No paper size: printed slips take the paper's width (⋯ → Paper size)."
       }
     },
     "list": {
@@ -438,6 +439,15 @@
       "replaceTitle": "Replace the artwork",
       "replaceDescription": "The canvas takes the new artwork's size. Fields stay where they are; check them afterwards.",
       "replaceApply": "Use this artwork"
+    },
+    "paper": {
+      "menu": "Paper size",
+      "title": "Paper size",
+      "description": "The printed slip's size in millimetres. Each published version keeps it, so a reprint comes out the same.",
+      "width": "Width (mm)",
+      "height": "Height (mm)",
+      "proportional": "Height from the artwork",
+      "apply": "Set size"
     }
   },
   "slipFill": {

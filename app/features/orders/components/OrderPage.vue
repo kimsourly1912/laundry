@@ -38,6 +38,13 @@ const data = computed(() => {
 
 const badge = computed(() => order.data.value && ORDER_STATE_BADGE[orderState(order.data.value)])
 
+// D39: a version with a paper size prints at that size, so a reprint comes out like the first print.
+useHead(() => {
+  const paper = order.data.value?.design.paper
+  if (!paper) return {}
+  return { style: [{ key: 'print-paper', innerHTML: `@media print { @page { size: ${paper.widthMm}mm ${paper.heightMm}mm; margin: 0 } .print-slip { width: ${paper.widthMm}mm !important; height: ${paper.heightMm}mm !important } }` }] }
+})
+
 /** An action's answer is the order as it is now: show it at once. */
 function changed(next: OrderDetail) {
   order.data.value = next

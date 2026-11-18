@@ -18,6 +18,7 @@ export type PublishWarning
     | 'noAmount'
     | 'noPhone'
     | 'noFields'
+    | 'noPaperSize'
 
 export interface Problem<T extends string> {
   code: T
@@ -69,6 +70,8 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   if (!elements.some(element => element.type === 'amount')) warnings.push({ code: 'noAmount' })
   if (!elements.some(element => element.type === 'phone')) warnings.push({ code: 'noPhone' })
   if (!elements.some(element => element.type !== 'orderNo')) warnings.push({ code: 'noFields' })
+  // D39: printing needs the paper's size; without it, the slip prints at the paper's width.
+  if (!design.paper) warnings.push({ code: 'noPaperSize' })
 
   return { errors, warnings }
 }
