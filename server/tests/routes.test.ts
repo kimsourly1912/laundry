@@ -66,6 +66,7 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/templates/[id]/index.patch.ts': `{ template: ['write'] }`,
   'platform/templates/[id]/publish.post.ts': `{ template: ['write'] }`,
   'platform/templates/[id]/preview.post.ts': `{ template: ['read'] }`,
+  'platform/templates/preview.post.ts': `{ template: ['read'] }`,
   'platform/images/index.get.ts': `{ template: ['read'] }`,
   'platform/images/index.post.ts': `{ template: ['write'] }`,
   'platform/images/[id].get.ts': `{ template: ['read'] }`,

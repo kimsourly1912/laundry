@@ -136,7 +136,7 @@ describe('the AI import (v1)', () => {
     const prompt = aiPrompt({ design: { ...design, paper: { widthMm: 80, heightMm: 52 } }, brief: 'Redesign it: bigger boxes' })
     expect(prompt).toContain('{{order.number}}')
     expect(prompt).toContain('{{order.qrCode}}')
-    expect(prompt).toContain('{{fields.shirt}}: អាវ / Shirt (number)')
+    expect(prompt).toContain('{{fields.shirt}}: អាវ / Shirt (number; example: 2)')
     expect(prompt).toContain('80 × 52 mm')
     expect(prompt).toContain('Redesign it: bigger boxes')
   })

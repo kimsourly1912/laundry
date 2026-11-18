@@ -39,6 +39,11 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await page.getByTestId('add-count').click()
   await expect.poll(() => page.getByText('{{fields.bag_count}}', { exact: true }).count()).toBe(1)
 
+  await editor.fill('<div class="flex">{{fields.bag')
+  await editor.press('Control+Space')
+  await expect.poll(() => page.getByRole('option', { name: /fields\.bag_count/ }).count()).toBe(1)
+  await editor.press('Escape')
+
   const invalid = '<div class="flex">{{fields.unknown}}</div>'
   await editor.fill(invalid)
   await expect.poll(() => page.getByTestId('html-problems').textContent()).toContain('fields.unknown')
