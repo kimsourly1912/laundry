@@ -595,3 +595,9 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **The default has no `version`.** "Make this one the default" says the whole change, and repeating it changes nothing, so the last choice wins. One batch clears the old flag, sets the new one, guards that the template is still attached (404 otherwise) and writes the audit row.
 - **New order remembers** (plan §4, current-state Q17): with several slips and no default, the slip the owner picks becomes the default. If remembering fails, the order still goes on with that slip.
 - **Statement:** `template:set-default`, owner only.
+
+**Telegram** (plan step 4, §8; Q11: no phone check).
+- **The QR is made per view.** `POST /api/shop/orders/:id/telegram` makes a new token each time the order page shows the card (valid a day, only its hash stored; the daily purge removes it). That's a write, so the statement is `order:share` (owner and staff), and the answer also lists what the order's chats were sent. No bot name in the deployment: 409 `TELEGRAM_NOT_SET_UP`, and the app hides the card.
+- **The scan is idempotent.** `/start <token>` links the chat to that order and queues `slip:<order>:<chat>` in one batch, both "insert or nothing", so Telegram's repeats change nothing. The webhook answers at once and delivers that order's slip after the answer (`waitUntil`); `notifications:deliver` (every minute) sends what's left, with backoff.
+- **The picture is the order's own slip**: its version, its values and its shop copy, rendered by the same SVG builder (`renderFilledSlip`), with the shop's name, the number and the amount as the caption. A suspended shop or a missing order: skipped. A blocked bot: skipped, and every link to that chat ends.
+- **The QR on screen** is drawn from `uqr`'s matrix as SVG rects (no `v-html`). It has not yet been scanned from a real phone.

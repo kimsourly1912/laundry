@@ -163,6 +163,8 @@ describe('the owner\'s counter', () => {
     expect(await page.getByTestId('order-number').textContent()).toBe('1')
     await expect.poll(() => printed(page)).toBe(1)
     await page.getByTestId('order-slip').locator('image').first().waitFor({ state: 'attached' })
+    // The Telegram QR (plan step 4): the e2e server has a bot name and no token, so nothing is sent.
+    await expect.poll(() => page.getByTestId('telegram-qr').count()).toBe(1)
     await shot(page, '04-saved-slip')
     savedOrder = await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}`)).json(), firstAnswer!.id) as OrderDetail
     expect(savedOrder).toMatchObject({ number: 1, values: { name: 'Dara', shirt: 2, pants: 1, svc: 'wash' }, phone: '+85512345678', amount: 7000, paid: false, templateVersionNumber: 1 })
@@ -296,5 +298,7 @@ describe('the owner\'s counter', () => {
       fetch('/api/shop/orders').then(async answer => (await answer.json()).total as number),
     ]), { id: savedOrder!.id, imageId })
     expect(statuses).toEqual([404, 404, 0])
+    // Nor make a QR for it.
+    expect(await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}/telegram`, { method: 'POST' })).status, savedOrder!.id)).toBe(404)
   })
 })

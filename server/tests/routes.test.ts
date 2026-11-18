@@ -96,6 +96,7 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/orders/[id]/payment.post.ts': `{ order: ['pay'] }`,
   'shop/orders/[id]/pick-up.post.ts': `{ order: ['pick-up'] }`,
   'shop/orders/[id]/cancel.post.ts': `{ order: ['cancel'] }`,
+  'shop/orders/[id]/telegram.post.ts': `{ order: ['share'] }`,
 }
 
 describe.each([

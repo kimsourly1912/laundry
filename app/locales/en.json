@@ -52,7 +52,8 @@
       "INVALID_STATE": "This was already changed. Reload to see it.",
       "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
       "TEMPLATE_CHANGED": "This paper slip was just updated. Check the order, then preview it again.",
-      "SLIP_VALUES_INVALID": "Some boxes of the slip need a look."
+      "SLIP_VALUES_INVALID": "Some boxes of the slip need a look.",
+      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet."
     }
   },
   "account": {
@@ -557,6 +558,16 @@
       "use": "Use for a new order",
       "sample": "{name} with sample values",
       "sampleNote": "Sample values. Your orders show their own."
+    },
+    "telegram": {
+      "title": "Slip on Telegram",
+      "hint": "The customer scans this with the phone's camera and taps Start: the bot sends them this slip.",
+      "qrLabel": "QR code for the customer's Telegram",
+      "refresh": "New QR code",
+      "pending": "Sending",
+      "sent": "Sent",
+      "skipped": "Not sent: bot blocked",
+      "failed": "Not sent"
     }
   }
 }

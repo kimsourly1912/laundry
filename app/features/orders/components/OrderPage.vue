@@ -12,6 +12,7 @@ import { useSlipText } from '~/features/slip-fill'
 import { ORDER_STATUS_BADGE } from '../utils/order-status'
 import { printSlip } from '../utils/print-slip'
 import OrderActions from './OrderActions.vue'
+import TelegramCard from './TelegramCard.vue'
 import SlipView from './SlipView.vue'
 
 const props = defineProps<{ orderId: string }>()
@@ -206,6 +207,11 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
             :order="order.data.value"
             @changed="changed"
             @reload="order.refresh()"
+          />
+
+          <TelegramCard
+            :order-id="order.data.value.id"
+            :cancelled="order.data.value.status === 'cancelled'"
           />
 
           <SlipView

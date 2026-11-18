@@ -119,7 +119,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 | Protection | Rule |
 |---|---|
 | **CSRF / origin** | Every non-GET request to `/api/**` except `/api/auth/**` (Better Auth checks its own) and `/api/webhooks/**` must carry an `Origin` (or `Referer`) from the trusted origins, else `403`. `GET` never changes state. A sibling subdomain of `angder.app` is not trusted. |
-| **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body; otherwise, or with no bot token set, the same `404` as an unknown path. No session, no origin check. Only private chats with people count. Until step 4 it accepts a valid update and does nothing; then it links a chat to one order (below). |
+| **Telegram webhook** | `/api/webhooks/telegram` compares `X-Telegram-Bot-Api-Secret-Token` with `NUXT_TELEGRAM_WEBHOOK_SECRET` in constant time **before** reading the body; otherwise, or with no bot token set, the same `404` as an unknown path. No session, no origin check. Only private chats with people count. `/start <token>` links the chat to that token's order (below). |
 | **Rate limits** | Workers rate-limit bindings per client address ([D10](../decisions.md#d10-rate-limits)): `/api/public/**` 300/min, `/api/webhooks/**` 600/min; `429 RATE_LIMITED` with `Retry-After: 60`. Nothing limited where no binding exists (dev, tests). Sign-in: 5/min per address (Better Auth) and 10 per 10 minutes per username across addresses (ours), production builds only ([D18](../decisions.md#d18-sign-in-limits)). `/api/health` is never limited. |
 | **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |
@@ -129,7 +129,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 
 ## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), plan §8)
 
-Built in step 4; these rules hold for it:
+Built (D38):
 - **The QR** carries a 256-bit random token (base64url, 43 characters), new for each request, valid a day. Only its SHA-256 is stored. Whoever scans it gets **that one order's slip**, nothing more: links are per order (plan §8), so a photo of a QR never gives anyone another order.
 - Links are per shop and per order: a row can't pair one shop with another shop's order (composite foreign keys, two-shop tests).
 - A blocked bot revokes every link to that chat.

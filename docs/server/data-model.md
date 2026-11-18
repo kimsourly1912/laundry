@@ -117,7 +117,7 @@ erDiagram
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
-**Status:** tables and the outbox code (deliver, retry, purge) built; step 4 queues the messages and runs the delivery job.
+**Status:** built. A scan links the chat and queues `slip:<order>:<chat>` in one batch (D38); the webhook delivers it at once and `notifications:deliver` sends what's left.
 
 `telegram_links`: `id`, `shop_id`, `order_id` (composite FK `(shop_id, order_id)` → the shop's order, **cascade**), `telegram_user_id`, `chat_id` (Telegram's ids as text: up to 52 bits, only compared), `linked_at`, `revoked_at`.
 - **One order per link** (plan §8). Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
@@ -133,11 +133,11 @@ erDiagram
 
 ## `telegram_invites` (owner: `telegram`)
 
-**Status:** table and its purge built; step 4 makes the QR codes.
+**Status:** built. `POST /api/shop/orders/:id/telegram` makes a token (32 random bytes, base64url) and stores its hash, valid a day (D38).
 
 `telegram_invites`: `token_hash` (SHA-256 of the QR's token) PK, `shop_id`, `order_id` (composite FK, **cascade**), `expires_at`, `created_at`. Only the hash is stored: a database read can't make a working QR. Purged daily once expired (`notifications:purge`).
 
-The phone check's table (`telegram_pending`) comes back in step 4 only if the owner keeps the check (plan Q11).
+No phone check (plan Q11): no `telegram_pending`.
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 

@@ -182,3 +182,23 @@ export async function pickUpOrder(db: Db, actor: ShopActor, options: ActionOptio
 export async function cancelOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
   return getOrder(db, actor, await act(db, actor, 'cancel', options))
 }
+
+// --- For the slip sent on Telegram (plan step 4) ---
+
+/**
+ * What the customer's picture is drawn from, for a message already queued: the order's version, its
+ * values and its shop copy. No actor: the caller holds the order from the outbox, which names its
+ * shop. `undefined` when there's no such order of that shop.
+ */
+export async function orderSlip(db: Db, order: { shopId: string, orderId: string }) {
+  const row = await repo.findOrder(db, order.shopId, order.orderId)
+  if (!row) return undefined
+  const version = (await versionsById(db, [row.templateVersionId])).get(row.templateVersionId)
+  if (!version) return undefined
+  return {
+    number: row.number,
+    status: row.status,
+    design: version.design,
+    data: { values: row.values, order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid }, shop: row.shop },
+  }
+}
