@@ -87,7 +87,7 @@ function clearFilters() {
             v-model="paid"
             :items="payments.map(item => ({ ...item, value: item.value || ANY }))"
             :aria-label="t('orders.list.payment')"
-            class="w-36"
+            class="w-32"
             data-testid="orders-paid"
           />
         </div>

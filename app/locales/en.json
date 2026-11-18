@@ -526,7 +526,7 @@
       "title": "Orders",
       "search": "Order No. or phone",
       "payment": "Payment",
-      "anyPayment": "Any payment",
+      "anyPayment": "All",
       "noMatch": "No orders match",
       "tabs": {
         "all": "All"
