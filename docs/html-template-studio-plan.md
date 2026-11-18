@@ -3,7 +3,7 @@
 ## Authoring flow
 
 - Platform Admin → Templates → Create template opens `/platform/templates/new` directly.
-- Start with editable HTML and a sample preview. On desktop the code is on the left and the rendered paper slip is on the right. On phones use Edit, Fields and Preview tabs.
+- Start with editable HTML and a sample preview. On desktop the code is on the left and the rendered paper slip is on the right, in a resizable splitter (its sizes are remembered per browser). On phones Edit and Preview are tabs. Intake fields open in a slideover and the paper size in a popover from the header.
 - Save draft creates the template the first time. Editing a saved revision uses the existing version-checked autosave. Publish fixes the HTML, intake fields, paper size and binding contract in one revision.
 - Existing artwork templates and published orders remain readable through their current paths. New templates start as HTML.
 

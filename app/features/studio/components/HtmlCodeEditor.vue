@@ -4,9 +4,10 @@ import { html, htmlLanguage } from '@codemirror/lang-html'
 import type { Diagnostic } from '@codemirror/lint'
 import { lintGutter, setDiagnostics } from '@codemirror/lint'
 import { Compartment, EditorState } from '@codemirror/state'
-import { EditorView } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { basicSetup } from 'codemirror'
 import { BLOCK_PLACEHOLDERS, TEXT_PLACEHOLDERS, UTILITY_SUGGESTIONS } from '#shared/html-slip/catalog'
+import { formatHtml } from '#shared/html-slip/format'
 import type { HtmlProblem } from '#shared/html-slip/parse'
 
 const props = defineProps<{
@@ -45,6 +46,17 @@ const complete: CompletionSource = (context) => {
   }
 }
 
+const { t } = useI18n()
+// Markup with problems is left as it is: the problems list is the place to look.
+function format() {
+  if (!editor || props.readOnly) return
+  const current = editor.state.doc.toString()
+  const formatted = formatHtml(current)
+  if (formatted !== null && formatted !== current) {
+    editor.dispatch({ changes: { from: 0, to: editor.state.doc.length, insert: formatted } })
+  }
+}
+
 const editable = (readOnly: boolean) => [EditorState.readOnly.of(readOnly), EditorView.editable.of(!readOnly)]
 
 function showProblems() {
@@ -65,6 +77,10 @@ onMounted(() => {
     parent: container.value,
     extensions: [
       basicSetup,
+      keymap.of([{ key: 'Shift-Alt-f', run: () => {
+        format()
+        return true
+      } }]),
       html(),
       htmlLanguage.data.of({ autocomplete: complete }),
       lintGutter(),
@@ -72,8 +88,12 @@ onMounted(() => {
       EditorView.contentAttributes.of({ 'aria-label': props.label, 'autocapitalize': 'off', 'spellcheck': 'false' }),
       EditorView.lineWrapping,
       EditorView.theme({
-        '&': { minHeight: '24rem', maxHeight: '65vh', fontSize: '13px' },
+        // Fills the panel it sits in; the theme tokens keep it readable in light and dark.
+        '&': { height: '100%', fontSize: '13px' },
         '.cm-scroller': { overflow: 'auto' },
+        '.cm-gutters': { backgroundColor: 'var(--ui-bg-muted)', color: 'var(--ui-text-dimmed)', borderRight: '1px solid var(--ui-border)' },
+        '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'color-mix(in oklab, var(--ui-primary) 8%, transparent)' },
+        '.cm-cursor': { borderLeftColor: 'var(--ui-text-highlighted)' },
       }),
       EditorView.updateListener.of((update) => {
         if (update.docChanged && update.state.doc.toString() !== source.value) source.value = update.state.doc.toString()
@@ -93,9 +113,22 @@ onBeforeUnmount(() => editor?.destroy())
 </script>
 
 <template>
-  <div
-    ref="container"
-    class="overflow-hidden rounded-md border border-default bg-default"
-    data-testid="html-source"
-  />
+  <div class="relative h-full">
+    <div
+      ref="container"
+      class="h-full overflow-hidden bg-default"
+      data-testid="html-source"
+    />
+    <UButton
+      class="absolute right-4 top-2 z-10"
+      size="xs"
+      color="neutral"
+      variant="subtle"
+      icon="i-lucide-align-left"
+      :label="t('studio.html.format')"
+      :disabled="readOnly"
+      data-testid="html-format"
+      @click="format"
+    />
+  </div>
 </template>

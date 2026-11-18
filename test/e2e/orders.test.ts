@@ -340,8 +340,9 @@ describe('the owner\'s counter', () => {
     await studio.goto(`${host}/platform/templates`)
     await studio.getByRole('link', { name: 'Create template' }).first().click()
     await studio.waitForURL('**/platform/templates/new')
-    await studio.getByRole('tab', { name: 'Fields' }).click()
+    await studio.getByTestId('open-fields').click()
     await studio.getByRole('button', { name: 'By item' }).click()
+    await studio.keyboard.press('Escape')
     await studio.getByLabel('Template name').fill('Linda HTML')
     await studio.getByRole('button', { name: 'Save draft' }).click()
     await studio.waitForURL(/\/platform\/templates\/[\da-f-]{36}$/)
@@ -359,8 +360,9 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => studio.getByTestId('html-source').locator('.cm-content').textContent()).toBe(html)
 
     // The By item preset already contains the count linked to the shop's "shirt" price.
-    await studio.getByRole('tab', { name: 'Fields' }).click()
+    await studio.getByTestId('open-fields').click()
     await expect.poll(() => studio.getByText('{{fields.shirt_count}}', { exact: true }).count()).toBe(1)
+    await studio.keyboard.press('Escape')
     await studio.getByRole('tab', { name: 'Preview' }).click()
     await expect.poll(() => studio.getByTestId('html-preview').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
     await expect.poll(() => studio.getByTestId('save-status').textContent()).toBe('Saved')

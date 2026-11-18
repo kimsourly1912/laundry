@@ -34,10 +34,12 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await expect.poll(() => preview.getAttribute('src')).toMatch(/^blob:/)
   expect(createRequests).toBe(0)
 
+  await page.getByTestId('open-fields').click()
   await page.getByTestId('count-label').fill('Bag count')
   await page.getByTestId('field-key').fill('bag_count')
   await page.getByTestId('add-count').click()
   await expect.poll(() => page.getByText('{{fields.bag_count}}', { exact: true }).count()).toBe(1)
+  await page.keyboard.press('Escape')
 
   await editor.fill('<div class="flex">{{fields.bag')
   await editor.press('Control+Space')
@@ -50,7 +52,7 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await expect.poll(() => page.getByText('Preview is out of date.').count()).toBe(1)
 
   const html = '<div class="flex flex-col"><span>{{order.number}}</span><span>{{fields.weight_kg}}</span><div class="flex">{{order.qrCode}}</div></div>'
-  await page.getByRole('button', { name: 'Import AI answer' }).click()
+  await page.getByRole('button', { name: 'Import JSON' }).click()
   await page.getByRole('dialog').locator('textarea').fill(JSON.stringify({ version: 1, name: 'CodeMirror by-weight slip', html }))
   await page.getByTestId('answer-import').click()
   await expect.poll(() => editor.textContent()).toContain('{{fields.weight_kg}}')
