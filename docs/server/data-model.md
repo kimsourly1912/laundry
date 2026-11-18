@@ -89,9 +89,9 @@ erDiagram
 
 ## `order_counters`, `orders` (owner: `orders`)
 
-**Status:** tables built in step 1; the owner portal (step 3) builds their code.
+**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; mark paid, pick up and cancel come with their screens.
 
-`order_counters`: `shop_id` PK, `last_number` (≥ 0). Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`.
+`order_counters`: `shop_id` PK, `last_number` (≥ 0). Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`. Two shops count on their own: the same number in two shops is two orders.
 
 `orders`: a filled slip ([D31](../decisions.md#d31-the-slip-studio-a-template-is-the-paper-slip)).
 
@@ -100,7 +100,7 @@ erDiagram
 | `id`, `shop_id` | | |
 | `number` | integer | Per shop, set by the server. UNIQUE `(shop_id, number)` |
 | `date` | text | The shop's day the order was made (`YYYY-MM-DD`), set by the server. CHECK on the format |
-| `template_version_id` | text | FK → `template_versions.id`, restrict. Set by the server; the order keeps it forever |
+| `template_version_id` | text | FK → `template_versions.id`, restrict. The version the owner filled, accepted only while it is the latest of a template attached to the shop (guarded in the order's batch); the order keeps it forever, so a reprint draws the same slip |
 | `values` | JSON | The owner's values by element id, checked by the server against the template version |
 | `shop` | JSON | **A copy of the shop's details when the order was saved**: name, phone, address, logo image id, currency, language ([D33](../decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)). The slip is drawn from it, so it never changes |
 | `phone` | text null | E.164, from the slip's Phone field |

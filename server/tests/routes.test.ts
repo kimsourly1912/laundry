@@ -85,6 +85,13 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
 const SHOP_STATEMENTS: Record<string, string> = {
   'shop/settings.get.ts': `{ shop: ['read'] }`,
   'shop/settings.patch.ts': `{ shop: ['update'] }`,
+  // The owner portal (plan step 3): templates to fill, and orders.
+  'shop/templates/index.get.ts': `{ template: ['read'] }`,
+  'shop/templates/[id]/images/[imageId].get.ts': `{ template: ['read'] }`,
+  'shop/orders/index.post.ts': `{ order: ['create'] }`,
+  'shop/orders/index.get.ts': `{ order: ['read'] }`,
+  'shop/orders/[id]/index.get.ts': `{ order: ['read'] }`,
+  'shop/orders/[id]/images/[imageId].get.ts': `{ order: ['read'] }`,
 }
 
 describe.each([

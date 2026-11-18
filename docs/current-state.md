@@ -2,7 +2,15 @@
 
 Keep this page short: where we are, what's next, what's blocked. History goes in git and `decisions.md`.
 
-## Start here: the slip studio (D31, 2026-11-17)
+## Now: the owner's counter (D37, 2026-11-18)
+
+**Plan step 3, first milestone, built on branch `claude/admiring-goodall-1pk03z` (draft PR, waiting for the owner's review).** Built to [`product-design/implementation-guide.md`](product-design/implementation-guide.md) (sheets 01, 02, 10, 11), on the existing fields, `checkFill`, `orders` table and SVG builder; no migration.
+
+- **Done:** Overview with New order and the latest orders; New order (the attached slip's fields as rows, a slip choice when several are attached, Preview, Edit, Save & print, Save only); the order page (number for the bag, the slip on its own version, Print again, Next order); `GET /api/shop/templates`, `POST`/`GET /api/shop/orders`, `GET /api/shop/orders/:id`, the artwork routes; statements `template:read`, `order:create`, `order:read`. Tests: the orders service and two-shop file, unit tests of the form rules, `test/e2e/orders.test.ts`.
+- **Next milestones (guide → Delivery order):** the Orders list with search; Mark paid, Picked up, Cancel and copy (sheets 03, 04, 11); Paper slips with the default (sheet 05); the Telegram QR on the saved screen (plan step 4).
+- **Open, for the owner** (below): the 768 px width, the number's look, remembering a chosen slip.
+
+## Before: the slip studio (D31, 2026-11-17)
 
 **The owner restarted the product around the paper slip.** The work plan is [`plan.md`](plan.md): a Canva-like studio where the platform designs templates, templates attached to shops, an owner portal with Overview / Templates / Orders, and the filled slip sent to the customer as a PNG on Telegram. It replaces the spec's step plan (§18) and the flow of D22–D27 and D30.
 
@@ -68,6 +76,9 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
 | Q7, Q11 | Moved to [plan → Open questions](plan.md#10-open-questions) (D31) | Owner | Steps 3 and 4 |
+| Q15 | The guide sets the owner's content width to 768 px; `--container-page` is 640 px (D25). Change it for every shop screen? Kept at 640 px in D37 | Owner | The next owner screens |
+| Q16 | The mockups write the number as `#002139`; the app and the slip write `1`, `2`, … A zero-padded number changes every slip's Order No. drawing. Pad it, and to how many digits? | Owner | Before a pilot shop |
+| Q17 | Plan §4: with several slips and no default, New order asks and then **remembers** the choice. D37 asks each time; remembering is a write to the default (sheet 05). Build it with Paper slips? | Owner | Sheet 05 |
 
 ## Owner notes
 

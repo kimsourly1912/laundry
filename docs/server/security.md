@@ -39,8 +39,10 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 |---|---|:-:|:-:|
 | shop | read | ✓ | ✓ |
 | shop | update | ✓ | |
+| template | read: the attached, published templates and their artwork (New order) | ✓ | ✓ |
+| order | create, read | ✓ | ✓ |
 
-After the reset (plan step 1) the shop has only its settings. The owner portal (step 3) adds the order and template statements (create, read, mark paid, pick up, cancel; choose the default template) to this table and to the permission map. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
+The counter milestone ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) added `template:read` and `order:create`, `order:read`. Mark paid, pick up, cancel and choosing the default template add theirs with their screens. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
 
 ### Platform statements (super admin only)
 

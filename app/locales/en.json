@@ -50,7 +50,9 @@
       "PASSWORD_CHANGE_REQUIRED": "Change your temporary password to continue.",
       "FORBIDDEN": "You don't have permission to do this.",
       "INVALID_STATE": "This was already changed. Reload to see it.",
-      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again."
+      "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
+      "TEMPLATE_CHANGED": "This paper slip was just updated. Check the order, then preview it again.",
+      "SLIP_VALUES_INVALID": "Some boxes of the slip need a look."
     }
   },
   "account": {
@@ -205,9 +207,7 @@
   },
   "overview": {
     "nav": "Overview",
-    "title": "Overview",
-    "comingTitle": "Orders are coming soon",
-    "comingDescription": "Your shop's own slip and its orders arrive in the next update. Your shop's settings and account are under More."
+    "title": "Overview"
   },
   "more": {
     "nav": "More",
@@ -454,6 +454,66 @@
       "tooLong": "At most {max} characters.",
       "invalidPhone": "Not a valid phone number.",
       "invalid": "Check this value."
+    }
+  },
+  "orders": {
+    "paid": "Paid",
+    "unpaid": "Unpaid",
+    "status": {
+      "open": "Received",
+      "picked_up": "Collected",
+      "cancelled": "Cancelled"
+    },
+    "new": {
+      "title": "New order",
+      "slip": "Paper slip",
+      "chooseSlip": "Choose the paper slip for this order",
+      "slipUpdated": "This paper slip was just updated. Check the order, then preview it again.",
+      "noSlipTitle": "No paper slip yet",
+      "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
+      "preview": "Preview"
+    },
+    "preview": {
+      "title": "Preview",
+      "hint": "Check the slip. The order number is given when you save.",
+      "edit": "Edit",
+      "savePrint": "Save & print",
+      "saveOnly": "Save only",
+      "retryHint": "Nothing was lost. Try again: the order is saved only once."
+    },
+    "slip": {
+      "label": "The order's slip",
+      "numberPlaceholder": "– – –",
+      "zoom": "Zoom in",
+      "fit": "Fit to screen",
+      "numberPlaceholderLabel": "The order number is given on save"
+    },
+    "order": {
+      "title": "Order No. {number}",
+      "loadingTitle": "Order",
+      "saved": "Order saved",
+      "savedHint": "Write this number on the bag.",
+      "number": "Order number",
+      "date": "Date",
+      "amount": "Amount",
+      "phone": "Phone",
+      "slip": "Paper slip",
+      "slipVersion": "{name} · version {version}",
+      "print": "Print slip",
+      "printAgain": "Print again",
+      "nextOrder": "Next order",
+      "notFound": "This order doesn't exist",
+      "toOverview": "Back to Overview"
+    },
+    "latest": {
+      "title": "Latest orders",
+      "number": "No. {number}",
+      "emptyTitle": "No orders yet",
+      "emptyDescription": "Orders you save appear here."
+    },
+    "form": {
+      "more": "Add one {label}",
+      "less": "Remove one {label}"
     }
   }
 }

@@ -9,6 +9,7 @@ export const TemplateErrorCodes = {
   UNKNOWN_IMAGE: 'UNKNOWN_IMAGE',
   PUBLISH_CHECKS_FAILED: 'PUBLISH_CHECKS_FAILED',
   TEMPLATE_NOT_ATTACHABLE: 'TEMPLATE_NOT_ATTACHABLE',
+  TEMPLATE_CHANGED: 'TEMPLATE_CHANGED',
 } as const
 
 export function templateNotFound() {
@@ -74,4 +75,17 @@ export function alreadyArchived() {
 
 export function notArchived() {
   return apiError(409, ErrorCodes.INVALID_STATE, 'This template is not archived.')
+}
+
+/** The shop's own view of a template: one it can't use answers like a missing one. */
+export function paperSlipNotFound() {
+  return notFound('This paper slip')
+}
+
+/**
+ * 409: the order was filled on a version that is no longer the template's latest (the platform
+ * published again), or the template was detached meanwhile. The owner reloads the slip and checks it.
+ */
+export function templateChangedForOrder() {
+  return apiError(409, TemplateErrorCodes.TEMPLATE_CHANGED, 'This paper slip was updated. Check the order and save again.')
 }

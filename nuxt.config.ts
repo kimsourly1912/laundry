@@ -110,6 +110,9 @@ export default defineNuxtConfig({
     head: {
       title: 'Laundry',
       htmlAttrs: { lang: 'en' },
+      // `resizes-content`: with the phone's keyboard open, the page shrinks above it, so the bottom
+      // bar's action (New order's Preview) stays in reach (implementation guide → interaction contract).
+      viewport: 'width=device-width, initial-scale=1, interactive-widget=resizes-content',
     },
   },
   css: ['~/assets/css/tailwind.css'],

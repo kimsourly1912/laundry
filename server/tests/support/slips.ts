@@ -1,4 +1,6 @@
 import { blankDesign } from '#shared/contracts/slip-design'
+import type { SlipDesign } from '#shared/contracts/slip-design'
+import { createElement, createGroup } from '#shared/slip/elements'
 import { templateShops, templates, templateVersions } from '#server/features/templates/templates.schema'
 import { orders } from '#server/features/orders/orders.schema'
 import type { Db } from '#server/utils/batch'
@@ -12,16 +14,49 @@ import { newId } from '#server/utils/ids'
 
 let templateCount = 0
 
-/** A published template with version 1, made by `userId`. */
-export async function createTestTemplate(db: Db, userId: string) {
+/**
+ * A counter slip like a shop's paper one: Order No., date, shirt and pants counts (shirts required),
+ * a name, a service choice, phone, amount and Paid / Not paid.
+ */
+export function counterDesign(): SlipDesign {
+  return {
+    ...blankDesign(800, 520),
+    elements: [
+      createElement('orderNo', { id: 'no', x: 600, y: 20 }),
+      createElement('date', { id: 'day', x: 600, y: 70 }),
+      createElement('number', { id: 'shirt', x: 40, y: 140 }, { label: 'Shirt', required: true }),
+      createElement('number', { id: 'pants', x: 40, y: 200 }, { label: 'Pants' }),
+      createElement('textField', { id: 'name', x: 40, y: 20 }, { label: 'Customer' }),
+      createElement('option', { id: 'wash', x: 300, y: 140 }, { group: 'svc', label: 'Wash + iron' }),
+      createElement('option', { id: 'iron', x: 300, y: 200 }, { group: 'svc', label: 'Iron only' }),
+      createElement('phone', { id: 'tel', x: 40, y: 300 }),
+      createElement('amount', { id: 'total', x: 40, y: 400 }),
+      createElement('paid', { id: 'yes', x: 600, y: 400 }, { value: 'paid', label: 'Paid' }),
+      createElement('paid', { id: 'no-pay', x: 660, y: 400 }, { value: 'unpaid', label: 'Not paid' }),
+    ],
+    groups: [createGroup('svc', { label: 'Service' })],
+    fillOrder: ['name', 'shirt', 'pants', 'svc', 'tel', 'total', 'paid'],
+  }
+}
+
+/** A published template with version 1 (a blank slip unless a design is given), made by `userId`. */
+export async function createTestTemplate(db: Db, userId: string, options: { design?: SlipDesign, name?: string } = {}) {
+  const { design = blankDesign(800, 520), name = `Template ${++templateCount}` } = options
   const templateId = newId()
   const versionId = newId()
-  const design = blankDesign(800, 520)
   await db.batch([
-    db.insert(templates).values({ id: templateId, name: `Template ${++templateCount}`, status: 'published', design, createdBy: userId }),
+    db.insert(templates).values({ id: templateId, name, status: 'published', design, createdBy: userId }),
     db.insert(templateVersions).values({ id: versionId, templateId, number: 1, design, createdBy: userId }),
   ])
   return { templateId, versionId }
+}
+
+/** Publishes the template again: version `number` with `design`. */
+export async function publishTestVersion(db: Db, version: { templateId: string, userId: string, number: number, design: SlipDesign }) {
+  const { templateId, userId, number, design } = version
+  const versionId = newId()
+  await db.insert(templateVersions).values({ id: versionId, templateId, number, design, createdBy: userId })
+  return { versionId }
 }
 
 /** Attaches the template to the shop, as its default when asked. */

@@ -1,0 +1,217 @@
+<script setup lang="ts">
+/**
+ * One order (plan §3 steps 5 and 7; implementation guide → sheet 02): the saved slip, drawn from
+ * the template version the order was made on and the copy of the shop's details it keeps, so a
+ * reprint is the slip the customer was given, with its number. Right after saving (`?saved=1`) it
+ * says so with the number in big digits for the bag, and Next order; with `?print=1` it opens the
+ * print dialog once. Print again never saves anything.
+ */
+import type { OrderDetail, OrderStatus } from '#shared/contracts/orders'
+import { formatPhone } from '#shared/contracts/phone'
+import { useSlipText } from '~/features/slip-fill'
+import { printSlip } from '../utils/print-slip'
+import SlipView from './SlipView.vue'
+
+const props = defineProps<{ orderId: string }>()
+
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const { can } = useSession()
+
+const order = useApiQuery(() => `orders:order:${props.orderId}`, () => apiFetch<OrderDetail>(`/shop/orders/${props.orderId}`))
+const slipText = useSlipText()
+
+const justSaved = computed(() => route.query.saved === '1')
+const imageHref = (imageId: string) => `/api/shop/orders/${props.orderId}/images/${imageId}`
+const data = computed(() => {
+  const value = order.data.value
+  return value && {
+    values: value.values,
+    order: { number: value.number, date: value.date, phone: value.phone, amount: value.amount, paid: value.paid },
+    shop: value.shop,
+  }
+})
+
+const STATUS: Record<OrderStatus, { key: string, color: 'info' | 'success' | 'neutral' }> = {
+  open: { key: 'orders.status.open', color: 'info' },
+  picked_up: { key: 'orders.status.picked_up', color: 'success' },
+  cancelled: { key: 'orders.status.cancelled', color: 'neutral' },
+}
+
+const printing = ref(false)
+async function print() {
+  printing.value = true
+  try {
+    await nextTick()
+    await printSlip()
+  }
+  finally {
+    printing.value = false
+  }
+}
+
+// Save & print: print once the saved slip is on screen, then forget the request so a reload doesn't print again.
+const printRequested = ref(route.query.print === '1')
+watch([() => order.data.value, () => slipText.text.value], async ([value, text]) => {
+  if (!printRequested.value || !value || !text) return
+  printRequested.value = false
+  await router.replace({ query: { ...route.query, print: undefined } })
+  await print()
+}, { immediate: true })
+</script>
+
+<template>
+  <UDashboardPanel id="order">
+    <template #header>
+      <UDashboardNavbar :title="order.data.value ? t('orders.order.title', { number: order.data.value.number }) : t('orders.order.loadingTitle')">
+        <template #leading>
+          <UButton
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            to="/"
+            :aria-label="t('common.actions.back')"
+          />
+        </template>
+      </UDashboardNavbar>
+    </template>
+
+    <template #body>
+      <div class="mx-auto w-full max-w-page space-y-4">
+        <UEmpty
+          v-if="order.error.value?.kind === 'not_found'"
+          icon="i-lucide-search-x"
+          :title="t('orders.order.notFound')"
+          :actions="[{ label: t('orders.order.toOverview'), to: '/' }]"
+          data-testid="order-not-found"
+        />
+        <PageLoadError
+          v-else-if="(order.error.value && !order.data.value) || slipText.failed.value"
+          :error="order.error.value ?? new Error('fonts')"
+          @retry="order.error.value ? order.refresh() : slipText.reload()"
+        />
+        <div
+          v-else-if="!order.data.value || !data || !slipText.text.value"
+          class="space-y-3"
+        >
+          <USkeleton class="h-20 w-full" />
+          <USkeleton class="aspect-[3/2] w-full" />
+        </div>
+
+        <template v-else>
+          <div
+            v-if="justSaved"
+            class="flex items-start gap-3 print:hidden"
+            data-testid="order-saved"
+          >
+            <UIcon
+              name="i-lucide-circle-check"
+              class="mt-1 size-8 shrink-0 text-success"
+            />
+            <div class="min-w-0">
+              <h2 class="text-xl font-semibold text-highlighted">
+                {{ t('orders.order.saved') }}
+              </h2>
+              <p class="text-muted">
+                {{ t('orders.order.savedHint') }}
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-end justify-between gap-3 print:hidden">
+            <div>
+              <p class="text-sm text-muted">
+                {{ t('orders.order.number') }}
+              </p>
+              <p
+                class="text-5xl font-bold tracking-tight text-highlighted tabular-nums"
+                data-testid="order-number"
+              >
+                {{ order.data.value.number }}
+              </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <UBadge
+                :label="t(STATUS[order.data.value.status].key)"
+                :color="STATUS[order.data.value.status].color"
+                variant="subtle"
+                size="lg"
+              />
+              <UBadge
+                :label="order.data.value.paid ? t('orders.paid') : t('orders.unpaid')"
+                :color="order.data.value.paid ? 'success' : 'warning'"
+                variant="subtle"
+                size="lg"
+                data-testid="order-paid"
+              />
+            </div>
+          </div>
+
+          <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm print:hidden">
+            <dt class="text-muted">
+              {{ t('orders.order.date') }}
+            </dt>
+            <dd>{{ formatDate(order.data.value.date) }}</dd>
+            <template v-if="order.data.value.amount !== null">
+              <dt class="text-muted">
+                {{ t('orders.order.amount') }}
+              </dt>
+              <dd class="tabular-nums">
+                {{ formatMoney(order.data.value.amount, order.data.value.currency) }}
+              </dd>
+            </template>
+            <template v-if="order.data.value.phone">
+              <dt class="text-muted">
+                {{ t('orders.order.phone') }}
+              </dt>
+              <dd>{{ formatPhone(order.data.value.phone) }}</dd>
+            </template>
+            <dt class="text-muted">
+              {{ t('orders.order.slip') }}
+            </dt>
+            <dd
+              class="min-w-0 break-words"
+              data-testid="order-version"
+            >
+              {{ t('orders.order.slipVersion', { name: order.data.value.templateName, version: order.data.value.templateVersionNumber }) }}
+            </dd>
+          </dl>
+
+          <SlipView
+            :design="order.data.value.design"
+            :data="data"
+            :text="slipText.text.value"
+            :image-href="imageHref"
+          />
+
+          <BottomBarSpacer />
+          <BottomBar>
+            <div class="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto">
+              <UButton
+                :label="justSaved ? t('orders.order.printAgain') : t('orders.order.print')"
+                icon="i-lucide-printer"
+                size="xl"
+                block
+                :loading="printing"
+                data-testid="print"
+                @click="print"
+              />
+              <UButton
+                v-if="can('order:create')"
+                :label="t('orders.order.nextOrder')"
+                icon="i-lucide-arrow-right"
+                color="neutral"
+                variant="outline"
+                size="xl"
+                block
+                to="/orders/new"
+                data-testid="next-order"
+              />
+            </div>
+          </BottomBar>
+        </template>
+      </div>
+    </template>
+  </UDashboardPanel>
+</template>

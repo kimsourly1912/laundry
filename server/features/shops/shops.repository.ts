@@ -48,6 +48,12 @@ export function findShopProfile(db: Db, shopId: string) {
     .from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
 }
 
+/** The shop's details an order keeps a copy of (D33): name, phone, address, logo, currency. */
+export function findShopCopy(db: Db, shopId: string) {
+  return firstRow(db.select({ name: organization.name, phone: shopSettings.phone, address: shopSettings.address, logoImageId: shopSettings.logoImageId, currency: shopSettings.currency })
+    .from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
+}
+
 /** Across shops (the platform's list): newest first, a page at a time, with how many match. */
 export async function listShops(db: Db, query: ShopListQuery): Promise<{ rows: ShopRow[], total: number }> {
   const { status, search, page, pageSize } = query

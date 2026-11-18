@@ -8,7 +8,7 @@ import type { SlipDesign, SlipShop } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
 import type { FillProblem, FillProblems, SlipFill } from '#shared/slip/values'
 import { checkFill } from '#shared/slip/values'
-import { fillData, fillSteps, problemKey, stepOf } from '../utils/fill'
+import { fillData, fillSteps, problemKey, problemMessage, stepOf } from '../utils/fill'
 import type { FillStep } from '../utils/fill'
 import { SlipSvg } from './slip-svg'
 
@@ -115,12 +115,8 @@ function validate(): boolean {
 }
 
 function problemText(value: FillProblem): string {
-  switch (value.code) {
-    case 'range': return t('slipFill.problems.range', { min: value.min, max: value.max })
-    case 'decimals': return value.decimals ? t('slipFill.problems.decimals', { decimals: value.decimals }) : t('slipFill.problems.whole')
-    case 'tooLong': return t('slipFill.problems.tooLong', { max: value.max })
-    default: return t(`slipFill.problems.${value.code}`)
-  }
+  const { key, params } = problemMessage(value)
+  return t(`slipFill.problems.${key}`, params ?? {})
 }
 
 defineExpose({ validate })

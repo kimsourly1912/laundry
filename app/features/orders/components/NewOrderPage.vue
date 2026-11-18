@@ -1,0 +1,318 @@
+<script setup lang="ts">
+/**
+ * New order (plan §3 steps 4–5; implementation guide → sheets 01, 10, 11): the owner fills the
+ * shop's paper slip, previews it, and saves it once. Two steps on one page, so Edit brings back
+ * everything entered: the form, and the preview (`?step=preview`, so the phone's Back returns to
+ * the form). Previewing creates nothing.
+ *
+ * Saving sends one `Idempotency-Key` for the whole flow: a double tap or a retry after a lost
+ * answer makes one order (architecture → Idempotency). The server sets the number, the day and the
+ * version; the order page then shows the saved slip, and prints it for Save & print.
+ */
+import type { OrderDetail } from '#shared/contracts/orders'
+import type { SlipShop } from '#shared/contracts/slip-design'
+import { checkFill } from '#shared/slip/values'
+import type { SlipFill } from '#shared/slip/values'
+import { emptyFill, fillData, useSlipText } from '~/features/slip-fill'
+import { useShopSettings } from '~/features/shop-settings'
+import { useOrderTemplates } from '../composables/useOrderTemplates'
+import { carryFill, serverProblems, shopToday, startingTemplate, toCreateRequest } from '../utils/order-form'
+import OrderForm from './OrderForm.vue'
+import SlipView from './SlipView.vue'
+
+const { t, te } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const { supportUrl } = useRuntimeConfig().public
+
+const templates = useOrderTemplates()
+const settings = useShopSettings()
+const slipText = useSlipText()
+
+// --- The paper slip ---
+
+const selectedId = ref<string>()
+watch(() => templates.data.value, (list) => {
+  if (list) selectedId.value = startingTemplate(list, selectedId.value)?.templateId
+}, { immediate: true })
+const template = computed(() => templates.data.value?.find(item => item.templateId === selectedId.value))
+const templateItems = computed(() => (templates.data.value ?? []).map(item => ({ label: item.name, value: item.templateId })))
+
+// --- What the owner fills ---
+
+const fill = ref<SlipFill>(emptyFill())
+const showProblems = ref(false)
+const serverErrors = ref<Record<string, string>>({})
+const problems = computed(() => (template.value && showProblems.value ? checkFill(template.value.design, fill.value) : {}))
+/** The platform published the slip again while the owner was filling it. */
+const slipUpdated = ref(false)
+
+// A slip changed under the owner (another one chosen, or a new version): keep what still fits.
+watch(() => template.value?.design, (design) => {
+  if (design) fill.value = carryFill(fill.value, design)
+})
+// A server refusal of a field goes once the owner changes that field.
+watch(fill, (next, before) => {
+  for (const key of Object.keys(serverErrors.value)) {
+    const changed = key === 'phone' ? next.phone !== before.phone : key === 'amount' ? next.amount !== before.amount : next.values[key] !== before.values[key]
+    if (changed) serverErrors.value = Object.fromEntries(Object.entries(serverErrors.value).filter(([item]) => item !== key))
+  }
+})
+
+const shop = computed<SlipShop | undefined>(() => {
+  const value = settings.data.value
+  return value && { name: value.name, phone: value.phone, address: value.address, logoImageId: null, currency: value.currency }
+})
+const draft = computed(() => shop.value && fillData(fill.value, { shop: shop.value, date: shopToday() }))
+const imageHref = (imageId: string) => `/api/shop/templates/${selectedId.value}/images/${imageId}`
+
+// --- Steps ---
+
+const step = computed(() => (route.query.step === 'preview' && template.value ? 'preview' : 'form'))
+onMounted(() => {
+  // A reload on the preview starts again at the form: the fill lives in this page only.
+  if (route.query.step) router.replace({ query: {} })
+})
+
+const form = useTemplateRef('form')
+async function preview() {
+  showProblems.value = true
+  if (Object.keys(problems.value).length || Object.keys(serverErrors.value).length) {
+    await nextTick()
+    form.value?.focusFirstProblem()
+    return
+  }
+  slipUpdated.value = false
+  await router.push({ query: { step: 'preview' } })
+  window.scrollTo({ top: 0 })
+}
+
+function edit() {
+  if (window.history.state?.back) router.back()
+  else router.replace({ query: {} })
+}
+
+// --- Saving ---
+
+/** One key for this order, kept for every retry (a refused save stores nothing, so it stays usable). */
+const submissionKey = crypto.randomUUID()
+const saved = ref(false)
+const save = useMutation((body: ReturnType<typeof toCreateRequest>) => apiFetch<OrderDetail>('/shop/orders', {
+  method: 'POST',
+  body,
+  headers: { 'Idempotency-Key': submissionKey },
+}), { inline: true, invalidate: ['orders'] })
+
+const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid))
+useUnsavedChanges(() => dirty.value)
+
+const failure = computed(() => {
+  const error = save.error.value
+  if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID') return undefined
+  return errorText(error, t, te)
+})
+
+async function submit(print: boolean) {
+  const current = template.value
+  if (!current || save.pending.value) return
+  const result = await save.execute(toCreateRequest(fill.value, current))
+  if (result.ok) {
+    saved.value = true
+    await router.replace({ path: `/orders/${result.data.id}`, query: print ? { saved: '1', print: '1' } : { saved: '1' } })
+    return
+  }
+  if (result.error.code === 'TEMPLATE_CHANGED') {
+    // Reload the slip; the watch above keeps what still fits. Back to the form to check it.
+    await templates.refresh()
+    slipUpdated.value = true
+    edit()
+  }
+  else if (result.error.code === 'SLIP_VALUES_INVALID') {
+    serverErrors.value = serverProblems(result.error.fieldErrors)
+    showProblems.value = true
+    edit()
+  }
+}
+
+const ready = computed(() => templates.data.value && settings.data.value && slipText.text.value)
+const loadError = computed(() => templates.error.value ?? settings.error.value)
+function retryLoad() {
+  if (templates.error.value) templates.refresh()
+  if (settings.error.value) settings.refresh()
+  if (slipText.failed.value) slipText.reload()
+}
+</script>
+
+<template>
+  <UDashboardPanel id="new-order">
+    <template #header>
+      <UDashboardNavbar :title="step === 'preview' ? t('orders.preview.title') : t('orders.new.title')">
+        <template #leading>
+          <UButton
+            v-if="step === 'preview'"
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('orders.preview.edit')"
+            @click="edit"
+          />
+          <UButton
+            v-else
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            to="/"
+            :aria-label="t('common.actions.back')"
+          />
+        </template>
+      </UDashboardNavbar>
+    </template>
+
+    <template #body>
+      <div class="mx-auto w-full max-w-page space-y-4">
+        <PageLoadError
+          v-if="loadError || slipText.failed.value"
+          :error="loadError ?? new Error('fonts')"
+          @retry="retryLoad"
+        />
+        <div
+          v-else-if="!ready"
+          class="space-y-3"
+        >
+          <USkeleton class="h-12 w-full" />
+          <USkeleton
+            v-for="n in 4"
+            :key="n"
+            class="h-16 w-full"
+          />
+        </div>
+
+        <!-- No paper slip attached: nothing to fill (implementation guide → sheet 11). -->
+        <UEmpty
+          v-else-if="!templates.data.value?.length"
+          icon="i-lucide-file-x"
+          :title="t('orders.new.noSlipTitle')"
+          :description="t('orders.new.noSlipDescription')"
+          :actions="supportUrl ? [{ label: t('more.contactSupport'), icon: 'i-lucide-message-circle', to: supportUrl, target: '_blank', external: true }] : []"
+          data-testid="no-slip"
+        />
+
+        <template v-else>
+          <!-- Kept mounted (hidden) during the preview, so Edit brings back every field exactly as typed. -->
+          <div
+            v-show="step === 'form'"
+            class="space-y-4"
+          >
+            <UFormField
+              v-if="templateItems.length > 1"
+              :label="t('orders.new.slip')"
+              :help="template ? undefined : t('orders.new.chooseSlip')"
+              :ui="{ label: 'text-base' }"
+            >
+              <USelect
+                v-model="selectedId"
+                :items="templateItems"
+                :placeholder="t('orders.new.chooseSlip')"
+                size="xl"
+                class="w-full"
+                data-testid="slip-select"
+              />
+            </UFormField>
+
+            <UAlert
+              v-if="slipUpdated"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-refresh-cw"
+              :title="t('orders.new.slipUpdated')"
+              role="alert"
+            />
+
+            <OrderForm
+              v-if="template && shop"
+              ref="form"
+              v-model="fill"
+              :design="template.design"
+              :currency="shop.currency"
+              :problems="problems"
+              :server-errors="serverErrors"
+            />
+          </div>
+
+          <template v-if="step === 'preview' && template && draft && slipText.text.value">
+            <p class="text-sm text-muted">
+              {{ t('orders.preview.hint') }}
+            </p>
+            <UAlert
+              v-if="failure"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-circle-alert"
+              :title="failure"
+              :description="save.error.value?.retryable ? t('orders.preview.retryHint') : undefined"
+              role="alert"
+              data-testid="save-error"
+            />
+            <SlipView
+              :design="template.design"
+              :data="draft"
+              :text="slipText.text.value"
+              :image-href="imageHref"
+            />
+          </template>
+        </template>
+
+        <BottomBarSpacer />
+        <BottomBar v-if="ready && template">
+          <template v-if="step === 'form'">
+            <UButton
+              :label="t('orders.new.preview')"
+              icon="i-lucide-eye"
+              size="xl"
+              block
+              class="sm:w-auto"
+              data-testid="preview"
+              @click="preview"
+            />
+          </template>
+          <template v-else>
+            <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+              <UButton
+                :label="t('orders.preview.edit')"
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="outline"
+                size="xl"
+                block
+                :disabled="save.pending.value"
+                data-testid="edit"
+                @click="edit"
+              />
+              <UButton
+                :label="t('orders.preview.savePrint')"
+                icon="i-lucide-printer"
+                size="xl"
+                block
+                :loading="save.pending.value"
+                data-testid="save-print"
+                @click="submit(true)"
+              />
+              <UButton
+                :label="t('orders.preview.saveOnly')"
+                icon="i-lucide-save"
+                color="neutral"
+                variant="outline"
+                size="xl"
+                block
+                class="col-span-2"
+                :disabled="save.pending.value"
+                data-testid="save-only"
+                @click="submit(false)"
+              />
+            </div>
+          </template>
+        </BottomBar>
+      </div>
+    </template>
+  </UDashboardPanel>
+</template>

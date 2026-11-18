@@ -23,3 +23,31 @@
 .dark {
   --ui-primary: var(--ui-color-primary-400);
 }
+
+/*
+ * Printing a slip (order page → Print, Save & print): only the slip, at the paper's width. The
+ * slip is the `.print-slip` box (app/features/orders/components/SlipView.vue); everything else is
+ * hidden, so the paper holds the same drawing the customer gets on Telegram.
+ */
+@media print {
+  @page {
+    margin: 6mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .print-slip,
+  .print-slip * {
+    visibility: visible;
+  }
+
+  .print-slip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100% !important;
+    box-shadow: none;
+  }
+}

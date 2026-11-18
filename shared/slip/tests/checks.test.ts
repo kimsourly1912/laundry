@@ -71,6 +71,12 @@ describe('checkFill (plan §5.3)', () => {
     expect(checkFill(slip, { ...fill, values: { n: 2.55, g: 'o1' }, phone: '012345678' })).toEqual({ n: { code: 'decimals', decimals: 1 } })
   })
 
+  it('refuses a phone or an amount on a slip without that field', () => {
+    const bare = design([createElement('number', { id: 'n' }, { label })])
+    expect(checkFill(bare, { ...fill, phone: '012 345 678', amount: 5000 })).toEqual({ phone: { code: 'invalid' }, amount: { code: 'invalid' } })
+    expect(checkFill(bare, { ...fill, phone: '  ' })).toEqual({})
+  })
+
   it('stores only this design\'s keys, without empty text or unticked boxes', () => {
     expect(cleanValues(slip, { n: 2, t: '', c: false, g: 'o1', x: 'y' })).toEqual({ n: 2, g: 'o1' })
   })
