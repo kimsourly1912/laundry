@@ -89,7 +89,7 @@ erDiagram
 
 ## `order_counters`, `orders` (owner: `orders`)
 
-**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; mark paid, pick up and cancel come with their screens.
+**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; D38 the search, Mark paid (`Idempotency-Key`), Picked up and Cancel, each at its `version` and guarded in SQL by the state it starts from (`orders.rules.ts → canDo`).
 
 `order_counters`: `shop_id` PK, `last_number` (≥ 0). Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`. Two shops count on their own: the same number in two shops is two orders.
 

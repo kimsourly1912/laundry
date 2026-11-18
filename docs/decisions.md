@@ -577,3 +577,15 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 **Consequences.**
 - No migration: the `orders` columns of step 1 are enough. `orders.values` is typed as `SlipValues`.
 - Left for the next milestones (current-state → Open questions): the 768 px content width the guide proposes, a zero-padded number (`#002139`), remembering a chosen default (sheet 05), the Telegram QR on the saved screen (plan step 4), the Orders list and search, Mark paid / Picked up / Cancel and copy.
+
+## D38. The owner portal's rest: Orders, actions, Paper slips, Telegram
+**2026-11-18.** The rest of plan steps 3 and 4 that is small to medium, on top of D37. The Ready / In progress lifecycle, item pricing, customers, redesign requests, the phone Studio and AI import stay out (they change D31's product rules or are large).
+
+**Orders and search.** `GET /api/shop/orders` takes `search`: an exact order number (`12`, `#12`) or a phone as typed (`012 345 678`), never a partial text match. The number has its unique index; the phone gets `(shop_id, phone)` (migration `0002`). Text that is neither matches nothing: the slip's other values are JSON and not searched. Filters: state and paid. All in the URL.
+
+**Actions** (plan §3 step 7, §4, D36).
+- **Mark paid** takes an `Idempotency-Key` (architecture → Idempotency), **Picked up** and **Cancel** don't (repeating them changes nothing: the second answers 409 `INVALID_STATE`).
+- **The rule is checked twice:** `canDo` before the batch for a clear 409 `INVALID_STATE`, and the same condition in the `UPDATE`'s `WHERE` with the version, so a change landing in between stops the batch.
+- **Paid stays apart from the state:** an order can be paid while open or after an unpaid pickup, never once cancelled. **An unpaid pickup is allowed** after the app asks; its audit row records who and when (implementation guide → sheet 04). **A paid order can be cancelled** and keeps showing it was paid; refunds are a pilot decision (product notes).
+- **Cancel and copy** cancels first, then opens New order (`?copy=<id>`) on the same template's latest version with the values that still fit; the new order gets its own number and key. If the owner leaves New order, the old order stays cancelled: that is what the confirmation says.
+- **Statements:** `order:pay` and `order:pick-up` for owner and staff, `order:cancel` for the owner only.

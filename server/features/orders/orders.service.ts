@@ -1,19 +1,20 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { CreateOrderInput, OrderDetail, OrderListItem, OrderListQuery } from '#shared/contracts/orders'
+import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
-import type { Db } from '#server/utils/batch'
-import { runBatch } from '#server/utils/batch'
+import type { Db, Statement } from '#server/utils/batch'
+import { requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
 import { shopDate } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
 import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
-import { orderNotFound, slipValuesInvalid } from './orders.errors'
+import { orderChanged, orderNotAllowed, orderNotFound, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
-import { parseOrderSearch } from './orders.rules'
+import { canDo, parseOrderSearch } from './orders.rules'
+import type { OrderAction } from './orders.rules'
 import type { OrderRow } from './orders.repository'
 
 /**
@@ -37,6 +38,7 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
   if (!version) throw orderNotFound()
   return {
     ...toListItem(row),
+    templateId: version.templateId,
     templateVersionId: row.templateVersionId,
     templateVersionNumber: version.number,
     templateName: version.templateName,
@@ -124,4 +126,59 @@ export async function orderImage(db: Db, actor: ShopActor, options: { orderId: s
   const row = await repo.findOrder(db, actor.shopId, orderId)
   if (!row) throw orderNotFound()
   return versionImage(db, { versionId: row.templateVersionId, imageId })
+}
+
+// --- Actions on a saved order (plan §3 step 7, §4) ---
+
+interface ActionOptions {
+  orderId: string
+  input: OrderActionInput
+  now?: Date
+}
+
+const STATEMENTS = { 'pay': repo.payStatement, 'pick-up': repo.pickUpStatement, 'cancel': repo.cancelStatement } as const
+
+/**
+ * One action at the version read: 404 for no such order (or another shop's), 409 `INVALID_STATE`
+ * when the order's state doesn't allow it, 409 `VERSION_CONFLICT` when it changed meanwhile. One
+ * batch: the guarded change and its audit row (`paid` recorded, so an unpaid handoff says who and when).
+ */
+async function act(db: Db, actor: ShopActor, action: OrderAction, options: ActionOptions & { extra?: Statement[] }): Promise<string> {
+  const { orderId, input, now = new Date(), extra = [] } = options
+  const { shopId, userId } = actor
+  const order = await repo.findOrder(db, shopId, orderId)
+  if (!order) throw orderNotFound()
+  if (!canDo(action, order)) throw orderNotAllowed(action)
+  await runBatch(db, [
+    STATEMENTS[action](db, { shopId, id: orderId, version: input.version, now }),
+    requireOneChange(db),
+    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: `order.${action}`, targetType: 'order', targetId: orderId, data: { paid: order.paid, status: order.status } }, now),
+    ...extra,
+  ], orderChanged)
+  return orderId
+}
+
+/**
+ * Marks the order paid, at most once per idempotency key (architecture → Idempotency): a retry or
+ * a double tap answers with the order as it is now. Paid while open, or after an unpaid pickup.
+ */
+export async function markPaid(db: Db, actor: ShopActor, options: ActionOptions & { key: string }): Promise<{ order: OrderDetail, replayed: boolean }> {
+  const { orderId, input, key, now = new Date() } = options
+  const { id, replayed } = await runIdempotent(db, {
+    scope: { shopId: actor.shopId, actorUserId: actor.userId, action: 'order.pay', key },
+    request: { orderId, ...input },
+    now,
+    perform: keyStatement => act(db, actor, 'pay', { orderId, input, now, extra: [keyStatement(orderId)] }),
+  })
+  return { order: await getOrder(db, actor, id), replayed }
+}
+
+/** The customer took the bag. Allowed unpaid (the app asks first); the audit row records it. */
+export async function pickUpOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  return getOrder(db, actor, await act(db, actor, 'pick-up', options))
+}
+
+/** Cancels an open order (never deleted, plan §4). A paid order stays paid: its record is kept. */
+export async function cancelOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  return getOrder(db, actor, await act(db, actor, 'cancel', options))
 }

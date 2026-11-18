@@ -1,3 +1,4 @@
+import type { OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 
 /**
@@ -15,4 +16,19 @@ export function parseOrderSearch(text: string): OrderSearch {
   const number = text.replace(/^#/, '').trim()
   if (/^\d{1,9}$/.test(number) && Number(number) >= 1) return { number: Number(number) }
   return { none: true }
+}
+
+export type OrderAction = 'pay' | 'pick-up' | 'cancel'
+
+/**
+ * Whether the order allows the action (plan §4): paid is separate from the state, so an order may
+ * be paid while open or after an unpaid pickup, never once cancelled or twice; pickup and cancel
+ * only while open. Pickup of an unpaid order is allowed (the app asks first; the audit row says it).
+ */
+export function canDo(action: OrderAction, order: { status: OrderStatus, paid: boolean }): boolean {
+  switch (action) {
+    case 'pay': return !order.paid && order.status !== 'cancelled'
+    case 'pick-up':
+    case 'cancel': return order.status === 'open'
+  }
 }

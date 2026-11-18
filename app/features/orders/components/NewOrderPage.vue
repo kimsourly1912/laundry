@@ -10,6 +10,7 @@
  * version; the order page then shows the saved slip, and prints it for Save & print.
  */
 import type { OrderDetail } from '#shared/contracts/orders'
+import { formatPhone } from '#shared/contracts/phone'
 import type { SlipShop } from '#shared/contracts/slip-design'
 import { checkFill } from '#shared/slip/values'
 import type { SlipFill } from '#shared/slip/values'
@@ -58,6 +59,20 @@ watch(fill, (next, before) => {
     if (changed) serverErrors.value = Object.fromEntries(Object.entries(serverErrors.value).filter(([item]) => item !== key))
   }
 })
+
+// Cancel and copy (D36): the cancelled order's template (at its latest version) and the values that still fit.
+const copyId = typeof route.query.copy === 'string' ? route.query.copy : undefined
+const copySource = copyId ? useApiQuery(`orders:copy:${copyId}`, () => apiFetch<OrderDetail>(`/shop/orders/${copyId}`)) : undefined
+const copiedFrom = ref<number>()
+watch([() => templates.data.value, () => copySource?.data.value], async ([list, source]) => {
+  if (!list || !source || copiedFrom.value !== undefined) return
+  selectedId.value = startingTemplate(list, source.templateId)?.templateId
+  await nextTick()
+  const design = template.value?.design
+  if (!design) return
+  fill.value = carryFill({ values: source.values, phone: source.phone ? formatPhone(source.phone) : '', amount: source.amount, paid: source.paid }, design)
+  copiedFrom.value = source.number
+}, { immediate: true })
 
 const shop = computed<SlipShop | undefined>(() => {
   const value = settings.data.value
@@ -219,6 +234,14 @@ function retryLoad() {
               />
             </UFormField>
 
+            <UAlert
+              v-if="copiedFrom !== undefined"
+              color="info"
+              variant="subtle"
+              icon="i-lucide-copy"
+              :title="t('orders.new.copiedFrom', { number: copiedFrom })"
+              data-testid="copied-from"
+            />
             <UAlert
               v-if="slipUpdated"
               color="warning"

@@ -24,6 +24,8 @@ let browser: Browser
 let admin: Page
 let template: TemplateDetail
 let savedOrder: OrderDetail | undefined
+/** The second order, made by two requests with one key: paid, open. */
+let secondOrderId: string | undefined
 
 /** A paper slip like Linda Laundry's: its boxes on the artwork, Khmer and English labels (D36). */
 function lindaDesign(): SlipDesign {
@@ -173,6 +175,7 @@ describe('the owner\'s counter', () => {
     }, savedOrder.templateVersionId)
     expect(twice.statuses).toEqual([200, 201])
     expect(twice.ids[0]).toBe(twice.ids[1])
+    secondOrderId = twice.ids[0]
     expect(await page.evaluate(async () => (await (await fetch('/api/shop/orders')).json()).total)).toBe(2)
 
     // --- The platform publishes the slip again; the saved order reprints on its own version and number ---
@@ -204,6 +207,45 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => page.getByTestId('orders-list').getByRole('link').allTextContents()).toEqual(['No. 1'])
     await page.getByTestId('orders-search').fill('Dara')
     await expect.poll(() => page.getByTestId('orders-no-match').count()).toBe(1)
+  })
+
+  it('marks paid, hands over, and cancels and copies into a new order with a new number (sheets 03, 04, 11)', async () => {
+    expect(savedOrder && secondOrderId).toBeTruthy()
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-actions', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
+    await page.waitForURL(`${host}/`)
+
+    // No. 1: open and unpaid. Mark paid, then Picked up (paid: no question).
+    await page.goto(`${host}/orders/${savedOrder!.id}`)
+    await page.getByTestId('mark-paid').click()
+    await expect.poll(() => page.getByTestId('order-paid').textContent()).toBe('Paid')
+    expect(await page.getByTestId('cancel').count()).toBe(1)
+    await page.getByTestId('pick-up').click()
+    await expect.poll(() => page.getByTestId('order-status').textContent()).toBe('Collected')
+    expect(await page.getByTestId('order-picked-up-at').count()).toBe(1)
+    expect(await page.getByTestId('cancel').count() + await page.getByTestId('mark-paid').count() + await page.getByTestId('pick-up').count()).toBe(0)
+    await shot(page, '06-collected-order')
+
+    // No. 2: paid, open. Cancel and copy: it is cancelled; a new order opens with its details.
+    await page.goto(`${host}/orders/${secondOrderId!}`)
+    await page.getByTestId('cancel-copy').click()
+    await page.getByTestId('confirm').waitFor()
+    // The dialog's opening animation, for the screenshot only.
+    await page.waitForTimeout(400)
+    await shot(page, '07-cancel-and-copy')
+    await page.getByTestId('confirm').click()
+    await page.waitForURL(new RegExp(`/orders/new\\?copy=${secondOrderId!}$`))
+    await expect.poll(() => page.getByTestId('copied-from').count()).toBe(1)
+    expect(await page.getByTestId('field-shirt').inputValue()).toBe('1')
+    expect(await page.getByRole('radio', { name: 'Paid', exact: true }).isChecked()).toBe(true)
+    await page.getByTestId('preview').click()
+    await page.getByTestId('save-only').click()
+    await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
+    expect(await page.getByTestId('order-number').textContent()).toBe('3')
+    const old = await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}`)).json(), secondOrderId!) as OrderDetail
+    expect(old).toMatchObject({ number: 2, status: 'cancelled', paid: true })
   })
 
   it('another shop\'s owner can\'t open the order or its artwork: the same 404 as a missing one', async () => {

@@ -41,8 +41,10 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 | shop | update | ✓ | |
 | template | read: the attached, published templates and their artwork (New order) | ✓ | ✓ |
 | order | create, read | ✓ | ✓ |
+| order | pay, pick-up | ✓ | ✓ |
+| order | cancel (and Cancel and copy) | ✓ | |
 
-The counter milestone ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) added `template:read` and `order:create`, `order:read`. Mark paid, pick up, cancel and choosing the default template add theirs with their screens. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
+The counter milestone ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) added `template:read` and `order:create`, `order:read`; the order actions ([D38](../decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram)) `order:pay`, `order:pick-up`, `order:cancel`. Staff run the counter but don't cancel. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
 
 ### Platform statements (super admin only)
 

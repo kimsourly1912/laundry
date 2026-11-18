@@ -471,7 +471,8 @@
       "slipUpdated": "This paper slip was just updated. Check the order, then preview it again.",
       "noSlipTitle": "No paper slip yet",
       "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
-      "preview": "Preview"
+      "preview": "Preview",
+      "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number."
     },
     "preview": {
       "title": "Preview",
@@ -503,7 +504,10 @@
       "printAgain": "Print again",
       "nextOrder": "Next order",
       "notFound": "This order doesn't exist",
-      "toOverview": "Back to Overview"
+      "toOverview": "Back to Overview",
+      "paidAt": "Paid",
+      "pickedUpAt": "Picked up",
+      "cancelledAt": "Cancelled"
     },
     "latest": {
       "title": "Latest orders",
@@ -526,6 +530,23 @@
       "tabs": {
         "all": "All"
       }
+    },
+    "actions": {
+      "markPaid": "Mark paid",
+      "paidDone": "Marked paid.",
+      "pickUp": "Picked up",
+      "pickedUpDone": "Marked picked up.",
+      "pickUpUnpaidTitle": "Hand over without payment?",
+      "pickUpUnpaidDescription": "This order isn't paid yet. It is marked picked up and stays unpaid; you can still mark it paid later.",
+      "pickUpUnpaid": "Hand over unpaid",
+      "cancel": "Cancel order",
+      "cancelTitle": "Cancel order No. {number}?",
+      "cancelDescription": "The order stays in the list as cancelled. Its number is not used again.",
+      "cancelPaidDescription": "The order stays in the list as cancelled and still shows it was paid. Its number is not used again.",
+      "copy": "Cancel and copy",
+      "copyTitle": "Cancel order No. {number} and copy it?",
+      "copyDescription": "Order No. {number} is cancelled. A new order opens with the same details for you to fix; it gets a new number.",
+      "copyPaidDescription": "Order No. {number} is cancelled and still shows it was paid. A new order opens with the same details, marked paid; check it before saving. It gets a new number."
     }
   }
 }

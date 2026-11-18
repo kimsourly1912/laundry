@@ -3,11 +3,11 @@ import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements
 
 describe('shop roles (spec §5)', () => {
   it('give the owner the shop\'s settings, its templates and its orders (plan step 3)', () => {
-    expect(grantedShopStatements('owner').sort()).toEqual(['order:create', 'order:read', 'shop:read', 'shop:update', 'template:read'])
+    expect(grantedShopStatements('owner').sort()).toEqual(['order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'shop:read', 'shop:update', 'template:read'])
   })
 
-  it('give staff the counter: orders, but no settings changes', () => {
-    expect(grantedShopStatements('staff').sort()).toEqual(['order:create', 'order:read', 'shop:read', 'template:read'])
+  it('give staff the counter: orders, payment and pickup, but no cancel and no settings changes', () => {
+    expect(grantedShopStatements('staff').sort()).toEqual(['order:create', 'order:pay', 'order:pick-up', 'order:read', 'shop:read', 'template:read'])
   })
 
   it('never grant Better Auth\'s own organization statements', () => {

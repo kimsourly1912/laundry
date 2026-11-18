@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { idSchema, optionalParam, pageQuerySchema } from './common'
+import { idSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
 import { keySchema, MAX_ELEMENTS, MAX_GROUPS, TEXT_FIELD_MAX } from './slip-design'
 import type { SlipDesign, SlipShop } from './slip-design'
 import { AMOUNT_MAX } from '#shared/slip/values'
@@ -53,6 +53,13 @@ export const orderListQuerySchema = v.object({
 })
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
 
+/**
+ * `POST …/orders/:id/payment` (with an `Idempotency-Key`), `…/pick-up`, `…/cancel`: the version the
+ * owner saw (409 `VERSION_CONFLICT` when the order changed meanwhile).
+ */
+export const orderActionSchema = v.strictObject({ version: versionSchema })
+export type OrderActionInput = v.InferOutput<typeof orderActionSchema>
+
 /** An order in a list (Overview's latest orders). */
 export interface OrderListItem {
   id: string
@@ -76,6 +83,8 @@ export interface OrderListItem {
  * the slip the customer was given.
  */
 export interface OrderDetail extends OrderListItem {
+  /** The template it was made on: Cancel and copy starts the new order on it, at its latest version. */
+  templateId: string
   templateVersionId: string
   templateVersionNumber: number
   templateName: string

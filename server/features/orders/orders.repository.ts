@@ -1,7 +1,8 @@
-import { and, count, desc, eq, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ne, sql } from 'drizzle-orm'
 import type { OrderListQuery, OrderStatus } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 import type { Db, Statement } from '#server/utils/batch'
+import { updateAtVersion } from '#server/utils/batch'
 import { firstRow } from '#server/utils/query'
 import { orderCounters, orders } from './orders.schema'
 import type { OrderShopCopy } from './orders.schema'
@@ -125,4 +126,30 @@ export function insertOrderStatement(db: Db, order: NewOrder): Statement {
     createdAt: now,
     updatedAt: now,
   })
+}
+
+interface OrderChange {
+  shopId: string
+  id: string
+  version: number
+  now: Date
+}
+
+/**
+ * The action's change at the version read, only from the states it is allowed in (the same rule as
+ * `canDo`, again in SQL, so a change landing in between stops it). Follow with `requireOneChange`.
+ */
+export function payStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { paid: true, paidAt: now, updatedAt: now }, and(eq(orders.paid, false), ne(orders.status, 'cancelled')))
+}
+
+export function pickUpStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { status: 'picked_up', pickedUpAt: now, updatedAt: now }, eq(orders.status, 'open'))
+}
+
+export function cancelStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { status: 'cancelled', cancelledAt: now, updatedAt: now }, eq(orders.status, 'open'))
 }
