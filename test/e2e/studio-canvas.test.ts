@@ -153,4 +153,85 @@ describe('studio canvas', () => {
     expect(design.elements.slice(2).map(element => [element.x, element.y])).toEqual([[120, 120], [120, 120]])
     expect(new Set(design.elements.map(element => element.id)).size).toBe(4)
   })
+
+  it('locks a Shift-drag to its axis, cancels with Esc, copies with Alt, and shows names and sizes (studio-behaviour.md)', async () => {
+    const page = await newDevice(browser, { width: 1440, height: 900 })
+    onTestFailed(screenshotOnFailure('studio-canvas-4', [page]))
+    const id = await openSeeded(page, 'Canvas test 4')
+    const centre = async (testId: string) => {
+      const box = (await page.getByTestId(testId).boundingBox())!
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    }
+
+    // Hover: the field's name (its type, with no label) over an outline (S7, F6).
+    let at = await centre('box-r2')
+    await page.mouse.move(at.x, at.y)
+    await expect.poll(() => page.getByTestId('hover-label').textContent()).toBe('Number')
+
+    // Shift during a drag keeps it on its main axis (M3).
+    at = await centre('box-r1')
+    await page.mouse.move(at.x, at.y)
+    await page.mouse.down()
+    await page.waitForTimeout(100)
+    await page.keyboard.down('Shift')
+    await page.mouse.move(at.x + 60, at.y + 15, { steps: 8 })
+    await page.mouse.move(at.x + 120, at.y + 25, { steps: 8 })
+    await page.mouse.up()
+    await page.keyboard.up('Shift')
+    let design = await savedDesign(page, id)
+    const locked = boxOf(design, 'r1')!
+    expect(locked.y).toBe(100)
+    expect(locked.x).toBeGreaterThan(150)
+
+    // Esc during a drag puts it back, with nothing saved and no undo step (M5).
+    at = await centre('box-r1')
+    await page.mouse.move(at.x, at.y)
+    await page.mouse.down()
+    await page.mouse.move(at.x + 80, at.y + 80, { steps: 8 })
+    await page.keyboard.press('Escape')
+    await page.mouse.up()
+    expect(boxOf(await savedDesign(page, id), 'r1')).toEqual(locked)
+    await page.keyboard.press('Control+z')
+    expect(boxOf(await savedDesign(page, id), 'r1')).toEqual({ x: 100, y: 100 })
+    await page.keyboard.press('Control+y')
+
+    // Alt at the press drags a copy and leaves the original (M4).
+    at = await centre('box-r2')
+    await page.keyboard.down('Alt')
+    await page.mouse.move(at.x, at.y)
+    await page.mouse.down()
+    await page.waitForTimeout(100)
+    await page.mouse.move(at.x - 60, at.y + 20, { steps: 8 })
+    await page.mouse.move(at.x - 120, at.y + 40, { steps: 8 })
+    await page.mouse.up()
+    await page.keyboard.up('Alt')
+    await expect.poll(async () => (await savedDesign(page, id)).elements.length).toBe(3)
+    design = await savedDesign(page, id)
+    expect(boxOf(design, 'r2')).toEqual({ x: 600, y: 400 })
+    const copy = design.elements[2]!
+    expect(copy.x).toBeLessThan(560)
+    expect(copy.y).toBeGreaterThan(420)
+
+    // Resizing shows the size as it changes (R6).
+    const handle = (await page.locator('.moveable-control.moveable-se').first().boundingBox())!
+    await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(handle.x + 40, handle.y + 30, { steps: 8 })
+    await expect.poll(() => page.getByTestId('live-size').textContent()).toMatch(/^\d+ × \d+$/)
+    await page.mouse.up()
+    await expect.poll(() => page.getByTestId('live-size').count()).toBe(0)
+
+    // Shift+click on a selected field takes it out of the selection (S2).
+    await page.keyboard.press('Control+a')
+    // By position: the group's drag area lies over its fields.
+    at = await centre('box-r1')
+    await page.keyboard.down('Shift')
+    await page.mouse.click(at.x, at.y)
+    await page.keyboard.up('Shift')
+    const before = await savedDesign(page, id)
+    await page.keyboard.press('ArrowDown')
+    const after = await savedDesign(page, id)
+    expect(boxOf(after, 'r1')).toEqual(boxOf(before, 'r1'))
+    expect(boxOf(after, 'r2')!.y).toBe(boxOf(before, 'r2')!.y + 1)
+  })
 })

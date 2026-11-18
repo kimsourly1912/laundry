@@ -30,16 +30,22 @@ export function removeElements(design: SlipDesign, ids: readonly string[]): Slip
 /** Fixed-meaning fields can't be duplicated: at most one of each (plan §5.3.3). */
 const SINGLE_TYPES = new Set<SlipElement['type']>(['orderNo', 'date', 'phone', 'amount'])
 
+/** Whether Duplicate (and an Alt-drag) can copy the element: not a fixed-meaning field or a paid spot. */
+export function canDuplicate(element: SlipElement): boolean {
+  return !SINGLE_TYPES.has(element.type) && element.type !== 'paid'
+}
+
 /**
- * Copies of the elements, `offset` px down and right, each above its original's top-most layer,
- * with new ids. Fixed-meaning fields and paid spots are left out (one of each per template).
- * Returns the design and the copies' ids, to select them.
+ * Copies of the elements with new ids, on top: `offset` px down and right, or, for an Alt-drag, at
+ * the places in `at` (by the original's id). Fixed-meaning fields and paid spots are left out (one
+ * of each per template). Returns the design and the copies' ids, to select them.
  */
-export function duplicateElements(design: SlipDesign, ids: readonly string[], offset = 20): { design: SlipDesign, ids: string[] } {
+export function duplicateElements(design: SlipDesign, ids: readonly string[], options: { offset?: number, at?: ReadonlyMap<string, { x: number, y: number }> } = {}): { design: SlipDesign, ids: string[] } {
+  const { offset = 20, at } = options
   const chosen = new Set(ids)
   const copies = design.elements
-    .filter(element => chosen.has(element.id) && !SINGLE_TYPES.has(element.type) && element.type !== 'paid')
-    .map(element => ({ ...clone(element), id: newKey(), x: element.x + offset, y: element.y + offset }))
+    .filter(element => chosen.has(element.id) && canDuplicate(element))
+    .map(element => ({ ...clone(element), id: newKey(), ...(at?.get(element.id) ?? { x: element.x + offset, y: element.y + offset }) }))
   return { design: { ...design, elements: [...design.elements, ...copies] }, ids: copies.map(copy => copy.id) }
 }
 

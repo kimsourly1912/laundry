@@ -20,12 +20,13 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
   - the drawing element types, rotation, locking and hiding removed from the design, the studio and the server;
   - New template = an artwork (PNG, JPEG, or SVG drawn to PNG in the browser; `app/features/studio/utils/artwork.ts`) or a copy; **Replace artwork** in the ⋯ menu;
   - the Fields panel is the only side panel;
-  - Ctrl turns snapping off, Shift keeps proportions, the wheel zooms at Figma's rates.
+  - Ctrl turns snapping off, Shift keeps proportions, the wheel zooms at Figma's rates;
+  - the spec's canvas rules (2026-11-18): Shift locks a drag to its axis, Alt drags a copy, Esc (or losing focus) cancels a drag or resize, Shift+click takes a field out of the selection, outlines stay 1 px at any zoom (a screen-pixel layer), the hovered field's name, the live size while resizing, no handles on tiny fields, a selected option outlines its group, snapping at 5 px with equal gaps. e2e in `test/e2e/studio-canvas.test.ts`.
 
-  **Still to build** (marked in [studio-behaviour.md](studio-behaviour.md)): Shift axis lock and Alt-drag copy, Esc cancels a gesture, thin outlines at any zoom, hover outline and labels, tiny fields, equal-gap snapping.
+  **Still to build:** R5b in [studio-behaviour.md](studio-behaviour.md) (a press *near* a tiny field takes it).
 - **D36 (2026-11-17): English only and Cancel and copy.** `km.json`, the language switch, the shop's language setting and two-language labels are gone (labels are one free-text string); `shop_settings.language` is no longer used and is dropped by a later migration. Saved orders aren't edited: step 3 builds **Cancel and copy**.
 - **Staging:** templates made before D35 and D36 no longer match the design format: archive them and make them again from an artwork.
-- **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. **Q7 answered: a saved order can be edited**; its rules must be settled before step 3 ([plan §10](plan.md#10-open-questions)).
+- **Then PR C (steps 3, 4).** Q11 answered: send the slip right after the scan, no phone check. Q7 answered (D36): a saved order isn't edited; its page offers **Cancel and copy** ([plan §10](plan.md#10-open-questions)).
 - The table below is the history of what was built **before D31**; step 1 deleted much of it ([plan §8](plan.md#8-what-happens-to-the-current-code)).
 
 ## Where we are (before D31)

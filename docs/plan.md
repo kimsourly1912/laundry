@@ -227,7 +227,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | Done, in PR B |
 | 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | Done, in PR B |
 | R1 | **Faster drawing:** each element drawn as its own piece, equal to the server's SVG | B2 | Medium | Done |
-| K1 | **Simplify (D35):** the drawing element types, tools and rotation removed; New template = artwork upload (PNG, JPEG, SVG drawn to PNG in the browser) or a copy; Replace artwork; the side panel is Fields only. The spec's "To build" rules follow | B2 | Large | Done (spec rules to build remain) |
+| K1 | **Simplify (D35):** the drawing element types, tools and rotation removed; New template = artwork upload (PNG, JPEG, SVG drawn to PNG in the browser) or a copy; Replace artwork; the side panel is Fields only. The spec's "To build" rules follow | B2 | Large | Done (the spec's rules built 2026-11-18, but R5b) |
 | 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | |
 | 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | |
 
