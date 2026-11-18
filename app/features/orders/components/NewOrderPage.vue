@@ -125,6 +125,14 @@ const shop = computed<SlipShop | undefined>(() => {
   return value && { name: value.name, phone: value.phone, address: value.address, logoImageId: null, currency: value.currency }
 })
 const draft = computed(() => shop.value && fillData(fill.value, { shop: shop.value, date: shopToday() }))
+// D39: an HTML slip's preview is drawn by the server from what the save would send.
+const previewBody = computed(() => {
+  const current = template.value
+  if (!current || current.design.html === undefined) return undefined
+  const body = toCreateRequest(fill.value, current, { customerId: customer.value?.id ?? null, dueDate: dueDate.value || null })
+  // A half-typed amount (-1) draws as none.
+  return { ...body, amount: body.amount !== null && body.amount < 0 ? null : body.amount }
+})
 const imageHref = (imageId: string) => `/api/shop/templates/${selectedId.value}/images/${imageId}`
 
 // --- Steps ---
@@ -368,6 +376,7 @@ function retryLoad() {
               :data="draft"
               :text="slipText.text.value"
               :image-href="imageHref"
+              :server="{ path: '/shop/orders/preview', body: previewBody }"
             />
           </template>
         </template>

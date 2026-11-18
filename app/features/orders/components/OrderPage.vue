@@ -45,6 +45,9 @@ useHead(() => {
   return { style: [{ key: 'print-paper', innerHTML: `@media print { @page { size: ${paper.widthMm}mm ${paper.heightMm}mm; margin: 0 } .print-slip { width: ${paper.widthMm}mm !important; height: ${paper.heightMm}mm !important } }` }] }
 })
 
+/** D39: the order's Telegram link, once the QR card has made it: an HTML slip draws it as its QR. */
+const qrUrl = ref<string>()
+
 /** An action's answer is the order as it is now: show it at once. */
 function changed(next: OrderDetail) {
   order.data.value = next
@@ -284,6 +287,7 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
           <TelegramCard
             :order-id="order.data.value.id"
             :cancelled="order.data.value.status === 'cancelled'"
+            @link="url => qrUrl = url"
           />
 
           <SlipView
@@ -291,6 +295,7 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
             :data="data"
             :text="slipText.text.value"
             :image-href="imageHref"
+            :server="{ path: `/shop/orders/${orderId}/slip${qrUrl ? `?qr=${encodeURIComponent(qrUrl)}` : ''}` }"
           />
 
           <BottomBarSpacer />

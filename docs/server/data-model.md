@@ -72,6 +72,7 @@ erDiagram
 **Status:** tables built in step 1. S1 built the templates' and images' code: create (from an artwork or a copy; blank and photo before D35), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
+- The design may carry `paper` (mm, D39) and `html` (an HTML slip's markup, ≤ 64 KB, D39); both are fixed in each published version with the rest. No column changes.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.
 - **Archived, never deleted.** Its versions and the orders made on them stay.
 

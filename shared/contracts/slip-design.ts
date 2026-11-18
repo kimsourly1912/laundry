@@ -153,6 +153,12 @@ export const designSchema = v.pipe(
     height: canvasSideSchema,
     /** Absent: printed at the paper's width (D37). */
     paper: v.optional(paperSchema),
+    /**
+     * D39: an HTML slip. Its markup lays the slip out (Tailwind classes, the app's placeholders) and
+     * Satori draws it; the artwork and the fields' boxes are not drawn. The fields stay the owner's
+     * form and are placed in the markup as `{{fields.<id>}}`. Absent: an artwork slip (D35).
+     */
+    html: v.optional(v.pipe(v.string(), v.maxLength(64 * 1024, 'At most 64 KB of markup'))),
     /** The artwork (plan §5.2, D35) over a colour; `null` only before one is uploaded (tests). */
     background: v.strictObject({ color: colorSchema, imageId: v.nullable(idSchema) }),
     elements: v.pipe(v.array(elementSchema), v.maxLength(MAX_ELEMENTS, `At most ${MAX_ELEMENTS} elements`)),
@@ -191,6 +197,21 @@ export interface SlipOrder {
   /** Minor units of the shop copy's currency. */
   amount: number | null
   paid: boolean | null
+  /** D39, drawn by HTML slips only: the customer's name, the promised day, the priced lines, the QR's address. */
+  customerName?: string | null
+  dueDate?: string | null
+  lines?: SlipLine[]
+  qrUrl?: string | null
+}
+
+/** A priced line as an HTML slip's `{{order.itemLines}}` draws it (D39). */
+export interface SlipLine {
+  label: string
+  unit: 'piece' | 'kg'
+  /** Pieces, or grams for `kg`. */
+  quantity: number
+  /** Minor units. */
+  lineTotal: number
 }
 
 /** The copy of the shop's details an order keeps (D33): the amount is drawn in its currency. */

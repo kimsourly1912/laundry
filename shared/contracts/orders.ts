@@ -61,6 +61,23 @@ export const createOrderSchema = v.strictObject({
 })
 export type CreateOrderInput = v.InferOutput<typeof createOrderSchema>
 
+/** `POST /api/shop/orders/preview` (D39): New order's draft of an HTML slip, drawn by the server; nothing is saved. */
+export const orderPreviewSchema = v.strictObject({
+  templateVersionId: idSchema,
+  customerId: v.optional(v.nullable(idSchema), null),
+  dueDate: v.optional(v.nullable(v.pipe(v.string(), v.isoDate())), null),
+  values: createOrderSchema.entries.values,
+  phone: createOrderSchema.entries.phone,
+  amount: createOrderSchema.entries.amount,
+  paid: v.boolean(),
+})
+export type OrderPreviewInput = v.InferOutput<typeof orderPreviewSchema>
+
+/** `GET /api/shop/orders/:id/slip?qr=` (D39): the saved slip as SVG; `qr` is the order's Telegram link, or none for a sample. */
+export const orderSlipQuerySchema = v.object({
+  qr: v.optional(v.pipe(v.string(), v.maxLength(200), v.regex(/^https:\/\/t\.me\/[\w]+\?start=[\w-]+$/, 'A Telegram link'))),
+})
+
 /**
  * `GET /api/shop/orders?search=&status=&paid=&page=&pageSize=`: newest first. `search` is an order
  * number (`12`, `#12`) or a phone (`012 345 678`), matched exactly (plan §3: "searchable by order

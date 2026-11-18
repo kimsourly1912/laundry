@@ -5,7 +5,9 @@
 // Nitro's main chunk, and a `raw:` module there stops Nitro fixing `import.meta.url` in it (the
 // Node build then can't find its public files), besides loading the fonts on every start.
 import resvgWasm from '@resvg/resvg-wasm/index_bg.wasm?module'
+// D39: Satori's layout engine, compiled, for its standalone build (Workers compile no WebAssembly at run time).
+import satoriLayout from 'satori/layout.wasm?module'
 import khmerRegular from 'raw:./fonts/NotoSansKhmer-Regular.ttf'
 import khmerBold from 'raw:./fonts/NotoSansKhmer-Bold.ttf'
 
-export { khmerBold, khmerRegular, resvgWasm }
+export { khmerBold, khmerRegular, resvgWasm, satoriLayout }

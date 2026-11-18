@@ -9,6 +9,7 @@ import { encode } from 'uqr'
 import type { OrderTelegram } from '#shared/contracts/telegram'
 
 const props = defineProps<{ orderId: string, cancelled: boolean }>()
+const emit = defineEmits<{ link: [url: string] }>()
 
 const { t } = useI18n()
 const { can } = useSession()
@@ -17,7 +18,10 @@ const telegram = useMutation(() => apiFetch<OrderTelegram>(`/shop/orders/${props
 const answer = shallowRef<OrderTelegram>()
 async function load() {
   const result = await telegram.execute(undefined)
-  if (result.ok) answer.value = result.data
+  if (result.ok) {
+    answer.value = result.data
+    emit('link', result.data.url)
+  }
 }
 const shown = computed(() => can('order:share') && !props.cancelled && telegram.error.value?.code !== 'TELEGRAM_NOT_SET_UP')
 onMounted(() => {

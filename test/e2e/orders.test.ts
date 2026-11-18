@@ -330,6 +330,72 @@ describe('the owner\'s counter', () => {
     expect(saved).toMatchObject({ amount: 7000, items: [{ key: 'shirt', quantity: 2, lineTotal: 4000 }, { key: 'pants', quantity: 1, lineTotal: 3000 }] })
   })
 
+  it('an HTML slip: started from the sample on a phone, an AI answer imported, published, and filled by the owner (D39)', async () => {
+    // The platform, on a phone: the HTML studio's tabs.
+    const studio = await phone()
+    onTestFailed(screenshotOnFailure('orders-html', [studio]))
+    await studio.goto(`${host}/sign-in`)
+    await signIn(studio, accounts.admin.username, accounts.admin.password)
+    await studio.waitForURL(`${host}/platform/shops`)
+    await studio.goto(`${host}/platform/templates`)
+    await studio.getByRole('button', { name: 'New template' }).first().click()
+    await studio.getByRole('radio', { name: /HTML/ }).check()
+    await studio.getByTestId('use-sample').click()
+    await studio.getByLabel('Template name').fill('Linda HTML')
+    await studio.getByRole('button', { name: 'Create and open' }).click()
+    await studio.waitForURL(/\/platform\/templates\/[\da-f-]{36}$/)
+    const templateId = studio.url().split('/').at(-1)!
+    await expect.poll(() => studio.getByTestId('html-ok').count()).toBe(1)
+
+    // A bad answer says where; a good one replaces the markup.
+    await studio.getByTestId('import-answer').click()
+    await studio.getByTestId('answer-text').fill('{ "version": 2, "name": "x", "html": "<div></div>" }')
+    await studio.getByTestId('answer-import').click()
+    await expect.poll(() => studio.getByTestId('answer-problems').textContent()).toContain('version must be 1')
+    const html = '<div class="flex flex-col w-full h-full p-6 gap-2"><div class="flex justify-between"><span class="text-[36px] font-bold">{{shop.name}}</span><span class="text-[30px]">No. {{order.number}}</span></div><span>{{customer.name}}</span><div class="flex flex-col border-t border-b border-gray-400 py-2">{{order.itemLines}}</div><div class="flex justify-between items-end"><span class="text-[30px] font-bold">{{order.total}}</span><div class="flex">{{order.qrCode}}</div></div></div>'
+    await studio.getByTestId('answer-text').fill(JSON.stringify({ version: 1, name: 'Compact', html, reviewNotes: ['Check the total\'s size'] }))
+    await studio.getByTestId('answer-import').click()
+    await expect.poll(() => studio.getByTestId('html-source').inputValue()).toBe(html)
+
+    // Fields: a count priced by the shop's "shirt".
+    await studio.getByRole('tab', { name: 'Fields' }).click()
+    await studio.getByTestId('count-label').fill('អាវ / Shirt')
+    await studio.getByTestId('count-key').fill('shirt')
+    await studio.getByTestId('add-count').click()
+    await studio.getByRole('tab', { name: 'Preview' }).click()
+    await expect.poll(() => studio.getByTestId('html-preview').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
+    await expect.poll(() => studio.getByTestId('save-status').textContent()).toBe('Saved')
+    await shot(studio, '14-html-studio-preview')
+    await studio.getByTestId('html-publish').click()
+    await studio.getByTestId('html-publish-confirm').click()
+    await expect.poll(() => studio.getByText('Version 1 is published.').count()).toBeGreaterThan(0)
+    await studio.evaluate(async ({ templateId, shopName }) => {
+      const shops = await (await fetch('/api/platform/shops?pageSize=100')).json() as { items: { id: string, name: string }[] }
+      const shop = shops.items.find(item => item.name === shopName)!
+      await fetch(`/api/platform/templates/${templateId}/shops`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ shopId: shop.id }) })
+    }, { templateId, shopName: accounts.counterOwner.shop })
+
+    // The owner fills it (the shop's shirt price is 2,000), previews the server's drawing, and saves.
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-html-owner', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
+    await page.waitForURL(`${host}/`)
+    await page.goto(`${host}/orders/new?template=${templateId}`)
+    const shirt = page.locator('[data-field]').filter({ hasText: 'Shirt' })
+    await shirt.getByRole('button', { name: /^Add one/ }).click()
+    await shirt.getByRole('button', { name: /^Add one/ }).click()
+    await expect.poll(() => page.getByTestId('field-total').textContent()).toContain('4,000')
+    await page.getByTestId('preview').click()
+    await expect.poll(() => page.getByTestId('server-slip').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
+    await shot(page, '15-html-preview')
+    await page.getByTestId('save-only').click()
+    await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
+    await expect.poll(() => page.getByTestId('server-slip').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
+    const saved = await page.evaluate(async () => (await fetch(location.pathname.replace('/orders/', '/api/shop/orders/'))).json()) as OrderDetail
+    expect(saved).toMatchObject({ amount: 4000, items: [{ key: 'shirt', quantity: 2 }] })
+  })
+
   it('with two slips and no default, New order asks and remembers; Paper slips moves the default (sheet 05)', async () => {
     const page = await phone()
     onTestFailed(screenshotOnFailure('orders-slips', [page]))

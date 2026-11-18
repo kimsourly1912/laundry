@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { idSchema, nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
-import { designSchema } from './slip-design'
+import { canvasSideSchema, designSchema } from './slip-design'
 import type { SlipDesign } from './slip-design'
 
 /**
@@ -21,6 +21,11 @@ export const templateStartSchema = v.variant('kind', [
   v.strictObject({ kind: v.literal('artwork'), imageId: idSchema }),
   /** Another template's draft, as a new draft. */
   v.strictObject({ kind: v.literal('copy'), templateId: idSchema }),
+  /**
+   * D39: an HTML slip (an AI's answer, or a sample to start from), on a canvas of this size, with the
+   * usual owner fields to start from: phone, amount, paid or not. The Studio adds counts.
+   */
+  v.strictObject({ kind: v.literal('html'), html: v.pipe(v.string(), v.maxLength(64 * 1024)), width: canvasSideSchema, height: canvasSideSchema }),
 ])
 export type TemplateStart = v.InferOutput<typeof templateStartSchema>
 
@@ -47,7 +52,11 @@ export const publishTemplateSchema = v.strictObject({ version: versionSchema })
 export type PublishTemplateInput = v.InferOutput<typeof publishTemplateSchema>
 
 /** `POST …/preview`: the design on screen (saved or not), drawn by the server with sample values. */
-export const previewTemplateSchema = v.strictObject({ design: designSchema })
+export const previewTemplateSchema = v.strictObject({
+  design: designSchema,
+  /** D39: which sample order to draw it with; typical by default. */
+  sample: v.optional(v.picklist(['blank', 'typical', 'crowded']), 'typical'),
+})
 export type PreviewTemplateInput = v.InferOutput<typeof previewTemplateSchema>
 
 /** `GET /api/platform/templates?status=&search=&page=&pageSize=`: search is the name. */

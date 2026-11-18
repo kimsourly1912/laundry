@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { TemplateDetail } from '#shared/contracts/templates'
 import StudioPage from '~/features/studio/components/StudioPage.vue'
+import HtmlStudioPage from '~/features/studio/components/HtmlStudioPage.vue'
 
-// The studio is full screen: no shell (plan §5.1).
+// The studio is full screen: no shell (plan §5.1). An HTML slip opens its own studio (D39: markup,
+// fields, preview; usable on a phone).
 definePageMeta({ layout: false, area: 'platform', permission: 'template:read', title: 'studio.title' })
 
 const route = useRoute()
@@ -26,6 +28,11 @@ const template = useApiQuery(() => `studio:template:${id.value}`, () => apiFetch
       @retry="template.refresh()"
     />
   </div>
+  <HtmlStudioPage
+    v-else-if="template.data.value.design.html !== undefined"
+    :key="`html-${template.data.value.id}`"
+    :template="template.data.value"
+  />
   <StudioPage
     v-else
     :key="template.data.value.id"

@@ -1,5 +1,6 @@
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { FIXED_TYPES, isOwnerField } from './fields'
+import { checkHtml, placeholdersIn } from '#shared/html-slip/catalog'
 
 /**
  * What a template needs before it's published (plan §5.6). Errors stop Publish, in the studio and on
@@ -9,6 +10,8 @@ import { FIXED_TYPES, isOwnerField } from './fields'
 
 export type PublishError
   = | 'noOrderNo'
+    | 'htmlInvalid'
+    | 'noQrCode'
     | 'duplicateFixed'
     | 'groupTooSmall'
     | 'missingLabel'
@@ -53,7 +56,15 @@ export function publishProblems(design: SlipDesign): PublishProblems {
     const found = elements.filter(element => element.type === 'paid' && element.value === value)
     for (const extra of found.slice(1)) errors.push({ code: 'duplicateFixed', key: extra.id })
   }
-  if (!elements.some(element => element.type === 'orderNo')) errors.push({ code: 'noOrderNo' })
+  if (design.html !== undefined) {
+    // D39: an HTML slip draws the number and the QR through its markup, which must pass the catalog.
+    const { nodes, problems } = checkHtml(design.html, design)
+    if (problems.length) errors.push({ code: 'htmlInvalid' })
+    const used = placeholdersIn(nodes)
+    if (!used.has('order.number')) errors.push({ code: 'noOrderNo' })
+    if (!used.has('order.qrCode')) errors.push({ code: 'noQrCode' })
+  }
+  else if (!elements.some(element => element.type === 'orderNo')) errors.push({ code: 'noOrderNo' })
 
   for (const group of design.groups) {
     const options = elements.filter(element => element.type === 'option' && element.group === group.id)
@@ -64,7 +75,8 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   for (const element of elements) {
     const labelled = isOwnerField(element) || element.type === 'option' || element.type === 'paid'
     if (labelled && 'label' in element && !hasLabel(element.label)) errors.push({ code: 'missingLabel', key: element.id })
-    if (isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
+    // An HTML slip doesn't draw the fields' boxes: where they sit doesn't matter.
+    if (design.html === undefined && isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
   }
 
   if (!elements.some(element => element.type === 'amount')) warnings.push({ code: 'noAmount' })
@@ -79,6 +91,8 @@ export function publishProblems(design: SlipDesign): PublishProblems {
 /** English, for the server's 422 and logs; the studio shows its own words for each code. */
 export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   noOrderNo: 'Add an Order No. field.',
+  htmlInvalid: 'The slip\'s HTML has problems.',
+  noQrCode: 'Put {{order.qrCode}} in the slip\'s HTML.',
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',
   missingLabel: 'A field needs a label.',

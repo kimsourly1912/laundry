@@ -261,7 +261,9 @@
         "noOrderNo": "Add an Order No. field (Fields panel).",
         "duplicateFixed": "{name} is on the slip twice.",
         "groupTooSmall": "{name} needs at least two options.",
-        "missingLabel": "{name} needs a label."
+        "missingLabel": "{name} needs a label.",
+        "htmlInvalid": "The HTML has problems: see the list under the markup.",
+        "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML."
       },
       "warnings": {
         "offCanvas": "{name} is partly off the slip.",
@@ -295,7 +297,15 @@
       "copyName": "Copy of {name}",
       "create": "Create and open",
       "artwork": "An artwork",
-      "artworkHint": "The slip's look, made by AI or a designer: PNG, JPEG or SVG. The canvas takes its size."
+      "artworkHint": "The slip's look, made by AI or a designer: PNG, JPEG or SVG. The canvas takes its size.",
+      "html": "HTML (an AI's answer)",
+      "htmlHint": "Paste the JSON your AI answered to Copy AI prompt, or start from the sample. Fields and paper size are set in the studio.",
+      "answer": "The AI's answer",
+      "answerHelp": "One JSON object: version, name, html (and reviewNotes).",
+      "useSample": "Start from the sample",
+      "sampleName": "HTML slip",
+      "width": "Width (px)",
+      "height": "Height (px)"
     },
     "undo": "Undo",
     "redo": "Redo",
@@ -470,6 +480,46 @@
         "done": "Done",
         "declined": "Declined"
       }
+    },
+    "html": {
+      "name": "Template name",
+      "shops": "Shops",
+      "tabs": {
+        "edit": "Edit",
+        "fields": "Fields",
+        "preview": "Preview"
+      },
+      "copyPrompt": "Copy AI prompt",
+      "importAnswer": "Import AI answer",
+      "promptHint": "Give the prompt and a photo of the shop's slip to your AI, then paste its answer with Import AI answer.",
+      "brief": "Brief",
+      "briefPlaceholder": "Keep the layout of the photo, or what to change",
+      "copy": "Copy",
+      "promptCopied": "Prompt copied.",
+      "copyFailed": "Couldn't copy. Select the text and copy it.",
+      "importHint": "Paste the JSON object your AI answered. The markup replaces the current one; fields, paper size and shops stay.",
+      "answer": "The AI's answer",
+      "import": "Import",
+      "reviewNotes": "The AI asks you to check",
+      "markup": "The slip's HTML",
+      "at": "Line {line}, column {column}:",
+      "ok": "The HTML is fine.",
+      "fieldsTitle": "The owner's fields",
+      "fieldsHint": "What the owner fills in New order. Put each in the HTML with its placeholder.",
+      "fieldLabel": "Label",
+      "copyPlaceholder": "Copy the placeholder",
+      "copied": "Placeholder copied.",
+      "removeField": "Remove the field",
+      "countLabel": "A count",
+      "byKg": "By weight (kg)",
+      "addCount": "Add",
+      "sample": "Sample order",
+      "samples": {
+        "blank": "Blank",
+        "typical": "Typical",
+        "crowded": "Crowded"
+      },
+      "previewAlt": "The slip with a sample order"
     }
   },
   "slipFill": {

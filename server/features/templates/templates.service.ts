@@ -3,7 +3,8 @@ import { toPage } from '#shared/contracts/common'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import type { CreateTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListItem, TemplateListQuery, TemplateStatusChangeInput, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
-import { sampleData } from '#shared/slip/fields'
+import { sampleOrder } from '#shared/html-slip/sample'
+import { createElement } from '#shared/slip/elements'
 import { imagesOf } from '#shared/slip/svg'
 import { publishProblems } from '#shared/slip/checks'
 import type { Db, Statement } from '#server/utils/batch'
@@ -107,7 +108,23 @@ async function startingDesign(db: Db, start: CreateTemplateInput['start']): Prom
     if (!image) throw imageNotFound()
     return { ...blankDesign(image.width, image.height), background: { color: '#ffffff', imageId: image.id } }
   }
+  if (start.kind === 'html') return htmlStartDesign(start)
   return (await loadTemplate(db, start.templateId)).design
+}
+
+/**
+ * D39: an HTML slip's first draft: its markup, white paper, and the usual owner fields: phone,
+ * amount, paid or not (the Studio adds counts). The customer's name is New order's customer picker,
+ * `{{customer.name}}`: not a field, so it has one source.
+ */
+function htmlStartDesign(start: { html: string, width: number, height: number }): SlipDesign {
+  const elements = [
+    createElement('phone', { id: 'phone' }),
+    createElement('amount', { id: 'total' }),
+    createElement('paid', { id: 'paid-yes' }, { value: 'paid', label: 'Paid' }),
+    createElement('paid', { id: 'paid-no' }, { value: 'unpaid', label: 'Not paid' }),
+  ]
+  return { ...blankDesign(start.width, start.height), elements, fillOrder: ['phone', 'total', 'paid'], html: start.html }
 }
 
 /** A new draft template. 409 `TEMPLATE_NAME_TAKEN` when another has the name (whatever the case). */
@@ -181,10 +198,10 @@ export async function publishTemplate(db: Db, actor: PlatformActor, templateId: 
  * The design on screen (saved or not) as the customer's PNG, with sample values and the sample
  * shop (plan §5.1 → Preview). Draws exactly what an order's slip will, through the same builder.
  */
-export async function previewTemplate(db: Db, templateId: string, input: PreviewTemplateInput, now = new Date()): Promise<Uint8Array<ArrayBuffer>> {
-  const { design } = input
+export async function previewTemplate(db: Db, templateId: string, input: Omit<PreviewTemplateInput, 'sample'> & { sample?: PreviewTemplateInput['sample'] }, now = new Date()): Promise<Uint8Array<ArrayBuffer>> {
+  const { design, sample = 'typical' } = input
   await loadTemplate(db, templateId)
   await requireImages(db, imageReferences(design, 'design'))
-  const data = sampleData(design, { date: shopDate(now) })
+  const data = sampleOrder(design, { sample, date: shopDate(now) })
   return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design)) })
 }

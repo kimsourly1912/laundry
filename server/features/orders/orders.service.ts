@@ -1,6 +1,6 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
+import type { CreateOrderInput, OrderPreviewInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
 import { fillOrderOf } from '#shared/slip/fields'
@@ -13,9 +13,9 @@ import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
 import { orderCustomer } from '#server/features/customers'
 import { activePrices } from '#server/features/prices'
-import type { SlipDesign, SlipValues } from '#shared/contracts/slip-design'
+import type { SlipData, SlipDesign, SlipValues } from '#shared/contracts/slip-design'
 import { readyMessagesStatement, withdrawReadyMessagesStatement } from '#server/features/notifications'
-import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
+import { orderableVersion, orderableVersionGuards, renderFilledSlipSvg, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
 import { dueDateInPast, linesInvalid, orderChanged, orderNotAllowed, orderNotFound, quoteChanged, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
 import { canDo, parseOrderSearch, priceLines } from './orders.rules'
@@ -266,17 +266,22 @@ export async function cancelOrder(db: Db, actor: ShopActor, options: ActionOptio
  * values and its shop copy. No actor: the caller holds the order from the outbox, which names its
  * shop. `undefined` when there's no such order of that shop.
  */
-export async function orderSlip(db: Db, order: { shopId: string, orderId: string }) {
+export async function orderSlip(db: Db, order: { shopId: string, orderId: string, qrUrl?: string | null }) {
   const row = await repo.findOrder(db, order.shopId, order.orderId)
   if (!row) return undefined
-  const version = (await versionsById(db, [row.templateVersionId])).get(row.templateVersionId)
+  const [versions, lines] = await Promise.all([versionsById(db, [row.templateVersionId]), repo.orderLines(db, order.shopId, order.orderId)])
+  const version = versions.get(row.templateVersionId)
   if (!version) return undefined
   return {
     number: row.number,
     status: row.status,
     stage: row.stage,
     design: version.design,
-    data: { values: row.values, order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid }, shop: row.shop },
+    data: {
+      values: row.values,
+      order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid, customerName: row.customerName, dueDate: row.dueDate, lines, qrUrl: order.qrUrl ?? null },
+      shop: row.shop,
+    } satisfies SlipData,
   }
 }
 
@@ -288,4 +293,47 @@ export async function orderSlip(db: Db, order: { shopId: string, orderId: string
 export async function orderOverview(db: Db, actor: ShopActor, now = new Date()): Promise<OrderOverview> {
   const today = shopDate(now)
   return { today, ...await repo.overviewCounts(db, actor.shopId, today) }
+}
+
+/**
+ * The saved order's slip as SVG (D39): an HTML slip is drawn by the server (Satori), so the order
+ * page and its print show the server's drawing. `qrUrl` is the order's Telegram link the page has
+ * just made (`POST …/telegram`); without it the QR is a sample.
+ */
+export async function orderSlipSvg(db: Db, actor: ShopActor, options: { orderId: string, qrUrl?: string | null }): Promise<string> {
+  const slip = await orderSlip(db, { shopId: actor.shopId, orderId: options.orderId, qrUrl: options.qrUrl })
+  if (!slip) throw orderNotFound()
+  return renderFilledSlipSvg(db, slip)
+}
+
+/**
+ * New order's preview of an HTML slip (D39): the draft drawn by the server as it will be saved,
+ * priced lines included, with no number yet. Nothing is stored. Values that don't fit are drawn as
+ * they are; saving checks them.
+ */
+export async function previewOrderSvg(db: Db, actor: ShopActor, input: OrderPreviewInput, now = new Date()): Promise<string> {
+  const { shopId } = actor
+  const version = await orderableVersion(db, shopId, input.templateVersionId)
+  const shop = await shopCopy(db, shopId)
+  if (!shop) throw orderNotFound()
+  const values = cleanValues(version.design, input.values)
+  const lines = await previewLines(db, { shopId, design: version.design, values })
+  const customer = input.customerId ? await orderCustomer(db, shopId, input.customerId) : null
+  return renderFilledSlipSvg(db, {
+    design: version.design,
+    data: {
+      values,
+      order: { number: null, date: shopDate(now), phone: input.phone ? toE164(input.phone) : null, amount: lines ? lines.total : input.amount, paid: input.paid, customerName: customer?.name ?? null, dueDate: input.dueDate, lines: lines?.lines ?? [], qrUrl: null },
+      shop,
+    },
+  })
+}
+
+/** The lines a draft would be priced at, or `undefined` for a free-entry slip; unpriceable counts are left out. */
+async function previewLines(db: Db, order: { shopId: string, design: SlipDesign, values: SlipValues }) {
+  const { shopId, design, values } = order
+  const linked = design.elements.flatMap(element => (element.type === 'number' && element.priceKey ? [{ fieldId: element.id, key: element.priceKey }] : []))
+  if (!linked.length) return undefined
+  const prices = await activePrices(db, shopId, [...new Set(linked.map(field => field.key))])
+  return priceLines(linked.flatMap(field => (typeof values[field.fieldId] === 'number' ? [{ ...field, value: values[field.fieldId] as number }] : [])), prices)
 }

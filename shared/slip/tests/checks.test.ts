@@ -94,3 +94,14 @@ describe('paper size (D39)', () => {
     expect(v.safeParse(designSchema, { ...base, paper: { widthMm: 80, heightMm: 52, dpi: 300 } }).success).toBe(false)
   })
 })
+
+describe('an HTML slip\'s publish checks (D39)', () => {
+  it('needs valid markup with the pickup number and the QR; the fields\' boxes may sit anywhere', () => {
+    const fields = [createElement('number', { id: 'n', x: -500, y: 0 }, { label })]
+    const html = (markup: string) => ({ ...design(fields), paper: { widthMm: 80, heightMm: 52 }, html: markup })
+    expect(publishProblems(html('<div>{{order.number}} {{fields.n}} <div>{{order.qrCode}}</div></div>')).errors).toEqual([])
+    expect(codes(publishProblems(html('<div>{{fields.n}}</div>')).errors)).toEqual(['noOrderNo', 'noQrCode'])
+    expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}<img></div>')).errors)).toEqual(['htmlInvalid'])
+    expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}</div>')).warnings)).not.toContain('offCanvas:n')
+  })
+})

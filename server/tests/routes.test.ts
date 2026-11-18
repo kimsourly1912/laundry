@@ -106,6 +106,8 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/orders/[id]/ready.post.ts': `{ order: ['work'] }`,
   'shop/orders/[id]/rework.post.ts': `{ order: ['work'] }`,
   'shop/orders/overview.get.ts': `{ order: ['read'] }`,
+  'shop/orders/preview.post.ts': `{ order: ['create'] }`,
+  'shop/orders/[id]/slip.get.ts': `{ order: ['read'] }`,
   'shop/customers/index.get.ts': `{ customer: ['read'] }`,
   'shop/customers/index.post.ts': `{ customer: ['write'] }`,
   'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
