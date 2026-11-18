@@ -10,15 +10,16 @@
  */
 import Moveable from 'vue3-moveable'
 import VueSelecto from 'vue3-selecto'
-import type { OnDrag, OnDragGroup, OnDragGroupStart, OnDragStart, OnResize, OnResizeGroup, OnResizeGroupStart, OnResizeStart } from 'vue3-moveable'
+import type { OnClick, OnClickGroup, OnDrag, OnDragGroup, OnDragGroupStart, OnDragStart, OnResize, OnResizeGroup, OnResizeGroupStart, OnResizeStart } from 'vue3-moveable'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import * as v from 'valibot'
 import { elementSchema, groupSchema } from '#shared/contracts/slip-design'
 import type { SlipData, SlipElement } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
 import type { StudioEditor } from '../composables/useStudioEditor'
-import { copyElements, duplicateElements, nudgeElements, pasteElements, removeElements, roundBox } from '../utils/design-ops'
+import { canDuplicate, copyElements, duplicateElements, nudgeElements, pasteElements, removeElements, roundBox } from '../utils/design-ops'
 import type { Clipboard } from '../utils/design-ops'
+import { fieldName } from '../utils/field-name'
 import { isTyping, shortcutOf } from '../utils/shortcuts'
 import { SlipSvg } from '~/features/slip-fill'
 
@@ -35,6 +36,8 @@ const design = computed(() => editor.design.value)
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 4
 const MIN_SIDE = 4
+/** Figma's snap distance, in screen pixels (studio-behaviour.md G2). */
+const SNAP_PX = 5
 
 const viewport = ref<HTMLElement>()
 const stage = ref<HTMLElement>()
@@ -156,23 +159,77 @@ function updateRect() {
 watch(() => JSON.stringify(design.value.elements), updateRect)
 watch([zoom, pan], updateRect, { deep: true })
 
+// --- A gesture: one drag or resize, from press to release (studio-behaviour.md §4, §5) ---
+
+interface Box { x: number, y: number, w: number, h: number }
+interface Gesture {
+  kind: 'drag' | 'resize'
+  /** Each moved field's box at the press: what Esc goes back to, and what Shift locks against. */
+  start: Map<string, Box>
+  /** Alt held at the press: the drag leaves the originals and drops copies (M4). */
+  copy: boolean
+}
+let gesture: Gesture | undefined
+const resizing = ref(false)
+
+function beginGesture(kind: Gesture['kind'], ids: string[], inputEvent: MouseEvent | TouchEvent | undefined) {
+  gesturing.value = true
+  resizing.value = kind === 'resize'
+  const start = new Map(ids.flatMap((id) => {
+    const element = editor.element(id)
+    return element ? [[id, { x: element.x, y: element.y, w: element.w, h: element.h }] as const] : []
+  }))
+  gesture = { kind, start, copy: kind === 'drag' && Boolean(inputEvent && 'altKey' in inputEvent && inputEvent.altKey) }
+}
+
+function endGesture() {
+  gesture = undefined
+  gesturing.value = false
+  resizing.value = false
+}
+
+/** Esc, the window losing focus or a cancelled pointer: back where it was, no save, no undo step (M5). */
+function cancelGesture() {
+  if (!gesture) return
+  for (const [id, box] of gesture.start) {
+    const element = editor.element(id)
+    if (element) Object.assign(element, box)
+  }
+  endGesture()
+  moveable.value?.stopDrag()
+  void nextTick(() => moveable.value?.updateRect())
+}
+
+function idOf(target: HTMLElement | SVGElement | Element): string {
+  return (target as HTMLElement).dataset.id ?? ''
+}
+
 // --- Moveable: one element ("frame" pattern: start from the design's values) ---
 
 function onDragStart(e: OnDragStart) {
-  gesturing.value = true
+  if (!gesture) beginGesture('drag', [idOf(e.target)], e.inputEvent)
   const element = elementOf(e.target)
   e.set([element.x, element.y])
 }
 
 function onDrag(e: OnDrag) {
+  if (!gesture) return
   const element = elementOf(e.target)
-  element.x = roundBox(e.beforeTranslate[0]!)
-  element.y = roundBox(e.beforeTranslate[1]!)
+  let x = e.beforeTranslate[0]!
+  let y = e.beforeTranslate[1]!
+  const from = gesture.start.get(element.id)
+  // Shift locks the move to its main axis (M3); the same for every field of a group drag.
+  if (from && shiftHeld.value) {
+    if (Math.abs(x - from.x) >= Math.abs(y - from.y)) y = from.y
+    else x = from.x
+  }
+  element.x = roundBox(x)
+  element.y = roundBox(y)
   applyBox(e.target, element)
 }
 
 function onResizeStart(e: OnResizeStart) {
-  gesturing.value = true
+  if (!gesture) beginGesture('resize', [idOf(e.target)], e.inputEvent)
   const element = elementOf(e.target)
   e.setOrigin(['%', '%'])
   e.setMin([MIN_SIDE, MIN_SIDE])
@@ -180,6 +237,7 @@ function onResizeStart(e: OnResizeStart) {
 }
 
 function onResize(e: OnResize) {
+  if (!gesture) return
   const element = elementOf(e.target)
   element.w = roundBox(Math.max(MIN_SIDE, e.width))
   element.h = roundBox(Math.max(MIN_SIDE, e.height))
@@ -191,6 +249,7 @@ function onResize(e: OnResize) {
 // --- Moveable: several elements (each event in `events` is one element's own) ---
 
 function onDragGroupStart(e: OnDragGroupStart) {
+  beginGesture('drag', e.targets.map(idOf), e.inputEvent)
   e.events.forEach(onDragStart)
 }
 
@@ -199,6 +258,7 @@ function onDragGroup(e: OnDragGroup) {
 }
 
 function onResizeGroupStart(e: OnResizeGroupStart) {
+  beginGesture('resize', e.targets.map(idOf), e.inputEvent)
   e.events.forEach(onResizeStart)
 }
 
@@ -207,8 +267,34 @@ function onResizeGroup(e: OnResizeGroup) {
 }
 
 function onGestureEnd() {
-  gesturing.value = false
-  editor.commit()
+  // A cancelled gesture has ended already.
+  if (!gesture) return
+  const ended = gesture
+  endGesture()
+  if (ended.copy) dropCopies(ended)
+  else editor.commit()
+}
+
+/**
+ * An Alt-drag (M4): the fields that can be copied go back to where they were, and copies land where
+ * the drag ended, selected. A fixed-meaning field can't be copied (one of each), so it just moves.
+ */
+function dropCopies(ended: Gesture) {
+  const copied = [...ended.start.keys()].flatMap(id => editor.element(id) ?? []).filter(canDuplicate)
+  const moved = copied.some(element => element.x !== ended.start.get(element.id)!.x || element.y !== ended.start.get(element.id)!.y)
+  if (!moved) return editor.commit()
+  const at = new Map(copied.map(element => [element.id, { x: element.x, y: element.y }]))
+  for (const element of copied) Object.assign(element, ended.start.get(element.id))
+  const result = duplicateElements(design.value, copied.map(element => element.id), { at })
+  editor.apply(result.design)
+  editor.select([...result.ids, ...editor.selection.value.filter(id => !at.has(id))])
+}
+
+/** Shift+click on a selected field takes it out of the selection; a Shift+drag still moves them all (S2). */
+function onMoveableClick(e: OnClick | OnClickGroup) {
+  if (!e.inputEvent.shiftKey) return
+  // Over a group, Moveable's drag area takes the click: `moveableTarget` is the field under it.
+  if (e.moveableTarget) editor.select(editor.selection.value.filter(id => id !== idOf(e.moveableTarget!)))
 }
 
 // --- Selecto: click or box to select, Shift adds or removes ---
@@ -314,11 +400,83 @@ const toolbarAt = computed(() => {
   return { left: pan.value.x + (left + right) / 2 * zoom.value, top: pan.value.y + top * zoom.value - 56 }
 })
 
+// --- Hover, choice groups, handles and the live size (studio-behaviour.md S7, F5, F6, R5, R6) ---
+
+const hoveredId = ref<string>()
+const hovered = computed(() => (hoveredId.value ? editor.element(hoveredId.value) : undefined))
+
+/** A box of design pixels in the viewport's pixels. */
+function onScreen(box: Box) {
+  return { left: pan.value.x + box.x * zoom.value, top: pan.value.y + box.y * zoom.value, width: box.w * zoom.value, height: box.h * zoom.value }
+}
+
+/** A field's outline on the screen, on the pixel grid. */
+function outlineOf(element: SlipElement) {
+  const box = onScreen(element)
+  return { x: Math.round(box.left) + 0.5, y: Math.round(box.top) + 0.5, width: Math.max(0, Math.round(box.width) - 1), height: Math.max(0, Math.round(box.height) - 1) }
+}
+
+/** The field under the pointer: an outline when it isn't selected, and its name (S7, F6). */
+const hoverAt = computed(() => {
+  const element = hovered.value
+  // A selected field has its toolbar where the name would go.
+  if (!element || gesturing.value || spaceHeld.value || editor.selection.value.includes(element.id)) return undefined
+  return { ...onScreen(element), name: fieldName(element, t) }
+})
+
+/** The other options of a selected option's choice group (F5). */
+const groupMates = computed(() => {
+  const groups = new Set(editor.selected.value.flatMap(element => (element.type === 'option' ? [element.group] : [])))
+  const chosen = new Set(editor.selection.value)
+  return new Set(design.value.elements.filter(element => element.type === 'option' && groups.has(element.group) && !chosen.has(element.id)).map(element => element.id))
+})
+
+/** The selection's box, in design pixels. */
+const selectionBox = computed<Box | undefined>(() => {
+  const chosen = editor.selected.value
+  if (!chosen.length) return undefined
+  const x = Math.min(...chosen.map(element => element.x))
+  const y = Math.min(...chosen.map(element => element.y))
+  return { x, y, w: Math.max(...chosen.map(element => element.x + element.w)) - x, h: Math.max(...chosen.map(element => element.y + element.h)) - y }
+})
+
+const ALL_HANDLES = ['nw', 'n', 'ne', 'w', 'e', 'sw', 's', 'se']
+/**
+ * A tiny field keeps a body to grab (R5): side handles go under 32 screen px, and all of them under
+ * 16, where a handle would cover the field (zoom in, or type W and H, to resize it).
+ */
+const handles = computed(() => {
+  const box = selectionBox.value
+  if (!box) return ALL_HANDLES
+  const width = box.w * zoom.value
+  const height = box.h * zoom.value
+  if (width < 16 && height < 16) return []
+  if (width < 32 || height < 32) return ['nw', 'ne', 'sw', 'se']
+  return ALL_HANDLES
+})
+
+/** The size while resizing, under the selection (R6). */
+const sizeAt = computed(() => {
+  const box = selectionBox.value
+  if (!resizing.value || !box) return undefined
+  const screen = onScreen(box)
+  return { left: screen.left + screen.width / 2, top: screen.top + screen.height + 8, text: `${Math.round(box.w)} × ${Math.round(box.h)}` }
+})
+
+/** Snap distances in design pixels: Moveable measures the screen's (G1). */
+function snapDistance(distance: number) {
+  return Math.round(distance / zoom.value)
+}
+
 // --- Keyboard (plan §5.5): never while typing in a field ---
 
 function onKeyDown(event: KeyboardEvent) {
   if (event.key === 'Control' || event.key === 'Meta') ctrlHeld.value = true
   if (event.key === 'Shift') shiftHeld.value = true
+  if (event.key === 'Escape' && gesture) {
+    event.preventDefault()
+    return cancelGesture()
+  }
   if (isTyping(event)) return
   if (event.code === 'Space') {
     spaceHeld.value = true
@@ -351,6 +509,7 @@ function onKeyUp(event: KeyboardEvent) {
 }
 
 function onBlur() {
+  cancelGesture()
   spaceHeld.value = false
   ctrlHeld.value = false
   shiftHeld.value = false
@@ -366,6 +525,7 @@ onMounted(() => {
   window.addEventListener('blur', onBlur)
   window.addEventListener('pointerdown', onButton, true)
   window.addEventListener('pointerup', onButton, true)
+  window.addEventListener('pointercancel', cancelGesture, true)
   viewport.value?.addEventListener('wheel', onWheel, { passive: false })
   observer = new ResizeObserver(() => {
     if (!fitted) {
@@ -383,6 +543,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('blur', onBlur)
   window.removeEventListener('pointerdown', onButton, true)
   window.removeEventListener('pointerup', onButton, true)
+  window.removeEventListener('pointercancel', cancelGesture, true)
   viewport.value?.removeEventListener('wheel', onWheel)
   observer?.disconnect()
 })
@@ -420,12 +581,31 @@ defineExpose({ fit, zoomTo })
       <div
         v-for="element in design.elements"
         :key="element.id"
-        class="studio-box is-field absolute top-0 left-0 cursor-move"
+        class="studio-box absolute top-0 left-0 cursor-move"
         :data-id="element.id"
         :data-testid="`box-${element.id}`"
         :style="boxStyle(element)"
+        @pointerenter="hoveredId = element.id"
+        @pointerleave="hoveredId = hoveredId === element.id ? undefined : hoveredId"
       />
     </div>
+
+    <!-- Field outlines in screen pixels, outside the zoomed stage: 1 px at any zoom (V5). -->
+    <svg
+      class="pointer-events-none absolute inset-0 size-full"
+      data-testid="field-outlines"
+    >
+      <rect
+        v-for="element in design.elements"
+        :key="element.id"
+        v-bind="outlineOf(element)"
+        fill="none"
+        :class="groupMates.has(element.id) ? 'stroke-(--ui-primary)' : 'stroke-blue-500/60'"
+        :stroke-width="groupMates.has(element.id) ? 2 : 1"
+        :stroke-dasharray="groupMates.has(element.id) ? undefined : '4 3'"
+        :data-group-mate="groupMates.has(element.id) || undefined"
+      />
+    </svg>
 
     <Moveable
       ref="moveable"
@@ -435,8 +615,12 @@ defineExpose({ fit, zoomTo })
       :rotatable="false"
       :keep-ratio="shiftHeld"
       :snappable="!ctrlHeld"
-      :snap-threshold="6"
+      :snap-horizontal-threshold="SNAP_PX"
+      :snap-vertical-threshold="SNAP_PX"
+      :snap-gap="true"
+      :snap-dist-format="snapDistance"
       :is-display-snap-digit="true"
+      :render-directions="handles"
       :snap-directions="{ top: true, left: true, bottom: true, right: true, center: true, middle: true }"
       :element-snap-directions="{ top: true, left: true, bottom: true, right: true, center: true, middle: true }"
       :element-guidelines="guidelines"
@@ -453,6 +637,8 @@ defineExpose({ fit, zoomTo })
       @resize-group-start="onResizeGroupStart"
       @resize-group="onResizeGroup"
       @resize-group-end="onGestureEnd"
+      @click="onMoveableClick"
+      @click-group="onMoveableClick"
     />
     <VueSelecto
       :drag-container="viewport"
@@ -465,6 +651,24 @@ defineExpose({ fit, zoomTo })
       @drag-start="onSelectoDragStart"
       @select-end="onSelectEnd"
     />
+
+    <div
+      v-if="hoverAt"
+      class="pointer-events-none absolute z-10 outline-2 outline-(--ui-primary)"
+      :style="{ left: `${hoverAt.left}px`, top: `${hoverAt.top}px`, width: `${hoverAt.width}px`, height: `${hoverAt.height}px` }"
+      data-testid="hover-outline"
+    >
+      <span
+        class="absolute bottom-full left-0 mb-1 max-w-60 truncate rounded bg-inverted px-1.5 py-0.5 text-xs text-inverted"
+        data-testid="hover-label"
+      >{{ hoverAt.name }}</span>
+    </div>
+    <span
+      v-if="sizeAt"
+      class="pointer-events-none absolute z-10 -translate-x-1/2 rounded bg-primary px-1.5 py-0.5 text-xs text-inverted tabular-nums"
+      :style="{ left: `${sizeAt.left}px`, top: `${sizeAt.top}px` }"
+      data-testid="live-size"
+    >{{ sizeAt.text }}</span>
 
     <div
       v-if="toolbarAt && !gesturing"
@@ -525,10 +729,3 @@ defineExpose({ fit, zoomTo })
     </div>
   </main>
 </template>
-
-<style scoped>
-.studio-box.is-field {
-  outline: 1px dashed rgb(59 130 246 / 0.6);
-  outline-offset: -1px;
-}
-</style>

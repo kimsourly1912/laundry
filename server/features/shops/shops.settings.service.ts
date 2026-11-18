@@ -13,7 +13,7 @@ import type { SettingsFields } from './shops.repository'
  * The shop is the actor's; one batch per save, with its audit row in the shop's history.
  */
 
-const FIELDS = ['name', 'phone', 'address', 'currency', 'language'] as const
+const FIELDS = ['name', 'phone', 'address', 'currency'] as const
 
 export async function getSettings(db: Db, actor: ShopActor): Promise<ShopSettings> {
   const row = await repo.findSettings(db, actor.shopId)

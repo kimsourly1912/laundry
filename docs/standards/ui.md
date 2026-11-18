@@ -190,7 +190,7 @@ A switch that saves at once (a shop setting toggle) **never blocks the others**:
 
 ## 12. Accessibility (WCAG 2.2 AA minimum)
 
-- **Contrast:** text 4.5:1 (3:1 for large text and UI boundaries), in light and dark mode, for Khmer and English. Fix a failing shade with one theme variable, never per page.
+- **Contrast:** text 4.5:1 (3:1 for large text and UI boundaries), in light and dark mode. Fix a failing shade with one theme variable, never per page.
 - **Focus:** never remove focus outlines. After an action, focus goes somewhere sensible: the next row after a removal, the trigger after a dialog closes, the first error after a failed submit.
 - **Names:** every control has a visible label or `aria-label`; row actions name their record ("Actions for order #61").
 - **Structure:** landmarks from the dashboard shell, headings in order, lists as `ul`/`ol`, tables with headers.

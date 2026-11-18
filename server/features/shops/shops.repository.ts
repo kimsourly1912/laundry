@@ -1,6 +1,6 @@
 import { and, count, desc, eq, or, sql } from 'drizzle-orm'
 import type { ShopListQuery, ShopStatus } from '#shared/contracts/platform-shops'
-import type { Currency, ShopLanguage } from '#shared/contracts/shop-settings'
+import type { Currency } from '#shared/contracts/shop-settings'
 import type { Db, Statement } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
 import { organization } from '#server/db/tables'
@@ -42,9 +42,9 @@ export function findShop(db: Db, shopId: string): Promise<ShopRow | undefined> {
   return firstRow(db.select(shopColumns).from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
 }
 
-/** What customers see of a shop (receipts, Telegram messages): its name, language and currency, and its status. */
+/** What customers see of a shop (receipts, Telegram messages): its name, currency and status. */
 export function findShopProfile(db: Db, shopId: string) {
-  return firstRow(db.select({ name: organization.name, language: shopSettings.language, currency: shopSettings.currency, status: shopSettings.status })
+  return firstRow(db.select({ name: organization.name, currency: shopSettings.currency, status: shopSettings.status })
     .from(shopSettings).innerJoin(organization, eq(organization.id, shopSettings.shopId)).where(eq(shopSettings.shopId, shopId)))
 }
 
@@ -81,7 +81,6 @@ export interface SettingsFields {
   phone: string | null
   address: string | null
   currency: Currency
-  language: ShopLanguage
 }
 
 interface SettingsChange {
@@ -109,7 +108,6 @@ const settingsColumns = {
   phone: shopSettings.phone,
   address: shopSettings.address,
   currency: shopSettings.currency,
-  language: shopSettings.language,
   version: shopSettings.version,
 }
 

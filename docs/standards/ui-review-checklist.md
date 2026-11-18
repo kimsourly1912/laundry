@@ -6,7 +6,7 @@ Run this before merging any UI change. Each line checks one rule. A "no" is fixe
 
 ## Verification widths
 
-Check every changed screen at **320, 390, 768, 1024 and 1440 px**, plus one landscape phone (844×390). **In English and in Khmer.** Screenshots at 390 (both languages) and 1440 go in the PR.
+Check every changed screen at **320, 390, 768, 1024 and 1440 px**, plus one landscape phone (844×390). Screenshots at 390 and 1440 go in the PR.
 
 ## Pattern and composition
 
@@ -31,7 +31,7 @@ Check every changed screen at **320, 390, 768, 1024 and 1440 px**, plus one land
 
 ## Language
 
-- [ ] No hard-coded strings: every visible string, `aria-label`, title and toast is a key in both `en.json` and `km.json` ([i18n §2](./i18n.md#2-strings)).
+- [ ] No hard-coded strings: every visible string, `aria-label`, title and toast is a key in `en.json` ([i18n §1](./i18n.md#1-strings)).
 - [ ] Khmer text has room: no clipped subscripts, no fixed heights on text, buttons don't overflow at 320px ([i18n §3](./i18n.md#3-khmer-type)).
 - [ ] Money, weights and dates use the shared formatters ([i18n §4](./i18n.md#4-money-numbers-and-dates)).
 - [ ] Shop data shows in the active language with its fallback ([i18n §5](./i18n.md#5-data-in-two-languages)).

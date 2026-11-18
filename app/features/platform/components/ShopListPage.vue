@@ -3,7 +3,7 @@
 import type { Page } from '#shared/contracts/common'
 import type { PlatformShop } from '#shared/contracts/platform-shops'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { can } = useSession()
 const { filters, page, pageSize, query } = usePaginatedQuery({ status: '', search: '' })
 const search = ref(filters.search)
@@ -117,7 +117,7 @@ function clearFilters() {
                   {{ shop.slug }} · {{ shop.owner ? t('platform.shops.owner', { username: shop.owner.username }) : t('platform.shops.noOwner') }}
                 </p>
                 <p class="text-xs text-muted">
-                  {{ t('platform.shops.created', { date: formatDate(shop.createdAt, locale) }) }}
+                  {{ t('platform.shops.created', { date: formatDate(shop.createdAt) }) }}
                 </p>
               </div>
               <UBadge

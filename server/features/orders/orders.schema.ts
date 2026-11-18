@@ -19,7 +19,6 @@ export interface OrderShopCopy {
   address: string | null
   logoImageId: string | null
   currency: 'KHR' | 'USD'
-  language: 'en' | 'km'
 }
 
 /** The last order number each shop gave out: raised and used in the order's own batch. */

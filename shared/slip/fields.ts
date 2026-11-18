@@ -70,7 +70,7 @@ export function valueText(element: SlipElement, data: SlipData): string {
     case 'phone':
       return order.phone === null ? '' : formatPhone(order.phone)
     case 'amount':
-      return order.amount === null ? '' : formatMoney(order.amount, shop.currency, shop.language)
+      return order.amount === null ? '' : formatMoney(order.amount, shop.currency)
     default:
       return ''
   }
@@ -91,7 +91,6 @@ export const SAMPLE_SHOP: SlipShop = {
   address: 'Street 271, Phnom Penh',
   logoImageId: null,
   currency: 'KHR',
-  language: 'km',
 }
 
 /**

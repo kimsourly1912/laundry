@@ -12,7 +12,7 @@ import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop
 import ShopTemplatesCard from './ShopTemplatesCard.vue'
 
 const props = defineProps<{ id: string }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const { can } = useSession()
 const shop = useApiQuery(() => `platform:shop:${props.id}`, () => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}`))
 const current = computed(() => shop.data.value)
@@ -134,7 +134,7 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
               <dt class="text-muted">
                 {{ t('platform.shop.createdAt') }}
               </dt>
-              <dd>{{ formatDate(current.createdAt, locale) }}</dd>
+              <dd>{{ formatDate(current.createdAt) }}</dd>
               <dt class="text-muted">
                 {{ t('platform.shop.status') }}
               </dt>

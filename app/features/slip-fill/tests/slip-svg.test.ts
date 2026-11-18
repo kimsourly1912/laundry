@@ -18,7 +18,7 @@ const imageHref = (id: string) => `/api/platform/images/${id}`
 const ARTWORK = '0190f2a0-0000-7000-8000-000000000001'
 
 function slip(): SlipDesign {
-  const group = createGroup('service', { label: { en: 'Service', km: 'សេវា' } })
+  const group = createGroup('service', { label: 'សេវា' })
   return {
     ...blankDesign(800, 600),
     background: { color: '#fffbeb', imageId: ARTWORK },

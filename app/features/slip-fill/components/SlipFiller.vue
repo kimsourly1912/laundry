@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * The owner's slip form (plan §3 step 4, §5.4.5): the slip as it will be sent, with its boxes to tap;
- * the field being filled below it, and Back / Next through the fill order. Labels are in the owner's
- * language (Khmer falls back to English). The studio's Try it shows this same component.
+ * the field being filled below it, and Back / Next through the fill order. Labels are the platform's
+ * own text, Khmer or English (D36). The studio's Try it shows this same component.
  */
 import type { SlipDesign, SlipShop } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
@@ -16,8 +16,6 @@ const props = defineProps<{
   design: SlipDesign
   shop: SlipShop
   text: SlipText
-  /** The owner's language for the labels. */
-  language: 'en' | 'km'
   /** The shop's day, drawn in the Date field. */
   date: string | null
   imageHref?: (imageId: string) => string
@@ -34,9 +32,8 @@ const problems = computed<FillProblems>(() => checkFill(props.design, fill.value
 const problem = computed<FillProblem | undefined>(() => (step.value && showProblems.value ? problems.value[problemKey(step.value)] : undefined))
 const data = computed(() => fillData(fill.value, { shop: props.shop, date: props.date }))
 
-function labelOf(label: { en: string, km: string } | undefined): string {
-  if (!label) return ''
-  return (props.language === 'km' ? label.km || label.en : label.en || label.km) || t('slipFill.untitled')
+function labelOf(label: string | undefined): string {
+  return label?.trim() || t('slipFill.untitled')
 }
 
 const stepLabel = computed(() => {
@@ -167,10 +164,7 @@ defineExpose({ validate })
       data-testid="fill-step"
     >
       <div class="flex items-baseline justify-between gap-2">
-        <p
-          class="font-medium"
-          :lang="language"
-        >
+        <p class="font-medium">
           {{ stepLabel }}<span
             v-if="required"
             class="text-error"

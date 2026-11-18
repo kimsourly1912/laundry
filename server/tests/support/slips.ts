@@ -43,7 +43,7 @@ export async function createTestOrder(db: Db, order: { shopId: string, userId: s
     date: '2026-11-17',
     templateVersionId: versionId,
     values: {},
-    shop: { name: 'Shop', phone: null, address: null, logoImageId: null, currency: 'KHR', language: 'en' },
+    shop: { name: 'Shop', phone: null, address: null, logoImageId: null, currency: 'KHR' },
     createdBy: userId,
   })
   return { orderId: id, number }

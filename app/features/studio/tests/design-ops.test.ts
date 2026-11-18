@@ -35,6 +35,12 @@ describe('duplicateElements', () => {
     expect(copied.elements.at(-1)).toMatchObject({ id: ids[0], type: 'number', x: 30, y: 30 })
     expect(copied.elements).toHaveLength(4)
   })
+
+  it('puts copies where an Alt-drag ended', () => {
+    const slip: SlipDesign = { ...blankDesign(800, 500), elements: [createElement('number', { id: 'r', x: 10, y: 10 })] }
+    const { design: copied, ids } = duplicateElements(slip, ['r'], { at: new Map([['r', { x: 300, y: 40 }]]) })
+    expect(copied.elements.map(element => [element.id, element.x, element.y])).toEqual([['r', 10, 10], [ids[0], 300, 40]])
+  })
 })
 
 describe('nudgeElements', () => {

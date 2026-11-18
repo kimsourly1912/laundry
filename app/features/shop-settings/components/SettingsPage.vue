@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * Shop settings (spec §3 → settings pattern): name, contact, currency, the customers' language.
+ * Shop settings (spec §3 → settings pattern): name, contact, currency.
  * Orders keep a copy of these details when saved (D33). One form, saved at the version it opened with.
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { ShopSettings } from '#shared/contracts/shop-settings'
-import { CURRENCIES, SHOP_LANGUAGES } from '#shared/contracts/shop-settings'
+import { CURRENCIES } from '#shared/contracts/shop-settings'
 import { useShopSettings } from '../composables/useShopSettings'
 import type { SettingsForm } from '../schemas/settings-form'
 import { settingsFormSchema, toSettingsForm, toSettingsRequest } from '../schemas/settings-form'
@@ -14,7 +14,7 @@ const { t, te } = useI18n()
 const { can } = useSession()
 const settings = useShopSettings()
 const schema = computed(() => settingsFormSchema(t))
-const state = reactive<SettingsForm>({ name: '', phone: '', address: '', currency: 'KHR', language: 'en' })
+const state = reactive<SettingsForm>({ name: '', phone: '', address: '', currency: 'KHR' })
 const baseline = ref('')
 const form = useTemplateRef('form')
 useFormErrorRecheck(form)
@@ -52,7 +52,6 @@ async function reload() {
 }
 
 const currencies = computed(() => CURRENCIES.map(code => ({ label: t(`settings.currencies.${code}`), value: code })))
-const languages = computed(() => SHOP_LANGUAGES.map(code => ({ label: t(`settings.languages.${code}`), value: code })))
 const readOnly = computed(() => !can('shop:update'))
 </script>
 
@@ -160,23 +159,6 @@ const readOnly = computed(() => !can('shop:update'))
               <USelect
                 v-model="state.currency"
                 :items="currencies"
-                class="w-full sm:w-56"
-              />
-            </UFormField>
-          </UPageCard>
-
-          <UPageCard
-            :title="t('settings.customersSection')"
-            variant="subtle"
-          >
-            <UFormField
-              :label="t('settings.language')"
-              :help="t('settings.languageHelp')"
-              name="language"
-            >
-              <USelect
-                v-model="state.language"
-                :items="languages"
                 class="w-full sm:w-56"
               />
             </UFormField>

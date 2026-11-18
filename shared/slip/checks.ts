@@ -30,7 +30,7 @@ export interface PublishProblems {
   warnings: Problem<PublishWarning>[]
 }
 
-const hasBothLabels = (label: { en: string, km: string }) => Boolean(label.en.trim() && label.km.trim())
+const hasLabel = (label: string) => Boolean(label.trim())
 
 /** Whether any part of the field's box is outside the canvas. */
 export function isOffCanvas(element: SlipElement, design: Pick<SlipDesign, 'width' | 'height'>): boolean {
@@ -57,12 +57,12 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   for (const group of design.groups) {
     const options = elements.filter(element => element.type === 'option' && element.group === group.id)
     if (options.length < 2) errors.push({ code: 'groupTooSmall', key: group.id })
-    if (!hasBothLabels(group.label)) errors.push({ code: 'missingLabel', key: group.id })
+    if (!hasLabel(group.label)) errors.push({ code: 'missingLabel', key: group.id })
   }
 
   for (const element of elements) {
     const labelled = isOwnerField(element) || element.type === 'option' || element.type === 'paid'
-    if (labelled && 'label' in element && !hasBothLabels(element.label)) errors.push({ code: 'missingLabel', key: element.id })
+    if (labelled && 'label' in element && !hasLabel(element.label)) errors.push({ code: 'missingLabel', key: element.id })
     if (isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
   }
 
@@ -78,5 +78,5 @@ export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   noOrderNo: 'Add an Order No. field.',
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',
-  missingLabel: 'A field needs a label in English and in Khmer.',
+  missingLabel: 'A field needs a label.',
 }

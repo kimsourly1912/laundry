@@ -1,4 +1,4 @@
-import type { Currency, ShopLanguage } from '#shared/contracts/shop-settings'
+import type { Currency } from '#shared/contracts/shop-settings'
 import type { Db } from '#server/utils/batch'
 import { findShopProfile, findShopStatus } from './shops.repository'
 
@@ -12,8 +12,8 @@ export async function shopStatus(db: Db, shopId: string): Promise<'active' | 'su
 }
 
 /**
- * What customers see of a shop (the slip, Telegram messages, D28): its name, its customer-facing
- * language (D6), its currency and its status. `undefined` for no such shop. No actor: the caller
+ * What customers see of a shop (the slip, Telegram messages, D28): its name, its currency and its
+ * status. `undefined` for no such shop. No actor: the caller
  * already holds the shop's id from a trusted place (the session, an order, a link).
  */
 export function shopProfile(db: Db, shopId: string): Promise<ShopProfile | undefined> {
@@ -22,7 +22,6 @@ export function shopProfile(db: Db, shopId: string): Promise<ShopProfile | undef
 
 export interface ShopProfile {
   name: string
-  language: ShopLanguage
   currency: Currency
   status: 'active' | 'suspended'
 }
