@@ -204,6 +204,7 @@ describe('the owner\'s counter', () => {
     await page.getByRole('link', { name: 'Orders' }).click()
     await page.waitForURL(`${host}/orders`)
     await expect.poll(() => page.getByTestId('orders-list').getByRole('listitem').count()).toBe(2)
+    await shot(page, '09-orders')
     await page.getByTestId('orders-search').fill('#1')
     await page.waitForURL(`${host}/orders?search=%231`)
     await expect.poll(() => page.getByTestId('orders-list').getByRole('listitem').count()).toBe(1)
