@@ -84,7 +84,9 @@ describe('studio', () => {
     await expect.poll(() => page.getByText('Published', { exact: true }).count()).toBe(1)
 
     await page.getByRole('link', { name: 'Templates' }).click()
-    await expect.poll(() => page.getByText('Version 1').count()).toBe(1)
+    // Its own row: other e2e files publish templates into the same list.
+    const row = page.getByRole('listitem').filter({ hasText: 'Linda slip 2026' })
+    await expect.poll(() => row.getByText('Version 1').count()).toBe(1)
   })
 
   it('turns an SVG artwork into a PNG in the browser, and says "Reload" when another window changed it', async () => {
