@@ -53,7 +53,8 @@
       "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
       "TEMPLATE_CHANGED": "This paper slip was just updated. Check the order, then preview it again.",
       "SLIP_VALUES_INVALID": "Some boxes of the slip need a look.",
-      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet."
+      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet.",
+      "QUOTE_CHANGED": "A price changed. Check the new total and save again."
     }
   },
   "account": {
@@ -381,7 +382,9 @@
         "right": "Align right"
       },
       "border": "Draw a border",
-      "groupLabel": "Group label"
+      "groupLabel": "Group label",
+      "priceKey": "Price key",
+      "priceKeyHelp": "Links this count to each shop's price for that key: the slip's amount is then the total. Leave empty for a plain count."
     },
     "tryIt": {
       "open": "Try it",
@@ -468,7 +471,9 @@
       "noSlipTitle": "No paper slip yet",
       "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
       "preview": "Preview",
-      "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number."
+      "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number.",
+      "dueDate": "Pickup day",
+      "quoteChanged": "A price changed. Check the new total, then preview again."
     },
     "preview": {
       "title": "Preview",
@@ -504,7 +509,13 @@
       "paidAt": "Paid",
       "pickedUpAt": "Picked up",
       "cancelledAt": "Cancelled",
-      "readyAt": "Ready"
+      "readyAt": "Ready",
+      "dueDate": "Pickup day",
+      "customer": "Customer",
+      "item": "Item",
+      "quantity": "Qty",
+      "lineTotal": "Amount",
+      "kg": "{kg} kg"
     },
     "latest": {
       "title": "Latest orders",
@@ -515,7 +526,11 @@
     },
     "form": {
       "more": "Add one {label}",
-      "less": "Remove one {label}"
+      "less": "Remove one {label}",
+      "fromPrices": "From your price list",
+      "noPrice": "Not in your price list yet",
+      "each": "{price} each",
+      "perKg": "{price} per kg"
     },
     "list": {
       "nav": "Orders",
@@ -611,6 +626,35 @@
       "add": "Add “{text}” as a new customer",
       "none": "No customer found",
       "clear": "No customer"
+    }
+  },
+  "prices": {
+    "title": "Prices",
+    "add": "Add price",
+    "edit": "Edit",
+    "archive": "Archive",
+    "restore": "Bring back",
+    "archived": "Archived",
+    "actionsFor": "Actions for {label}",
+    "intro": "What each item or service costs. A paper slip's counts linked to a key are priced from here; an order keeps the price it was charged.",
+    "emptyTitle": "No prices yet",
+    "emptyDescription": "Add an item, like a shirt washed and ironed, with its price per piece or per kg.",
+    "unit": {
+      "piece": "Per piece",
+      "kg": "Per kg"
+    },
+    "form": {
+      "newTitle": "New price",
+      "editTitle": "Edit price",
+      "key": "Key",
+      "keyHelp": "Short and stable, like shirt or wash.kg: the platform links slip boxes to it.",
+      "keyFixed": "The key doesn't change: slips and orders name it.",
+      "label": "Label",
+      "unit": "Charged",
+      "pricePerPiece": "Price per piece",
+      "pricePerKg": "Price per kg",
+      "badPrice": "Not an amount in your currency.",
+      "save": "Save"
     }
   }
 }

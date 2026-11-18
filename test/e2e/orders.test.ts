@@ -293,6 +293,42 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => page.getByTestId('customer-orders').getByRole('link').allTextContents()).toEqual([`No. ${number}`])
   })
 
+  it('prices an itemized slip from the shop\'s price list, and keeps the lines (D39)', async () => {
+    // The platform makes a slip whose counts are linked to price keys.
+    const itemized = lindaDesign()
+    itemized.elements = itemized.elements.map(element => (element.type === 'number' ? { ...element, priceKey: element.id } : element))
+    const slip = await createCounterTemplate(admin, { name: 'Linda itemized', design: itemized, shopNames: [accounts.counterOwner.shop] })
+
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-prices', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
+    await page.waitForURL(`${host}/`)
+    await page.goto(`${host}/prices`)
+    for (const [key, label, price] of [['shirt', 'Shirt, wash + iron', '2000'], ['pants', 'Pants, wash + iron', '3000']] as const) {
+      await page.getByTestId('add-price').click()
+      await page.getByTestId('price-key').fill(key)
+      await page.getByTestId('price-label').fill(label)
+      await page.getByTestId('price-amount').fill(price)
+      await page.getByTestId('price-save').click()
+      await expect.poll(() => page.getByTestId('prices-active').getByText(label).count()).toBe(1)
+    }
+    await shot(page, '12-prices')
+
+    await page.goto(`${host}/orders/new?template=${slip.id}`)
+    const row = (field: string) => page.locator(`[data-field="${field}"]`)
+    await row('shirt').getByRole('button', { name: /^Add one/ }).click()
+    await row('shirt').getByRole('button', { name: /^Add one/ }).click()
+    await row('pants').getByRole('button', { name: /^Add one/ }).click()
+    await expect.poll(() => page.getByTestId('field-total').textContent()).toContain('7,000')
+    await page.getByTestId('preview').click()
+    await page.getByTestId('save-only').click()
+    await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
+    await expect.poll(() => page.getByTestId('order-items').locator('tbody tr').count()).toBe(2)
+    const saved = await page.evaluate(async () => (await fetch(location.pathname.replace('/orders/', '/api/shop/orders/'))).json()) as OrderDetail
+    expect(saved).toMatchObject({ amount: 7000, items: [{ key: 'shirt', quantity: 2, lineTotal: 4000 }, { key: 'pants', quantity: 1, lineTotal: 3000 }] })
+  })
+
   it('with two slips and no default, New order asks and remembers; Paper slips moves the default (sheet 05)', async () => {
     const page = await phone()
     onTestFailed(screenshotOnFailure('orders-slips', [page]))

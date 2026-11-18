@@ -2,6 +2,7 @@ import * as v from 'valibot'
 import { idSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
 import { keySchema, MAX_ELEMENTS, MAX_GROUPS, TEXT_FIELD_MAX } from './slip-design'
 import type { SlipDesign, SlipShop } from './slip-design'
+import type { PriceUnit } from './prices'
 import { AMOUNT_MAX } from '#shared/slip/values'
 
 /**
@@ -46,6 +47,8 @@ export const createOrderSchema = v.strictObject({
   templateVersionId: idSchema,
   /** The shop's customer (D39), or `null` for a walk-in. 404 for another shop's. */
   customerId: v.optional(v.nullable(idSchema), null),
+  /** The promised pickup day (D39), `YYYY-MM-DD` in the shop's time; not before the order's day. */
+  dueDate: v.optional(v.nullable(v.pipe(v.string(), v.isoDate('Must be a date'))), null),
   values: v.pipe(
     v.record(keySchema, slipValueSchema),
     v.check(values => Object.keys(values).length <= MAX_ELEMENTS + MAX_GROUPS, 'Too many values'),
@@ -91,6 +94,20 @@ export interface OrderOverview {
   unpaid: number
 }
 
+/** One priced line of an order, as charged when it was saved (D39). */
+export interface OrderLineItem {
+  /** The slip field it came from. */
+  fieldId: string
+  key: string
+  label: string
+  unit: PriceUnit
+  /** Pieces, or grams for `kg`. */
+  quantity: number
+  /** Minor units per piece or per kg. */
+  unitPrice: number
+  lineTotal: number
+}
+
 /** An order in a list (Overview's latest orders). */
 export interface OrderListItem {
   id: string
@@ -99,6 +116,8 @@ export interface OrderListItem {
   date: string
   /** The customer's name as saved with the order (D39), or `null`. */
   customerName: string | null
+  /** The promised pickup day (D39), or `null`. */
+  dueDate: string | null
   /** E.164, or `null`. */
   phone: string | null
   /** Minor units of `currency`, or `null` when the slip has no amount. */
@@ -119,6 +138,8 @@ export interface OrderListItem {
 export interface OrderDetail extends OrderListItem {
   /** The shop's customer (D39), or `null` for a walk-in. */
   customerId: string | null
+  /** The priced lines (D39), in the slip's fill order; empty for a free-entry slip. */
+  items: OrderLineItem[]
   /** The template it was made on: Cancel and copy starts the new order on it, at its latest version. */
   templateId: string
   templateVersionId: string

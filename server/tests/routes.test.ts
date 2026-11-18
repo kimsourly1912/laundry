@@ -105,6 +105,11 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/customers/index.post.ts': `{ customer: ['write'] }`,
   'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
   'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,
+  'shop/prices/index.get.ts': `{ price: ['read'] }`,
+  'shop/prices/index.post.ts': `{ price: ['write'] }`,
+  'shop/prices/[id].patch.ts': `{ price: ['write'] }`,
+  'shop/prices/[id]/archive.post.ts': `{ price: ['write'] }`,
+  'shop/prices/[id]/restore.post.ts': `{ price: ['write'] }`,
 }
 
 describe.each([

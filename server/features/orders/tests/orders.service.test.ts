@@ -37,7 +37,7 @@ beforeEach(async () => {
 })
 
 function input(extra: Partial<CreateOrderInput> = {}): CreateOrderInput {
-  return { templateVersionId: template.versionId, customerId: null, values: { name: 'Dara', shirt: 2, pants: 1, svc: 'wash' }, phone: '012 345 678', amount: 7000, paid: false, ...extra }
+  return { templateVersionId: template.versionId, customerId: null, dueDate: null, values: { name: 'Dara', shirt: 2, pants: 1, svc: 'wash' }, phone: '012 345 678', amount: 7000, paid: false, ...extra }
 }
 
 function refusal(promise: Promise<unknown>) {
@@ -195,7 +195,7 @@ describe('listOrders', () => {
     const page = await listOrders(db, actor, { page: 1, pageSize: 2 })
     expect(page.items.map(item => item.number)).toEqual([3, 2])
     expect(page).toMatchObject({ total: 3, page: 1, pageSize: 2 })
-    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', customerName: null, phone: '+85512345678', amount: 7000, currency: 'KHR', paid: false, status: 'open', stage: 'received', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
+    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', customerName: null, dueDate: null, phone: '+85512345678', amount: 7000, currency: 'KHR', paid: false, status: 'open', stage: 'received', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
   })
 })
 

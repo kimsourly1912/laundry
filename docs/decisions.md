@@ -618,3 +618,12 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **New order** has a customer picker: type a name or a phone, pick one, or add one in a small dialog; a customer's phone fills the slip's empty Phone box. Customers, in More, lists them; a customer's page shows their orders (`GET /api/shop/orders?customerId=`). The route page puts the orders feature's list inside the customer page, so the two features don't import each other.
 - **Search:** text that reads as a phone matches the phone exactly; anything else, part of the name (`instr`, D1's pattern limit).
 - **Statements:** `customer:read`, `customer:write` for owner and staff. Audit rows name the changed fields, never their values.
+
+**Prices and itemized orders** (product notes → price list, How a counter order is saved; guide → Delivery order 4).
+- **`price_items`** (shop-owned): a stable `key`, a label, `piece` or `kg`, the price in minor units, `active`, `version`. One item per key in a shop; archived, never deleted. The owner manages them on Prices (More); staff read them.
+- **A slip opts in, field by field:** in the Studio a number field may carry a `priceKey` (D35's design gains one optional property; existing designs are unchanged). The platform uses the same keys across shops; each shop prices them. A slip with no linked field is free-entry and keeps the typed amount (D37).
+- **The server prices** each linked count with a value from the shop's active items: pieces times the price, or kg to whole grams times the price per kg, rounded to the nearest minor unit, halves up (`shared/pricing.ts`, shared so New order shows the same running total). The amount is the total. The owner's amount must equal it, else 409 `QUOTE_CHANGED` and the app reloads the prices and shows the new total ("return the updated quote for owner review"). A key with no active price, or part of a piece, is 422 on that field.
+- **`order_items`** keep each line as charged (key, label, unit, quantity, unit price, line total) with the price item it came from, in the batch that writes the order. A later price change never changes an order.
+- **The promised pickup day** (`orders.due_date`, optional, not before the order's day) is set in New order and shown on the order.
+- **Migration `0005`** adds `due_date` in place (hand-edited, as `0003`).
+- **Statements:** `price:read` (owner, staff), `price:write` (owner).

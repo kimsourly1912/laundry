@@ -89,6 +89,11 @@ export const elementSchema = v.variant('type', [
     max: bounded(-NUMBER_LIMIT, NUMBER_LIMIT),
     /** Drawn after the value (`kg`); empty for none. */
     unit: v.pipe(v.string(), v.trim(), v.maxLength(10)),
+    /**
+     * A price-list key (D39): the count is priced by the shop's item of that key, per piece or per
+     * kg, and the order's amount is the server's total. Absent: a plain count.
+     */
+    priceKey: v.optional(v.pipe(v.string(), v.regex(/^[a-z\d][a-z\d._-]{0,39}$/, 'Letters, digits, dots and dashes'))),
   }),
   v.strictObject({
     ...base,

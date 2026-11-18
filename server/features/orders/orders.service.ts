@@ -3,6 +3,7 @@ import { toPage } from '#shared/contracts/common'
 import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
+import { fillOrderOf } from '#shared/slip/fields'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
@@ -11,12 +12,14 @@ import { auditStatement, runIdempotent } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
 import { orderCustomer } from '#server/features/customers'
+import { activePrices } from '#server/features/prices'
+import type { SlipDesign, SlipValues } from '#shared/contracts/slip-design'
 import { readyMessagesStatement, withdrawReadyMessagesStatement } from '#server/features/notifications'
 import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
-import { orderChanged, orderNotAllowed, orderNotFound, slipValuesInvalid } from './orders.errors'
+import { dueDateInPast, linesInvalid, orderChanged, orderNotAllowed, orderNotFound, quoteChanged, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
-import { canDo, parseOrderSearch } from './orders.rules'
-import type { OrderAction } from './orders.rules'
+import { canDo, parseOrderSearch, priceLines } from './orders.rules'
+import type { OrderLine, OrderAction } from './orders.rules'
 import type { OrderRow } from './orders.repository'
 
 /**
@@ -26,8 +29,8 @@ import type { OrderRow } from './orders.repository'
  */
 
 function toListItem(row: OrderRow): OrderListItem {
-  const { id, number, date, customerName, phone, amount, paid, status, stage, createdAt } = row
-  return { id, number, date, customerName, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
+  const { id, number, date, customerName, dueDate, phone, amount, paid, status, stage, createdAt } = row
+  return { id, number, date, customerName, dueDate, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
 }
 
 const iso = (date: Date | null) => date?.toISOString() ?? null
@@ -35,12 +38,14 @@ const iso = (date: Date | null) => date?.toISOString() ?? null
 export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promise<OrderDetail> {
   const row = await repo.findOrder(db, actor.shopId, orderId)
   if (!row) throw orderNotFound()
-  const version = (await versionsById(db, [row.templateVersionId])).get(row.templateVersionId)
+  const [versions, items] = await Promise.all([versionsById(db, [row.templateVersionId]), repo.orderLines(db, actor.shopId, orderId)])
+  const version = versions.get(row.templateVersionId)
   // The version is restricted from deletion while an order uses it (data-model → template_versions).
   if (!version) throw orderNotFound()
   return {
     ...toListItem(row),
     customerId: row.customerId,
+    items,
     templateId: version.templateId,
     templateVersionId: row.templateVersionId,
     templateVersionNumber: version.number,
@@ -68,9 +73,31 @@ export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery
   return toPage(rows.map(toListItem), query, total)
 }
 
+/**
+ * The lines and amount of an order (D39). A slip with count fields linked to a price key is
+ * itemized: each count with a value is priced from the shop's active list, and the amount is the
+ * total; the owner's amount must equal it (409 `QUOTE_CHANGED` when a price changed since the form
+ * loaded). A slip without links keeps the amount as typed (a free-entry slip, D37).
+ */
+async function pricedOrder(db: Db, order: { shopId: string, design: SlipDesign, values: SlipValues, amount: number | null }): Promise<{ lines: OrderLine[], amount: number | null }> {
+  const { shopId, design, values, amount } = order
+  const linked = design.elements.flatMap(element => (element.type === 'number' && element.priceKey ? [{ fieldId: element.id, key: element.priceKey }] : []))
+  if (!linked.length) return { lines: [], amount }
+  const prices = await activePrices(db, shopId, [...new Set(linked.map(field => field.key))])
+  const fillOrder = fillOrderOf(design)
+  const wanted = linked
+    .flatMap(field => (typeof values[field.fieldId] === 'number' ? [{ ...field, value: values[field.fieldId] as number }] : []))
+    .sort((one, two) => fillOrder.indexOf(one.fieldId) - fillOrder.indexOf(two.fieldId))
+  const { lines, total, problems } = priceLines(wanted, prices)
+  if (Object.keys(problems).length) throw linesInvalid(problems)
+  const hasAmount = design.elements.some(element => element.type === 'amount')
+  if (hasAmount && amount !== total) throw quoteChanged(total)
+  return { lines, amount: hasAmount ? total : null }
+}
+
 interface CreateOrderOptions {
-  /** The validated request; `customerId` may be left out (a walk-in). */
-  input: Omit<CreateOrderInput, 'customerId'> & { customerId?: string | null }
+  /** The validated request; `customerId` and `dueDate` may be left out (a walk-in, no promised day). */
+  input: Omit<CreateOrderInput, 'customerId' | 'dueDate'> & { customerId?: string | null, dueDate?: string | null }
   /** The `Idempotency-Key` header. */
   key: string
   now?: Date
@@ -87,7 +114,7 @@ interface CreateOrderOptions {
  */
 export async function createOrder(db: Db, actor: ShopActor, options: CreateOrderOptions): Promise<{ order: OrderDetail, replayed: boolean }> {
   const { key, now = new Date() } = options
-  const input = { ...options.input, customerId: options.input.customerId ?? null }
+  const input = { ...options.input, customerId: options.input.customerId ?? null, dueDate: options.input.dueDate ?? null }
   const { shopId, userId } = actor
   const { id, replayed } = await runIdempotent(db, {
     scope: { shopId, actorUserId: userId, action: 'order.create', key },
@@ -98,6 +125,9 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
       const { values, phone, amount, paid } = input
       const problems = checkFill(version.design, { values, phone, amount, paid })
       if (Object.keys(problems).length) throw slipValuesInvalid(problems)
+      if (input.dueDate && input.dueDate < shopDate(now)) throw dueDateInPast()
+      // D39: counts linked to a price key are priced by the shop's list; the amount is then the server's total.
+      const priced = await pricedOrder(db, { shopId, design: version.design, values, amount })
       const shop = await shopCopy(db, shopId)
       if (!shop) throw orderNotFound()
       // The shop's own customer only (404 otherwise); customers are never deleted, so no guard is needed in the batch.
@@ -114,12 +144,14 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
           values: cleanValues(version.design, values),
           shop,
           customer,
+          dueDate: input.dueDate,
           phone: phone ? toE164(phone) : null,
-          amount,
+          amount: priced.amount,
           paid,
           userId,
           now,
         }),
+        ...repo.insertLinesStatements(db, { shopId, orderId, lines: priced.lines }),
         auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: 'order.create', targetType: 'order', targetId: orderId, data: { templateVersionId: version.versionId, paid } }, now),
         keyStatement(orderId),
       ], templateChangedForOrder)

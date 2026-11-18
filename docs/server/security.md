@@ -44,6 +44,8 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 | order | create, read | ✓ | ✓ |
 | order | work: start, mark ready, rework (D39) | ✓ | ✓ |
 | customer | read, write (D39) | ✓ | ✓ |
+| price | read (D39) | ✓ | ✓ |
+| price | write (D39) | ✓ | |
 | order | pay, pick-up | ✓ | ✓ |
 | order | cancel (and Cancel and copy) | ✓ | |
 

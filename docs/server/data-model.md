@@ -126,6 +126,16 @@ erDiagram
 - **Never deleted:** `orders.customer_id` points at it (restrict).
 - `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders.
 
+## `price_items` (owner: `prices`), `order_items` (owner: `orders`)
+
+**Status:** built (D39, migration `0005`).
+
+`price_items` (shop-owned): `id`, `shop_id`, `key` (stable, lowercase), `label`, `unit` (`piece` \| `kg`), `price` (minor units per piece or per kg, ≥ 0), `active`, `version`, timestamps. UNIQUE `(shop_id, key)`, index `(shop_id, label)`, UNIQUE `(shop_id, id)`. **Archived, never deleted.**
+
+`order_items`: `id`, `shop_id`, `order_id` (composite FK → the shop's order, restrict), `field_id` (the slip field), `position`, `price_item_id` (FK restrict), `key`, `label`, `unit`, `quantity` (pieces, or grams for kg; > 0), `unit_price`, `line_total`. UNIQUE `(order_id, position)`. Written with the order; never changed.
+
+`orders.due_date` (text null, `YYYY-MM-DD`, CHECK on the format): the promised pickup day.
+
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
 **Status:** built. A scan links the chat and queues `slip:<order>:<chat>` in one batch (D38); the webhook delivers it at once and `notifications:deliver` sends what's left.

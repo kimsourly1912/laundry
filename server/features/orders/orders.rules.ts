@@ -44,3 +44,8 @@ export function canDo(action: OrderAction, order: { status: OrderStatus, stage: 
     case 'pay': return !order.paid && order.status !== 'cancelled'
   }
 }
+
+// --- Prices (D39): the rule is shared, so New order shows the total the server charges ---
+
+export { priceLines } from '#shared/pricing'
+export type { LineProblem, OrderLine, PricedValue, PriceForLine } from '#shared/pricing'
