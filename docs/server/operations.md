@@ -46,26 +46,15 @@ Runtime values come from `NUXT_*` variables (`runtimeConfig` in `nuxt.config.ts`
 | `NUXT_TELEGRAM_BOT_TOKEN` | yes | D28 ([Telegram](#telegram)) |
 | `NUXT_TELEGRAM_BOT_USERNAME` | no (set as a Secret) | D28: the QR's `t.me/<bot>?start=<token>` link; no QR while empty |
 | `NUXT_TELEGRAM_WEBHOOK_SECRET` | yes | D28: checked on every webhook call |
-| `NUXT_PLATFORM_ADMIN_USERNAME`, `NUXT_PLATFORM_ADMIN_PASSWORD` | yes | M1.4 seed only |
+| `NUXT_PLATFORM_ADMIN_USERNAME`, `NUXT_PLATFORM_ADMIN_PASSWORD` | no (local `.env` only) | `pnpm seed:admin`; default `admin` / `admin123` |
 
 A new variable is added to `.env.example` (name only), `nuxt.config.ts` (`runtimeConfig`, empty default) and this table in the same PR.
 
 ## First platform admin
 
-The first super admin comes from `NUXT_PLATFORM_ADMIN_USERNAME` / `NUXT_PLATFORM_ADMIN_PASSWORD`, on a **temporary password** changed at the first sign-in. Both ways **refuse if any super admin already exists** ([D16](../decisions.md#d16-the-first-platform-admin)).
+Local development: `pnpm seed:admin` creates a super admin in the local database (`.data/db/sqlite.db`) and prints how to sign in: `NUXT_PLATFORM_ADMIN_USERNAME` / `NUXT_PLATFORM_ADMIN_PASSWORD` from `.env`, or `admin` / `admin123`. Run `pnpm dev` once first so the tables exist. Running it again resets that account's password. Shops and templates come from the platform screens ([D16](../decisions.md#d16-the-first-platform-admin)).
 
-- **Local:** with the variables in `.env` and `pnpm dev` running: `npx nuxt task run identity:seed-platform-admin`.
-- **Deployed (staging, production):** a Worker has no command line, so a script prints guarded SQL and the password is hashed on your machine (only the hash reaches the database):
-
-  ```bash
-  NUXT_PLATFORM_ADMIN_USERNAME=admin NUXT_PLATFORM_ADMIN_PASSWORD='…' pnpm --silent admin:sql > admin.sql
-  pnpm exec wrangler d1 execute laundry-staging --remote --file admin.sql
-  rm admin.sql
-  ```
-
-  Then sign in at the site and change the password. Running it again creates nothing.
-
-Local development: create the first super admin with the seed task; shops and templates come from the platform screens.
+A deployed environment has no seed path yet (Q18 in [current-state](../current-state.md#open-questions)).
 
 ## Migrations
 

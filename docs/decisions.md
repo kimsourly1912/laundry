@@ -184,8 +184,8 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 **Decision.**
 - `seedPlatformAdmin` (identity) creates the admin on a **temporary password**, guarded inside the batch (no super admin may exist).
-- Locally: the Nitro task `identity:seed-platform-admin`.
-- Deployed: `scripts/platform-admin-sql.ts` (`pnpm admin:sql`) hashes the password locally with Better Auth's `hashPassword` and prints SQL whose inserts are guarded the same way; run it with `wrangler d1 execute --remote --file`.
+- Locally: `pnpm seed:admin` (`scripts/seed-admin.ts`) writes a super admin straight into the local SQLite database; running it again resets the password.
+- Deployed: no seed path yet (Q18 in `current-state.md`).
 
 **Alternatives.** A one-time setup endpoint: an open door on every deployed Worker until used. Typing the hash by hand: error-prone.
 
@@ -374,7 +374,7 @@ Add a decision when a choice has real alternatives or tradeoffs. Don't add one f
 
 **Context.** Spec §12 asked for at least 10 characters and a leaked-password check (Better Auth's `haveIBeenPwned`). The owner chose a shorter, free password (2026-11-17): staff sign in on a shared counter phone, and the check refused short, easy passwords that shops want to use.
 
-**Decision.** A password is **6–128 characters, any characters**: `MIN_PASSWORD_LENGTH = 6` in `shared/contracts/identity.ts`, the one rule for the app's forms, the contracts, Better Auth (`minPasswordLength`), the seed task and `pnpm admin:sql`. The `haveIBeenPwned` plugin is removed, so sign-in and password changes call no outside service.
+**Decision.** A password is **6–128 characters, any characters**: `MIN_PASSWORD_LENGTH = 6` in `shared/contracts/identity.ts`, the one rule for the app's forms, the contracts, Better Auth (`minPasswordLength`), and the server's own password writes. The `haveIBeenPwned` plugin is removed, so sign-in and password changes call no outside service.
 
 **Alternatives.** Keep 10 characters with the check (the spec). Keep the check with 6 characters (it would still refuse `123456` and most short passwords people choose).
 

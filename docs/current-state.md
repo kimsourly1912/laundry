@@ -91,6 +91,7 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 | Q7, Q11 | Moved to [plan → Open questions](plan.md#10-open-questions) (D31) | Owner | Steps 3 and 4 |
 | Q15 | The guide sets the owner's content width to 768 px; `--container-page` is 640 px (D25). Change it for every shop screen? Kept at 640 px in D37 | Owner | The next owner screens |
 | Q16 | The mockups write the number as `#002139`; the app and the slip write `1`, `2`, … A zero-padded number changes every slip's Order No. drawing. Pad it, and to how many digits? | Owner | Before a pilot shop |
+| Q18 | `pnpm seed:admin` is local only. How does a deployed environment (staging, production) get its first super admin? | Owner | Before production |
 | Q17 | Answered by plan §4 itself: New order remembers the chosen slip as the default. Built in D38 | — | — |
 
 ## Owner notes

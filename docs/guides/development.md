@@ -27,8 +27,7 @@ Commands, tests and the checks to run before a pull request.
 | `pnpm test:e2e` | The `e2e` project: builds the app, seeds a database and runs the browser tests ([E2E](#e2e)) |
 | `pnpm audit --audit-level high` | Dependency audit as CI runs it |
 | `npx nuxt db generate` | A migration after a schema change ([operations → Migrations](../server/operations.md#migrations)) |
-| `npx nuxt task run identity:seed-platform-admin` | The first platform admin in the local database, with `pnpm dev` running ([operations](../server/operations.md#first-platform-admin)) |
-| `pnpm admin:sql` | The first platform admin of a deployed database, as SQL |
+| `pnpm seed:admin` | A platform admin in the local database: `admin` / `admin123` unless `.env` says otherwise ([operations](../server/operations.md#first-platform-admin)) |
 
 ## Tests
 

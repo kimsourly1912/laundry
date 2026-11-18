@@ -86,7 +86,7 @@ Hash a password with Better Auth's `hashPassword` from `better-auth/crypto`. The
 
 ## The first platform admin
 
-`seedPlatformAdmin({ db, username, passwordHash })` creates a super admin on a temporary password, or refuses with `409 PLATFORM_ADMIN_EXISTS` (checked inside the batch). Run it with the Nitro task `identity:seed-platform-admin` locally, or `pnpm admin:sql` for a deployed database ([operations → First platform admin](../server/operations.md#first-platform-admin)).
+`seedPlatformAdmin({ db, username, passwordHash })` creates a super admin on a temporary password, or refuses with `409 PLATFORM_ADMIN_EXISTS` (checked inside the batch). The e2e seed uses it; local development uses `pnpm seed:admin` instead ([operations → First platform admin](../server/operations.md#first-platform-admin)).
 
 ## Better Auth over HTTP
 

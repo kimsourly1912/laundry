@@ -1,37 +1,52 @@
 /**
- * The first platform admin of a deployed environment (docs/server/operations.md → First platform
- * admin). A Worker has no command line, so this prints SQL to run with
- * `wrangler d1 execute <database> --remote --file <file>`. The password is hashed here, with
- * Better Auth's own `hashPassword`: only the hash reaches the database.
- *
- * Like the seed task, it creates nothing when any super admin exists (each insert is guarded), and
- * the admin must change the password at the first sign-in.
- *
- * Usage (Node 24 runs TypeScript directly):
- *   NUXT_PLATFORM_ADMIN_USERNAME=… NUXT_PLATFORM_ADMIN_PASSWORD=… node scripts/platform-admin-sql.ts > admin.sql
+ * `pnpm seed:admin`: a platform admin in the local development database (.data/db/sqlite.db).
+ * Signs in with NUXT_PLATFORM_ADMIN_USERNAME / NUXT_PLATFORM_ADMIN_PASSWORD from `.env`, or
+ * `admin` / `admin123`. Safe to run again: an existing account with that username gets the
+ * password reset and the super admin role. Run `pnpm dev` once first so the tables exist.
  */
+import { existsSync } from 'node:fs'
+import { createClient } from '@libsql/client'
 import { hashPassword } from 'better-auth/crypto'
 import { v7 } from 'uuid'
 
-const MIN_PASSWORD_LENGTH = 6
+const DB_FILE = '.data/db/sqlite.db'
+const username = (process.env.NUXT_PLATFORM_ADMIN_USERNAME || 'admin').trim().toLowerCase()
+const password = process.env.NUXT_PLATFORM_ADMIN_PASSWORD || 'admin123'
 
-const username = (process.env.NUXT_PLATFORM_ADMIN_USERNAME ?? '').trim().toLowerCase()
-const password = process.env.NUXT_PLATFORM_ADMIN_PASSWORD ?? ''
-if (!/^[a-z0-9_.]{3,32}$/.test(username) || password.length < MIN_PASSWORD_LENGTH) {
-  console.error(`Set NUXT_PLATFORM_ADMIN_USERNAME (3–32 of a-z 0-9 _ .) and NUXT_PLATFORM_ADMIN_PASSWORD (at least ${MIN_PASSWORD_LENGTH} characters).`)
+if (!existsSync(DB_FILE)) {
+  console.error(`No local database at ${DB_FILE}. Run \`pnpm dev\` once to create it, then run this again.`)
   process.exit(1)
 }
 
-const quote = (value: string) => `'${value.replaceAll('\'', '\'\'')}'`
-const userId = v7()
-const now = Date.now()
-const hash = await hashPassword(password)
-const noAdminYet = `NOT EXISTS (SELECT 1 FROM "user" WHERE role = 'superadmin')`
+const db = createClient({ url: `file:${DB_FILE}` })
+try {
+  const now = Date.now()
+  const hash = await hashPassword(password)
+  const existing = await db.execute({ sql: 'SELECT id FROM user WHERE username = ?', args: [username] })
+  const userId = String(existing.rows[0]?.id ?? v7())
 
-console.log(`-- First platform admin "${username}". Creates nothing if a super admin exists.
-INSERT INTO "user" (id, name, email, email_verified, username, display_username, role, must_change_password, created_at, updated_at)
-SELECT ${quote(userId)}, 'Platform admin', ${quote(`${userId}@users.invalid`)}, 1, ${quote(username)}, ${quote(username)}, 'superadmin', 1, ${now}, ${now}
-WHERE ${noAdminYet};
-INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
-SELECT ${quote(v7())}, ${quote(userId)}, 'credential', ${quote(userId)}, ${quote(hash)}, ${now}, ${now}
-WHERE EXISTS (SELECT 1 FROM "user" WHERE id = ${quote(userId)});`)
+  await db.batch([
+    {
+      sql: `INSERT INTO user (id, name, email, email_verified, username, display_username, role, must_change_password, created_at, updated_at)
+            VALUES (?, 'Platform admin', ?, 1, ?, ?, 'superadmin', 0, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET role = 'superadmin', must_change_password = 0, updated_at = excluded.updated_at`,
+      args: [userId, `${userId}@users.invalid`, username, username, now, now],
+    },
+    { sql: `DELETE FROM account WHERE user_id = ? AND provider_id = 'credential'`, args: [userId] },
+    {
+      sql: `INSERT INTO account (id, account_id, provider_id, user_id, password, created_at, updated_at)
+            VALUES (?, ?, 'credential', ?, ?, ?, ?)`,
+      args: [v7(), userId, userId, hash, now, now],
+    },
+  ], 'write')
+
+  console.log(`Platform admin ready. Sign in as "${username}" / "${password}".`)
+}
+catch (error) {
+  if (String(error).includes('no such table')) console.error('The local database has no tables yet. Run `pnpm dev` once, then run this again.')
+  else console.error(error)
+  process.exitCode = 1
+}
+finally {
+  db.close()
+}

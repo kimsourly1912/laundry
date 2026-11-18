@@ -11,7 +11,7 @@
     "build:staging": "nuxt build --envName staging",
     "db:migrate:staging": "wrangler d1 migrations apply DB --remote --config .output/server/wrangler.json",
     "deploy:staging": "pnpm build:staging && pnpm db:migrate:staging && wrangler deploy --config .output/server/wrangler.json",
-    "admin:sql": "node scripts/platform-admin-sql.ts",
+    "seed:admin": "node --env-file-if-exists=.env scripts/seed-admin.ts",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
