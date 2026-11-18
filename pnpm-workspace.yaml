@@ -10,3 +10,10 @@ overrides:
 # Newer than pnpm's minimum release age when installed (as in the starter); remove on the next upgrade.
 minimumReleaseAgeExclude:
   - '@nuxtjs/better-auth@0.3.17'
+# picomatch ReDoS (GHSA-fc5q-39xc-vjpf, high): no patched version exists yet. It reaches us only through
+# build and dev tools (globby, chokidar, anymatch), which match our own config's patterns, never user
+# input; the Cloudflare Worker doesn't load it. Ignored with the owner's approval (2026-11-18).
+# Remove once a patched picomatch is released.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
