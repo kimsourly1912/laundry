@@ -1,4 +1,4 @@
-import type { OrderStatus } from '#shared/contracts/orders'
+import type { OrderStage, OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 
 /**
@@ -18,17 +18,34 @@ export function parseOrderSearch(text: string): OrderSearch {
   return { none: true }
 }
 
-export type OrderAction = 'pay' | 'pick-up' | 'cancel'
+export type OrderAction = 'start' | 'ready' | 'rework' | 'pay' | 'pick-up' | 'cancel'
 
 /**
- * Whether the order allows the action (plan §4): paid is separate from the state, so an order may
- * be paid while open or after an unpaid pickup, never once cancelled or twice; pickup and cancel
- * only while open. Pickup of an unpaid order is allowed (the app asks first; the audit row says it).
+ * Whether the order allows the action (D39, product notes → order lifecycle):
+ *
+ * | From | Allowed |
+ * |---|---|
+ * | Received | start work, mark ready directly, cancel |
+ * | In progress | mark ready, cancel |
+ * | Ready | collect, back to In progress (rework), cancel |
+ * | Collected, Cancelled | nothing but payment for an unpaid collected order |
+ *
+ * Paid is apart from the work: paid while open or after an unpaid pickup, never once cancelled or
+ * twice. An unpaid pickup is allowed (the app asks first; the audit row says it).
  */
-export function canDo(action: OrderAction, order: { status: OrderStatus, paid: boolean }): boolean {
+export function canDo(action: OrderAction, order: { status: OrderStatus, stage: OrderStage, paid: boolean }): boolean {
+  const open = order.status === 'open'
   switch (action) {
+    case 'start': return open && order.stage === 'received'
+    case 'ready': return open && order.stage !== 'ready'
+    case 'rework': return open && order.stage === 'ready'
+    case 'pick-up': return open && order.stage === 'ready'
+    case 'cancel': return open
     case 'pay': return !order.paid && order.status !== 'cancelled'
-    case 'pick-up':
-    case 'cancel': return order.status === 'open'
   }
 }
+
+// --- Prices (D39): the rule is shared, so New order shows the total the server charges ---
+
+export { priceLines } from '#shared/pricing'
+export type { LineProblem, OrderLine, PricedValue, PriceForLine } from '#shared/pricing'

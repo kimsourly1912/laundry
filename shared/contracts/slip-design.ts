@@ -89,6 +89,11 @@ export const elementSchema = v.variant('type', [
     max: bounded(-NUMBER_LIMIT, NUMBER_LIMIT),
     /** Drawn after the value (`kg`); empty for none. */
     unit: v.pipe(v.string(), v.trim(), v.maxLength(10)),
+    /**
+     * A price-list key (D39): the count is priced by the shop's item of that key, per piece or per
+     * kg, and the order's amount is the server's total. Absent: a plain count.
+     */
+    priceKey: v.optional(v.pipe(v.string(), v.regex(/^[a-z\d][a-z\d._-]{0,39}$/, 'Letters, digits, dots and dashes'))),
   }),
   v.strictObject({
     ...base,
@@ -130,10 +135,30 @@ export type ChoiceGroup = v.InferOutput<typeof groupSchema>
 /** The key of the paid / not paid pair in the fill order (plan §5.3.4). */
 export const PAID_KEY = 'paid'
 
+/** Paper sides in millimetres (D39): from a small ticket to A4. */
+export const PAPER_MIN_MM = 20
+export const PAPER_MAX_MM = 400
+const paperSideSchema = v.pipe(v.number(), v.finite(), v.minValue(PAPER_MIN_MM, `At least ${PAPER_MIN_MM} mm`), v.maxValue(PAPER_MAX_MM, `At most ${PAPER_MAX_MM} mm`))
+
+/**
+ * The printed slip's size (D39; guide → Print): the canvas is pixels for the screen and Telegram;
+ * paper is millimetres, kept with each published version so a reprint comes out the same size.
+ */
+export const paperSchema = v.strictObject({ widthMm: paperSideSchema, heightMm: paperSideSchema })
+export type Paper = v.InferOutput<typeof paperSchema>
+
 export const designSchema = v.pipe(
   v.strictObject({
     width: canvasSideSchema,
     height: canvasSideSchema,
+    /** Absent: printed at the paper's width (D37). */
+    paper: v.optional(paperSchema),
+    /**
+     * D39: an HTML slip. Its markup lays the slip out (Tailwind classes, the app's placeholders) and
+     * Satori draws it; the artwork and the fields' boxes are not drawn. The fields stay the owner's
+     * form and are placed in the markup as `{{fields.<id>}}`. Absent: an artwork slip (D35).
+     */
+    html: v.optional(v.pipe(v.string(), v.maxLength(64 * 1024, 'At most 64 KB of markup'))),
     /** The artwork (plan §5.2, D35) over a colour; `null` only before one is uploaded (tests). */
     background: v.strictObject({ color: colorSchema, imageId: v.nullable(idSchema) }),
     elements: v.pipe(v.array(elementSchema), v.maxLength(MAX_ELEMENTS, `At most ${MAX_ELEMENTS} elements`)),
@@ -172,6 +197,21 @@ export interface SlipOrder {
   /** Minor units of the shop copy's currency. */
   amount: number | null
   paid: boolean | null
+  /** D39, drawn by HTML slips only: the customer's name, the promised day, the priced lines, the QR's address. */
+  customerName?: string | null
+  dueDate?: string | null
+  lines?: SlipLine[]
+  qrUrl?: string | null
+}
+
+/** A priced line as an HTML slip's `{{order.itemLines}}` draws it (D39). */
+export interface SlipLine {
+  label: string
+  unit: 'piece' | 'kg'
+  /** Pieces, or grams for `kg`. */
+  quantity: number
+  /** Minor units. */
+  lineTotal: number
 }
 
 /** The copy of the shop's details an order keeps (D33): the amount is drawn in its currency. */

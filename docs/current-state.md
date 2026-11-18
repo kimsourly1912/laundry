@@ -2,14 +2,22 @@
 
 Keep this page short: where we are, what's next, what's blocked. History goes in git and `decisions.md`.
 
-## Now: the owner portal and Telegram (D37, D38, 2026-11-18)
+## Now: the product notes' larger items (D39, 2026-11-18)
 
-**Plan steps 3 and 4 are built** (D37 merged as #17; D38 on branch `claude/admiring-goodall-1pk03z`, waiting for the owner's review). Built to [`product-design/implementation-guide.md`](product-design/implementation-guide.md).
+**Built on branch `claude/admiring-goodall-1pk03z`, waiting for the owner's review** (one commit per item). D37 (#17) and D38 (#18) are merged.
 
-- **The owner can:** take an order (New order → Preview → Save & print / Save only), find any order (Orders: number or phone, state, paid), mark it paid, hand it over (unpaid only after a question), cancel it or Cancel and copy, print it again, choose the default paper slip (Paper slips, first in More), and show the customer the Telegram QR.
-- **The customer:** scans the QR, taps Start; the bot sends the slip as a picture. Needs the bot on staging (Owner notes below). Not yet tried with a real phone.
-- **Left, larger than this round** (guide → Delivery order 3–5): the Received / In progress / Ready lifecycle and the ready message (it changes plan §4's "no ready step"), item pricing and customers, redesign requests (sheet 05), print paper sizes in mm, the phone Studio and AI import.
-- **Open, for the owner** (below): Q15 the 768 px width, Q16 the number's look.
+- **Lifecycle:** Received → In progress → Ready → Collected, rework, "ready for pickup" on Telegram, Overview's counts. Replaces plan §4's "no ready step".
+- **Customers:** per shop, a picker in New order, their orders.
+- **Prices and itemized orders:** the shop's price list; counts linked to a price key are priced by the server, lines kept as charged; the promised pickup day.
+- **Paper size** in mm, kept per version, used by Print.
+- **Redesign requests:** the owner's photo and wishes; the platform's queue.
+- **HTML slips** drawn by Satori (after its Khmer check), the AI import (v1), the HTML Studio with phone tabs.
+- **Not yet tried for real:** Telegram with a real bot, a printed slip at its paper size, scanning a printed QR, Khmer on a low-end Android phone (guide → Delivery order 6, the pilot).
+- **Open, for the owner** (below): Q15 the 768 px width, Q16 the number's look; and the product notes' pilot decisions (refunds of a paid cancelled order, claim-link lifetime, rounding).
+
+## Earlier: the owner portal and Telegram (D37, D38)
+
+Merged as #17 and #18: New order, Preview, save once, Print again; Orders with search; Mark paid, Picked up, Cancel and copy; Paper slips with the default; the Telegram QR and the slip as a picture.
 
 ## Before: the slip studio (D31, 2026-11-17)
 

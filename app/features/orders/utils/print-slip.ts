@@ -6,7 +6,7 @@
  */
 export async function printSlip(root: ParentNode = document): Promise<void> {
   // Chrome and Safari have `decode()` on an SVG image too; TypeScript's DOM types don't list it.
-  const images = [...root.querySelectorAll('.print-slip image')] as (SVGImageElement & { decode?: () => Promise<void> })[]
+  const images = [...root.querySelectorAll('.print-slip image, .print-slip img')] as ((SVGImageElement | HTMLImageElement) & { decode?: () => Promise<void> })[]
   await Promise.race([
     Promise.all(images.map(image => image.decode?.().catch(() => {}))),
     new Promise(resolve => setTimeout(resolve, 3000)),

@@ -72,6 +72,7 @@ erDiagram
 **Status:** tables built in step 1. S1 built the templates' and images' code: create (from an artwork or a copy; blank and photo before D35), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
+- The design may carry `paper` (mm, D39) and `html` (an HTML slip's markup, ≤ 64 KB, D39); both are fixed in each published version with the rest. No column changes.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.
 - **Archived, never deleted.** Its versions and the orders made on them stay.
 
@@ -87,6 +88,12 @@ erDiagram
 `images` (platform): `id`, `name`, `type` (`image/png` \| `image/jpeg`), `width`, `height` (200–2000 each), `size` (bytes, 1 B–1 MB), `data` (**base64 text**), `created_by`, `created_at`. Index `(created_at)`.
 - Slip backgrounds, pictures on a slip, shop logos, shared by every template (plan §5.9). The type and size are read from the file's bytes, never from the request (D28).
 - Base64 text, not a BLOB: D1 returns a BLOB as an array of numbers, and the SVG wants base64 anyway. 1 MB of image is 1.34 MB of text, under D1's 2 MB row limit. **Every query leaves `data` out** but the ones that draw or serve the image.
+
+## `template_requests` (owner: `templates`)
+
+**Status:** built (D39, migration `0006`).
+
+`template_requests` (shop-owned): `id`, `shop_id`, `requested_by` (→ `user.id`), `kind` (`keep` \| `redesign`), `notes`, `status` (`new` \| `in_progress` \| `done` \| `declined`), `template_id` (FK restrict, null until done), `photo_type`, `photo_width`, `photo_height`, `photo_size` (1 B–1 MB), `photo_data` (base64), `version`, timestamps. Indexes `(status, created_at)` the platform's queue, `(shop_id, created_at)` a shop's own. **Kept, never deleted.** Every query leaves `photo_data` out but the photo's own.
 
 ## `order_counters`, `orders` (owner: `orders`)
 
@@ -108,12 +115,33 @@ erDiagram
 | `amount` | integer null | Minor units of the copy's currency, as the owner typed it; `null` when the slip has no Amount |
 | `paid` | bool | Default false |
 | `status` | text | `open` \| `picked_up` \| `cancelled` |
+| `stage` | text | `received` \| `in_progress` \| `ready` (D39): the work while open; kept as it ended once picked up or cancelled. Default `received` |
+| `ready_at` | timestamp null | The last time it was marked ready (D39) |
 | `paid_at`, `picked_up_at`, `cancelled_at` | timestamp null | CHECKs: each is set exactly when its state is (`paid`, `picked_up`, `cancelled`) |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
+- Indexes: `(shop_id, status, stage)` Overview's counts and the Orders tabs (migration `0003`); `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
 - **Never deleted.** Cancelled (plan §4).
+
+## `customers` (owner: `customers`)
+
+**Status:** built ([D39](../decisions.md#d39-the-product-notes-larger-items-lifecycle-customers-prices-html-templates-requests-paper-size), migration `0004`).
+
+`customers` (shop-owned): `id`, `shop_id`, `name`, `phone` (E.164 null), `version`, `created_at`, `updated_at`.
+- Partial UNIQUE `(shop_id, phone)` where `phone` is set: one customer per phone in a shop. Index `(shop_id, name)`: the list. UNIQUE `(shop_id, id)`.
+- **Never deleted:** `orders.customer_id` points at it (restrict).
+- `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders.
+
+## `price_items` (owner: `prices`), `order_items` (owner: `orders`)
+
+**Status:** built (D39, migration `0005`).
+
+`price_items` (shop-owned): `id`, `shop_id`, `key` (stable, lowercase), `label`, `unit` (`piece` \| `kg`), `price` (minor units per piece or per kg, ≥ 0), `active`, `version`, timestamps. UNIQUE `(shop_id, key)`, index `(shop_id, label)`, UNIQUE `(shop_id, id)`. **Archived, never deleted.**
+
+`order_items`: `id`, `shop_id`, `order_id` (composite FK → the shop's order, restrict), `field_id` (the slip field), `position`, `price_item_id` (FK restrict), `key`, `label`, `unit`, `quantity` (pieces, or grams for kg; > 0), `unit_price`, `line_total`. UNIQUE `(order_id, position)`. Written with the order; never changed.
+
+`orders.due_date` (text null, `YYYY-MM-DD`, CHECK on the format): the promised pickup day.
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
@@ -123,7 +151,7 @@ erDiagram
 - **One order per link** (plan §8). Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
 - **Revoked, never deleted,** when Telegram says the person blocked the bot (every link to that chat, in every shop).
 
-`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip`), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip`, `ready`: D39), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
 - Queued in the batch of the change it tells about.
 - A sender **claims** a row before sending (`attempts` + 1, hidden for a 5-minute lease), so overlapping runs never send the same row at once. At least once: a sender that dies mid-send leaves it to be sent again. Backoff 1, 5, 15, 60 minutes, or the channel's own wait; failed after 5 attempts.
 - Index `(status, next_attempt_at)` for the delivery job's scan across shops; `(shop_id, order_id)` for an order's messages.

@@ -10,12 +10,16 @@
  * version; the order page then shows the saved slip, and prints it for Save & print.
  */
 import type { OrderDetail, OrderTemplate } from '#shared/contracts/orders'
+import type { PriceItem } from '#shared/contracts/prices'
+import { priceLines } from '#shared/pricing'
 import { formatPhone } from '#shared/contracts/phone'
 import type { SlipShop } from '#shared/contracts/slip-design'
 import { checkFill } from '#shared/slip/values'
 import type { SlipFill } from '#shared/slip/values'
 import { emptyFill, fillData, useSlipText } from '~/features/slip-fill'
 import { useShopSettings } from '~/features/shop-settings'
+import { CustomerPicker } from '~/features/customers'
+import type { CustomerChoice } from '~/features/customers'
 import { useOrderTemplates } from '../composables/useOrderTemplates'
 import { carryFill, serverProblems, shopToday, startingTemplate, toCreateRequest } from '../utils/order-form'
 import OrderForm from './OrderForm.vue'
@@ -55,6 +59,34 @@ const templateItems = computed(() => (templates.data.value ?? []).map(item => ({
 // --- What the owner fills ---
 
 const fill = ref<SlipFill>(emptyFill())
+// The promised pickup day (D39), optional; the shop's today at the earliest.
+const dueDate = ref('')
+const today = shopToday()
+
+// D39: a slip whose counts are linked to price keys is itemized: its amount is the price list's total.
+const itemized = computed(() => template.value?.design.elements.some(element => element.type === 'number' && Boolean(element.priceKey)) ?? false)
+const priceList = useApiQuery('orders:prices', () => (itemized.value ? apiFetch<PriceItem[]>('/shop/prices') : Promise.resolve([] as PriceItem[])), { watch: [itemized] })
+const prices = computed(() => new Map((priceList.data.value ?? []).filter(item => item.active).map(item => [item.key, item])))
+const quote = computed(() => {
+  const design = template.value?.design
+  if (!design || !itemized.value) return undefined
+  const values = design.elements.flatMap(element => (element.type === 'number' && element.priceKey && typeof fill.value.values[element.id] === 'number' ? [{ fieldId: element.id, key: element.priceKey, value: fill.value.values[element.id] as number }] : []))
+  return priceLines(values, prices.value)
+})
+const hasAmountField = computed(() => template.value?.design.elements.some(element => element.type === 'amount') ?? false)
+// The amount follows the total, so the slip draws it and the server checks it is the same.
+watch(() => quote.value?.total, (total) => {
+  if (total !== undefined && hasAmountField.value && fill.value.amount !== total) fill.value = { ...fill.value, amount: total }
+})
+/** The server's total differed from the one shown: a price changed. */
+const quoteChanged = ref(false)
+
+// The order's customer (D39), optional. Picking one fills the slip's phone box when it is empty.
+const customer = ref<CustomerChoice | null>(null)
+watch(customer, (picked) => {
+  const hasPhone = template.value?.design.elements.some(element => element.type === 'phone')
+  if (picked?.phone && hasPhone && !fill.value.phone.trim()) fill.value = { ...fill.value, phone: formatPhone(picked.phone) }
+})
 const showProblems = ref(false)
 const serverErrors = ref<Record<string, string>>({})
 const problems = computed(() => (template.value && showProblems.value ? checkFill(template.value.design, fill.value) : {}))
@@ -84,6 +116,7 @@ watch([() => templates.data.value, () => copySource?.data.value], async ([list, 
   const design = template.value?.design
   if (!design) return
   fill.value = carryFill({ values: source.values, phone: source.phone ? formatPhone(source.phone) : '', amount: source.amount, paid: source.paid }, design)
+  if (source.customerId && source.customerName) customer.value = { id: source.customerId, name: source.customerName, phone: source.phone }
   copiedFrom.value = source.number
 }, { immediate: true })
 
@@ -92,6 +125,14 @@ const shop = computed<SlipShop | undefined>(() => {
   return value && { name: value.name, phone: value.phone, address: value.address, logoImageId: null, currency: value.currency }
 })
 const draft = computed(() => shop.value && fillData(fill.value, { shop: shop.value, date: shopToday() }))
+// D39: an HTML slip's preview is drawn by the server from what the save would send.
+const previewBody = computed(() => {
+  const current = template.value
+  if (!current || current.design.html === undefined) return undefined
+  const body = toCreateRequest(fill.value, current, { customerId: customer.value?.id ?? null, dueDate: dueDate.value || null })
+  // A half-typed amount (-1) draws as none.
+  return { ...body, amount: body.amount !== null && body.amount < 0 ? null : body.amount }
+})
 const imageHref = (imageId: string) => `/api/shop/templates/${selectedId.value}/images/${imageId}`
 
 // --- Steps ---
@@ -105,6 +146,7 @@ onMounted(() => {
 const form = useTemplateRef('form')
 async function preview() {
   showProblems.value = true
+  quoteChanged.value = false
   if (Object.keys(problems.value).length || Object.keys(serverErrors.value).length) {
     await nextTick()
     form.value?.focusFirstProblem()
@@ -131,19 +173,19 @@ const save = useMutation((body: ReturnType<typeof toCreateRequest>) => apiFetch<
   headers: { 'Idempotency-Key': submissionKey },
 }), { inline: true, invalidate: ['orders'] })
 
-const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid))
+const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid || customer.value !== null))
 useUnsavedChanges(() => dirty.value)
 
 const failure = computed(() => {
   const error = save.error.value
-  if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID') return undefined
+  if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID' || error.code === 'QUOTE_CHANGED') return undefined
   return errorText(error, t, te)
 })
 
 async function submit(print: boolean) {
   const current = template.value
   if (!current || save.pending.value) return
-  const result = await save.execute(toCreateRequest(fill.value, current))
+  const result = await save.execute(toCreateRequest(fill.value, current, { customerId: customer.value?.id ?? null, dueDate: dueDate.value || null }))
   if (result.ok) {
     saved.value = true
     await router.replace({ path: `/orders/${result.data.id}`, query: print ? { saved: '1', print: '1' } : { saved: '1' } })
@@ -153,6 +195,11 @@ async function submit(print: boolean) {
     // Reload the slip; the watch above keeps what still fits. Back to the form to check it.
     await templates.refresh()
     slipUpdated.value = true
+    edit()
+  }
+  else if (result.error.code === 'QUOTE_CHANGED') {
+    await priceList.refresh()
+    quoteChanged.value = true
     edit()
   }
   else if (result.error.code === 'SLIP_VALUES_INVALID') {
@@ -257,6 +304,15 @@ function retryLoad() {
               data-testid="copied-from"
             />
             <UAlert
+              v-if="quoteChanged"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-refresh-cw"
+              :title="t('orders.new.quoteChanged')"
+              role="alert"
+              data-testid="quote-changed"
+            />
+            <UAlert
               v-if="slipUpdated"
               color="warning"
               variant="subtle"
@@ -264,6 +320,14 @@ function retryLoad() {
               :title="t('orders.new.slipUpdated')"
               role="alert"
             />
+
+            <UFormField
+              v-if="can('customer:read')"
+              :label="t('customers.pick.label')"
+              :ui="{ label: 'text-base' }"
+            >
+              <CustomerPicker v-model="customer" />
+            </UFormField>
 
             <OrderForm
               v-if="template && shop"
@@ -273,7 +337,24 @@ function retryLoad() {
               :currency="shop.currency"
               :problems="problems"
               :server-errors="serverErrors"
+              :prices="itemized ? prices : undefined"
+              :total="itemized && hasAmountField ? (quote?.total ?? 0) : undefined"
             />
+
+            <UFormField
+              :label="t('orders.new.dueDate')"
+              :hint="t('common.optional')"
+              :ui="{ label: 'text-base' }"
+            >
+              <UInput
+                v-model="dueDate"
+                type="date"
+                :min="today"
+                size="xl"
+                class="w-full"
+                data-testid="due-date"
+              />
+            </UFormField>
           </div>
 
           <template v-if="step === 'preview' && template && draft && slipText.text.value">
@@ -295,6 +376,7 @@ function retryLoad() {
               :data="draft"
               :text="slipText.text.value"
               :image-href="imageHref"
+              :server="{ path: '/shop/orders/preview', body: previewBody }"
             />
           </template>
         </template>

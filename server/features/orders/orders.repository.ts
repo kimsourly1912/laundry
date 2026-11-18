@@ -1,10 +1,12 @@
 import { and, count, desc, eq, ne, sql } from 'drizzle-orm'
-import type { OrderListQuery, OrderStatus } from '#shared/contracts/orders'
+import type { OrderListQuery, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 import type { Db, Statement } from '#server/utils/batch'
-import { updateAtVersion } from '#server/utils/batch'
+import { insertAll, updateAtVersion } from '#server/utils/batch'
 import { firstRow } from '#server/utils/query'
-import { orderCounters, orders } from './orders.schema'
+import { newId } from '#server/utils/ids'
+import type { OrderLine } from './orders.rules'
+import { orderCounters, orderItems, orders } from './orders.schema'
 import type { OrderShopCopy } from './orders.schema'
 
 /**
@@ -21,11 +23,16 @@ const orderColumns = {
   templateVersionId: orders.templateVersionId,
   values: orders.values,
   shop: orders.shop,
+  customerId: orders.customerId,
+  customerName: orders.customerName,
+  dueDate: orders.dueDate,
   phone: orders.phone,
   amount: orders.amount,
   paid: orders.paid,
   status: orders.status,
+  stage: orders.stage,
   paidAt: orders.paidAt,
+  readyAt: orders.readyAt,
   pickedUpAt: orders.pickedUpAt,
   cancelledAt: orders.cancelledAt,
   version: orders.version,
@@ -39,11 +46,16 @@ export interface OrderRow {
   templateVersionId: string
   values: SlipValues
   shop: OrderShopCopy
+  customerId: string | null
+  customerName: string | null
+  dueDate: string | null
   phone: string | null
   amount: number | null
   paid: boolean
   status: OrderStatus
+  stage: OrderStage
   paidAt: Date | null
+  readyAt: Date | null
   pickedUpAt: Date | null
   cancelledAt: Date | null
   version: number
@@ -60,24 +72,39 @@ export interface OrderFilter {
   /** Exact E.164 (`orders_shop_phone_idx`): one phone may have several orders. */
   phone?: string
   status?: OrderStatus
+  stage?: OrderStage
   paid?: boolean
+  customerId?: string
 }
 
 /** The shop's orders, newest first (`orders_shop_created_idx`), filtered, a page at a time, with how many match. */
 export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pick<OrderListQuery, 'page' | 'pageSize'>): Promise<{ rows: OrderRow[], total: number }> {
-  const { page, pageSize, number, phone, status, paid } = query
+  const { page, pageSize, number, phone, status, stage, paid, customerId } = query
   const where = and(
     eq(orders.shopId, shopId),
     number === undefined ? undefined : eq(orders.number, number),
     phone === undefined ? undefined : eq(orders.phone, phone),
     status === undefined ? undefined : eq(orders.status, status),
+    stage === undefined ? undefined : eq(orders.stage, stage),
     paid === undefined ? undefined : eq(orders.paid, paid),
+    customerId === undefined ? undefined : eq(orders.customerId, customerId),
   )
   const [rows, [counted]] = await db.batch([
     db.select(orderColumns).from(orders).where(where).orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ total: count() }).from(orders).where(where),
   ])
   return { rows, total: counted?.total ?? 0 }
+}
+
+/** Overview's counts in one pass over the shop's orders. */
+export async function overviewCounts(db: Db, shopId: string, today: string) {
+  const [row] = await db.select({
+    receivedToday: sql<number>`coalesce(sum(case when ${orders.date} = ${today} then 1 else 0 end), 0)`,
+    inProgress: sql<number>`coalesce(sum(case when ${orders.status} = 'open' and ${orders.stage} = 'in_progress' then 1 else 0 end), 0)`,
+    ready: sql<number>`coalesce(sum(case when ${orders.status} = 'open' and ${orders.stage} = 'ready' then 1 else 0 end), 0)`,
+    unpaid: sql<number>`coalesce(sum(case when ${orders.paid} = 0 and ${orders.status} <> 'cancelled' then 1 else 0 end), 0)`,
+  }).from(orders).where(eq(orders.shopId, shopId))
+  return { receivedToday: Number(row?.receivedToday ?? 0), inProgress: Number(row?.inProgress ?? 0), ready: Number(row?.ready ?? 0), unpaid: Number(row?.unpaid ?? 0) }
 }
 
 // --- Write statements ---
@@ -95,6 +122,8 @@ interface NewOrder {
   templateVersionId: string
   values: SlipValues
   shop: OrderShopCopy
+  customer: { id: string, name: string } | null
+  dueDate: string | null
   phone: string | null
   amount: number | null
   paid: boolean
@@ -107,7 +136,7 @@ interface NewOrder {
  * in the same batch: two orders at once never share a number (architecture → Atomic writes).
  */
 export function insertOrderStatement(db: Db, order: NewOrder): Statement {
-  const { id, shopId, date, templateVersionId, values, shop, phone, amount, paid, userId, now } = order
+  const { id, shopId, date, templateVersionId, values, shop, customer, dueDate, phone, amount, paid, userId, now } = order
   return db.insert(orders).values({
     id,
     shopId,
@@ -116,6 +145,9 @@ export function insertOrderStatement(db: Db, order: NewOrder): Statement {
     templateVersionId,
     values,
     shop,
+    customerId: customer?.id ?? null,
+    customerName: customer?.name ?? null,
+    dueDate,
     phone,
     amount,
     paid,
@@ -146,10 +178,37 @@ export function payStatement(db: Db, change: OrderChange): Statement {
 
 export function pickUpStatement(db: Db, change: OrderChange): Statement {
   const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { status: 'picked_up', pickedUpAt: now, updatedAt: now }, eq(orders.status, 'open'))
+  return updateAtVersion(db, orders, key, { status: 'picked_up', pickedUpAt: now, updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'ready')))
 }
 
 export function cancelStatement(db: Db, change: OrderChange): Statement {
   const { now, ...key } = change
   return updateAtVersion(db, orders, key, { status: 'cancelled', cancelledAt: now, updatedAt: now }, eq(orders.status, 'open'))
+}
+
+export function startStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { stage: 'in_progress', updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'received')))
+}
+
+export function readyStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { stage: 'ready', readyAt: now, updatedAt: now }, and(eq(orders.status, 'open'), ne(orders.stage, 'ready')))
+}
+
+export function reworkStatement(db: Db, change: OrderChange): Statement {
+  const { now, ...key } = change
+  return updateAtVersion(db, orders, key, { stage: 'in_progress', updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'ready')))
+}
+
+/** An order's priced lines, in their order (D39). */
+export function orderLines(db: Db, shopId: string, orderId: string) {
+  return db.select({ fieldId: orderItems.fieldId, key: orderItems.key, label: orderItems.label, unit: orderItems.unit, quantity: orderItems.quantity, unitPrice: orderItems.unitPrice, lineTotal: orderItems.lineTotal })
+    .from(orderItems).where(and(eq(orderItems.shopId, shopId), eq(orderItems.orderId, orderId))).orderBy(orderItems.position)
+}
+
+/** The order's priced lines, written with the order (D39). */
+export function insertLinesStatements(db: Db, order: { shopId: string, orderId: string, lines: readonly OrderLine[] }): Statement[] {
+  const { shopId, orderId, lines } = order
+  return insertAll(db, orderItems, lines.map((line, position) => ({ id: newId(), shopId, orderId, position, ...line })))
 }

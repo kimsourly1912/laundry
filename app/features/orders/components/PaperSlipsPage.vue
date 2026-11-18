@@ -9,7 +9,9 @@ import { sampleData } from '#shared/slip/fields'
 import { SlipSvg, useSlipText } from '~/features/slip-fill'
 import { useShopSettings } from '~/features/shop-settings'
 import { useOrderTemplates } from '../composables/useOrderTemplates'
+import type { TemplateRequest } from '#shared/contracts/template-requests'
 import { shopToday } from '../utils/order-form'
+import RequestModal from './RequestModal.vue'
 
 const { t } = useI18n()
 const { can } = useSession()
@@ -28,6 +30,11 @@ const makeDefault = useMutation((templateId: string) => apiFetch<OrderTemplate[]
   invalidate: ['orders'],
   success: () => t('orders.slips.defaultSaved'),
 })
+// D39: the owner asks the platform for a new design or a change.
+const requests = useApiQuery('orders:requests', () => (can('template:request') ? apiFetch<TemplateRequest[]>('/shop/template-requests') : Promise.resolve([] as TemplateRequest[])))
+const asking = ref(false)
+const REQUEST_COLORS = { new: 'info', in_progress: 'warning', done: 'success', declined: 'neutral' } as const
+
 async function choose(templateId: string) {
   const result = await makeDefault.execute(templateId)
   if (result.ok) templates.data.value = result.data
@@ -55,6 +62,57 @@ async function choose(templateId: string) {
         <p class="text-sm text-muted">
           {{ t('orders.slips.intro') }}
         </p>
+        <UButton
+          v-if="can('template:request')"
+          :label="t('orders.requests.ask')"
+          icon="i-lucide-message-square-plus"
+          color="neutral"
+          variant="outline"
+          data-testid="ask-design"
+          @click="asking = true"
+        />
+        <section
+          v-if="requests.data.value?.length"
+          class="space-y-2"
+          aria-labelledby="my-requests"
+        >
+          <h2
+            id="my-requests"
+            class="font-semibold text-highlighted"
+          >
+            {{ t('orders.requests.mine') }}
+          </h2>
+          <ul
+            class="divide-y divide-default rounded-md border border-default"
+            data-testid="my-requests"
+          >
+            <li
+              v-for="request in requests.data.value"
+              :key="request.id"
+              class="flex items-center justify-between gap-3 px-4 py-3"
+            >
+              <div class="min-w-0">
+                <p class="font-medium">
+                  {{ t(`orders.requests.${request.kind}`) }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ formatDate(request.createdAt) }}<template v-if="request.notes">
+                    · <span class="break-words">{{ request.notes }}</span>
+                  </template>
+                </p>
+              </div>
+              <UBadge
+                :label="t(`orders.requests.status.${request.status}`)"
+                :color="REQUEST_COLORS[request.status]"
+                variant="subtle"
+              />
+            </li>
+          </ul>
+        </section>
+        <RequestModal
+          v-model:open="asking"
+          @sent="() => requests.refresh()"
+        />
         <PageLoadError
           v-if="(templates.error.value && !templates.data.value) || (settings.error.value && !settings.data.value)"
           :error="templates.error.value ?? settings.error.value"

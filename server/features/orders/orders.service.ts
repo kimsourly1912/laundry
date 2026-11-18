@@ -1,8 +1,9 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery } from '#shared/contracts/orders'
+import type { CreateOrderInput, OrderPreviewInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
+import { fillOrderOf } from '#shared/slip/fields'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireOneChange, runBatch } from '#server/utils/batch'
 import { newId } from '#server/utils/ids'
@@ -10,11 +11,15 @@ import { shopDate } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
-import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
-import { orderChanged, orderNotAllowed, orderNotFound, slipValuesInvalid } from './orders.errors'
+import { orderCustomer } from '#server/features/customers'
+import { activePrices } from '#server/features/prices'
+import type { SlipData, SlipDesign, SlipValues } from '#shared/contracts/slip-design'
+import { readyMessagesStatement, withdrawReadyMessagesStatement } from '#server/features/notifications'
+import { orderableVersion, orderableVersionGuards, renderFilledSlipSvg, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
+import { dueDateInPast, linesInvalid, orderChanged, orderNotAllowed, orderNotFound, quoteChanged, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
-import { canDo, parseOrderSearch } from './orders.rules'
-import type { OrderAction } from './orders.rules'
+import { canDo, parseOrderSearch, priceLines } from './orders.rules'
+import type { OrderLine, OrderAction } from './orders.rules'
 import type { OrderRow } from './orders.repository'
 
 /**
@@ -24,8 +29,8 @@ import type { OrderRow } from './orders.repository'
  */
 
 function toListItem(row: OrderRow): OrderListItem {
-  const { id, number, date, phone, amount, paid, status, createdAt } = row
-  return { id, number, date, phone, amount, currency: row.shop.currency, paid, status, createdAt: createdAt.toISOString() }
+  const { id, number, date, customerName, dueDate, phone, amount, paid, status, stage, createdAt } = row
+  return { id, number, date, customerName, dueDate, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
 }
 
 const iso = (date: Date | null) => date?.toISOString() ?? null
@@ -33,11 +38,14 @@ const iso = (date: Date | null) => date?.toISOString() ?? null
 export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promise<OrderDetail> {
   const row = await repo.findOrder(db, actor.shopId, orderId)
   if (!row) throw orderNotFound()
-  const version = (await versionsById(db, [row.templateVersionId])).get(row.templateVersionId)
+  const [versions, items] = await Promise.all([versionsById(db, [row.templateVersionId]), repo.orderLines(db, actor.shopId, orderId)])
+  const version = versions.get(row.templateVersionId)
   // The version is restricted from deletion while an order uses it (data-model → template_versions).
   if (!version) throw orderNotFound()
   return {
     ...toListItem(row),
+    customerId: row.customerId,
+    items,
     templateId: version.templateId,
     templateVersionId: row.templateVersionId,
     templateVersionNumber: version.number,
@@ -47,6 +55,7 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
     shop: row.shop,
     version: row.version,
     paidAt: iso(row.paidAt),
+    readyAt: iso(row.readyAt),
     pickedUpAt: iso(row.pickedUpAt),
     cancelledAt: iso(row.cancelledAt),
   }
@@ -57,15 +66,38 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
  * text that is neither matches nothing.
  */
 export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery): Promise<Page<OrderListItem>> {
-  const { search, status, paid, page, pageSize } = query
+  const { search, status, paid, customerId, page, pageSize } = query
   const wanted = search ? parseOrderSearch(search) : undefined
   if (wanted && 'none' in wanted) return toPage([], query, 0)
-  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, status, paid, page, pageSize })
+  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, customerId, page, pageSize })
   return toPage(rows.map(toListItem), query, total)
 }
 
+/**
+ * The lines and amount of an order (D39). A slip with count fields linked to a price key is
+ * itemized: each count with a value is priced from the shop's active list, and the amount is the
+ * total; the owner's amount must equal it (409 `QUOTE_CHANGED` when a price changed since the form
+ * loaded). A slip without links keeps the amount as typed (a free-entry slip, D37).
+ */
+async function pricedOrder(db: Db, order: { shopId: string, design: SlipDesign, values: SlipValues, amount: number | null }): Promise<{ lines: OrderLine[], amount: number | null }> {
+  const { shopId, design, values, amount } = order
+  const linked = design.elements.flatMap(element => (element.type === 'number' && element.priceKey ? [{ fieldId: element.id, key: element.priceKey }] : []))
+  if (!linked.length) return { lines: [], amount }
+  const prices = await activePrices(db, shopId, [...new Set(linked.map(field => field.key))])
+  const fillOrder = fillOrderOf(design)
+  const wanted = linked
+    .flatMap(field => (typeof values[field.fieldId] === 'number' ? [{ ...field, value: values[field.fieldId] as number }] : []))
+    .sort((one, two) => fillOrder.indexOf(one.fieldId) - fillOrder.indexOf(two.fieldId))
+  const { lines, total, problems } = priceLines(wanted, prices)
+  if (Object.keys(problems).length) throw linesInvalid(problems)
+  const hasAmount = design.elements.some(element => element.type === 'amount')
+  if (hasAmount && amount !== total) throw quoteChanged(total)
+  return { lines, amount: hasAmount ? total : null }
+}
+
 interface CreateOrderOptions {
-  input: CreateOrderInput
+  /** The validated request; `customerId` and `dueDate` may be left out (a walk-in, no promised day). */
+  input: Omit<CreateOrderInput, 'customerId' | 'dueDate'> & { customerId?: string | null, dueDate?: string | null }
   /** The `Idempotency-Key` header. */
   key: string
   now?: Date
@@ -81,7 +113,8 @@ interface CreateOrderOptions {
  *   counter, the order (numbered from the counter), the audit row and the idempotency key.
  */
 export async function createOrder(db: Db, actor: ShopActor, options: CreateOrderOptions): Promise<{ order: OrderDetail, replayed: boolean }> {
-  const { input, key, now = new Date() } = options
+  const { key, now = new Date() } = options
+  const input = { ...options.input, customerId: options.input.customerId ?? null, dueDate: options.input.dueDate ?? null }
   const { shopId, userId } = actor
   const { id, replayed } = await runIdempotent(db, {
     scope: { shopId, actorUserId: userId, action: 'order.create', key },
@@ -92,8 +125,13 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
       const { values, phone, amount, paid } = input
       const problems = checkFill(version.design, { values, phone, amount, paid })
       if (Object.keys(problems).length) throw slipValuesInvalid(problems)
+      if (input.dueDate && input.dueDate < shopDate(now)) throw dueDateInPast()
+      // D39: counts linked to a price key are priced by the shop's list; the amount is then the server's total.
+      const priced = await pricedOrder(db, { shopId, design: version.design, values, amount })
       const shop = await shopCopy(db, shopId)
       if (!shop) throw orderNotFound()
+      // The shop's own customer only (404 otherwise); customers are never deleted, so no guard is needed in the batch.
+      const customer = input.customerId ? await orderCustomer(db, shopId, input.customerId) : null
       const orderId = newId()
       await runBatch(db, [
         ...orderableVersionGuards(db, shopId, version),
@@ -105,12 +143,15 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
           templateVersionId: version.versionId,
           values: cleanValues(version.design, values),
           shop,
+          customer,
+          dueDate: input.dueDate,
           phone: phone ? toE164(phone) : null,
-          amount,
+          amount: priced.amount,
           paid,
           userId,
           now,
         }),
+        ...repo.insertLinesStatements(db, { shopId, orderId, lines: priced.lines }),
         auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: 'order.create', targetType: 'order', targetId: orderId, data: { templateVersionId: version.versionId, paid } }, now),
         keyStatement(orderId),
       ], templateChangedForOrder)
@@ -136,7 +177,21 @@ interface ActionOptions {
   now?: Date
 }
 
-const STATEMENTS = { 'pay': repo.payStatement, 'pick-up': repo.pickUpStatement, 'cancel': repo.cancelStatement } as const
+const STATEMENTS = {
+  'start': repo.startStatement,
+  'ready': repo.readyStatement,
+  'rework': repo.reworkStatement,
+  'pay': repo.payStatement,
+  'pick-up': repo.pickUpStatement,
+  'cancel': repo.cancelStatement,
+} as const
+
+/** A list filter (`received`, `ready`, …, or `open` for every open order) as the stored status and stage. */
+function stateFilter(state: OrderListQuery['status']): { status?: OrderStatus, stage?: OrderStage } {
+  if (!state) return {}
+  if (state === 'open' || state === 'picked_up' || state === 'cancelled') return { status: state }
+  return { status: 'open', stage: state }
+}
 
 /**
  * One action at the version read: 404 for no such order (or another shop's), 409 `INVALID_STATE`
@@ -152,7 +207,7 @@ async function act(db: Db, actor: ShopActor, action: OrderAction, options: Actio
   await runBatch(db, [
     STATEMENTS[action](db, { shopId, id: orderId, version: input.version, now }),
     requireOneChange(db),
-    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: `order.${action}`, targetType: 'order', targetId: orderId, data: { paid: order.paid, status: order.status } }, now),
+    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: `order.${action}`, targetType: 'order', targetId: orderId, data: { paid: order.paid, status: order.status, stage: order.stage } }, now),
     ...extra,
   ], orderChanged)
   return orderId
@@ -173,9 +228,30 @@ export async function markPaid(db: Db, actor: ShopActor, options: ActionOptions 
   return { order: await getOrder(db, actor, id), replayed }
 }
 
-/** The customer took the bag. Allowed unpaid (the app asks first); the audit row records it. */
+/** The customer took the bag: only a Ready order. Allowed unpaid (the app asks first); the audit row records it. */
 export async function pickUpOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
   return getOrder(db, actor, await act(db, actor, 'pick-up', options))
+}
+
+/** Received → In progress. */
+export async function startOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  return getOrder(db, actor, await act(db, actor, 'start', options))
+}
+
+/**
+ * Received or In progress → Ready. In the same batch, "ready for pickup" is queued for every chat
+ * linked to the order (D39); it goes after the commit.
+ */
+export async function markReady(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  const { orderId, now = new Date() } = options
+  const extra = [readyMessagesStatement(db, { shopId: actor.shopId, orderId, readyAt: now })]
+  return getOrder(db, actor, await act(db, actor, 'ready', { ...options, now, extra }))
+}
+
+/** Ready → In progress again (rework). A "ready" message not sent yet is taken back; a later Ready sends anew. */
+export async function reworkOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  const extra = [withdrawReadyMessagesStatement(db, { shopId: actor.shopId, orderId: options.orderId })]
+  return getOrder(db, actor, await act(db, actor, 'rework', { ...options, extra }))
 }
 
 /** Cancels an open order (never deleted, plan §4). A paid order stays paid: its record is kept. */
@@ -190,15 +266,74 @@ export async function cancelOrder(db: Db, actor: ShopActor, options: ActionOptio
  * values and its shop copy. No actor: the caller holds the order from the outbox, which names its
  * shop. `undefined` when there's no such order of that shop.
  */
-export async function orderSlip(db: Db, order: { shopId: string, orderId: string }) {
+export async function orderSlip(db: Db, order: { shopId: string, orderId: string, qrUrl?: string | null }) {
   const row = await repo.findOrder(db, order.shopId, order.orderId)
   if (!row) return undefined
-  const version = (await versionsById(db, [row.templateVersionId])).get(row.templateVersionId)
+  const [versions, lines] = await Promise.all([versionsById(db, [row.templateVersionId]), repo.orderLines(db, order.shopId, order.orderId)])
+  const version = versions.get(row.templateVersionId)
   if (!version) return undefined
   return {
     number: row.number,
     status: row.status,
+    stage: row.stage,
     design: version.design,
-    data: { values: row.values, order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid }, shop: row.shop },
+    data: {
+      values: row.values,
+      order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid, customerName: row.customerName, dueDate: row.dueDate, lines, qrUrl: order.qrUrl ?? null },
+      shop: row.shop,
+    } satisfies SlipData,
   }
+}
+
+/**
+ * Overview's counts (product notes → Overview; implementation guide: explicit windows): orders
+ * received today (the shop's day, any state), open orders in progress and ready, and unpaid ones
+ * that aren't cancelled. They may overlap: an order can be ready and unpaid.
+ */
+export async function orderOverview(db: Db, actor: ShopActor, now = new Date()): Promise<OrderOverview> {
+  const today = shopDate(now)
+  return { today, ...await repo.overviewCounts(db, actor.shopId, today) }
+}
+
+/**
+ * The saved order's slip as SVG (D39): an HTML slip is drawn by the server (Satori), so the order
+ * page and its print show the server's drawing. `qrUrl` is the order's Telegram link the page has
+ * just made (`POST …/telegram`); without it the QR is a sample.
+ */
+export async function orderSlipSvg(db: Db, actor: ShopActor, options: { orderId: string, qrUrl?: string | null }): Promise<string> {
+  const slip = await orderSlip(db, { shopId: actor.shopId, orderId: options.orderId, qrUrl: options.qrUrl })
+  if (!slip) throw orderNotFound()
+  return renderFilledSlipSvg(db, slip)
+}
+
+/**
+ * New order's preview of an HTML slip (D39): the draft drawn by the server as it will be saved,
+ * priced lines included, with no number yet. Nothing is stored. Values that don't fit are drawn as
+ * they are; saving checks them.
+ */
+export async function previewOrderSvg(db: Db, actor: ShopActor, input: OrderPreviewInput, now = new Date()): Promise<string> {
+  const { shopId } = actor
+  const version = await orderableVersion(db, shopId, input.templateVersionId)
+  const shop = await shopCopy(db, shopId)
+  if (!shop) throw orderNotFound()
+  const values = cleanValues(version.design, input.values)
+  const lines = await previewLines(db, { shopId, design: version.design, values })
+  const customer = input.customerId ? await orderCustomer(db, shopId, input.customerId) : null
+  return renderFilledSlipSvg(db, {
+    design: version.design,
+    data: {
+      values,
+      order: { number: null, date: shopDate(now), phone: input.phone ? toE164(input.phone) : null, amount: lines ? lines.total : input.amount, paid: input.paid, customerName: customer?.name ?? null, dueDate: input.dueDate, lines: lines?.lines ?? [], qrUrl: null },
+      shop,
+    },
+  })
+}
+
+/** The lines a draft would be priced at, or `undefined` for a free-entry slip; unpriceable counts are left out. */
+async function previewLines(db: Db, order: { shopId: string, design: SlipDesign, values: SlipValues }) {
+  const { shopId, design, values } = order
+  const linked = design.elements.flatMap(element => (element.type === 'number' && element.priceKey ? [{ fieldId: element.id, key: element.priceKey }] : []))
+  if (!linked.length) return undefined
+  const prices = await activePrices(db, shopId, [...new Set(linked.map(field => field.key))])
+  return priceLines(linked.flatMap(field => (typeof values[field.fieldId] === 'number' ? [{ ...field, value: values[field.fieldId] as number }] : [])), prices)
 }

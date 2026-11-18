@@ -8,19 +8,23 @@
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import type { SlipText } from '#shared/slip/text'
 import { SlipSvg } from '~/features/slip-fill'
+import ServerSlip from './ServerSlip.vue'
 
 const props = defineProps<{
   design: SlipDesign
   data: SlipData
   text: SlipText
   imageHref: (imageId: string) => string
+  /** D39: where the server draws an HTML slip (`design.html`): its path, and a body for a draft. */
+  server?: { path: string, body?: unknown }
 }>()
 
 const { t } = useI18n()
 const zoomed = ref(false)
 
 /** The Order No. box, while the order has no number yet. */
-const numberBox = computed(() => (props.data.order.number === null ? props.design.elements.find(element => element.type === 'orderNo') : undefined))
+// An HTML slip leaves the number empty itself; only an artwork slip has a box to mark.
+const numberBox = computed(() => (props.data.order.number === null && props.design.html === undefined ? props.design.elements.find(element => element.type === 'orderNo') : undefined))
 const percent = (value: number, of: number) => `${value / of * 100}%`
 </script>
 
@@ -37,7 +41,15 @@ const percent = (value: number, of: number) => `${value / of * 100}%`
         :aria-label="t('orders.slip.label')"
         data-testid="order-slip"
       >
+        <ServerSlip
+          v-if="design.html !== undefined && server"
+          :path="server.path"
+          :body="server.body"
+          :width="design.width"
+          :height="design.height"
+        />
         <SlipSvg
+          v-else
           :design="design"
           :data="data"
           :text="text"

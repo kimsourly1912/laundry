@@ -22,6 +22,34 @@
       "when": 1794977127825,
       "tag": "0002_orders_phone_index",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1794982008734,
+      "tag": "0003_order_stages",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794982728561,
+      "tag": "0004_customers",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794983188506,
+      "tag": "0005_prices_order_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794984010495,
+      "tag": "0006_template_requests",
+      "breakpoints": true
     }
   ]
 }

@@ -42,6 +42,13 @@ function setGroupLabel(value: string) {
 }
 
 const textValue = (event: Event) => (event.target as HTMLInputElement).value
+/** D39: a number field linked to a price key is priced by each shop's list; empty unlinks it. */
+function setPriceKey(text: string) {
+  const key = text.trim().toLowerCase()
+  if (key && !/^[a-z\d][a-z\d._-]{0,39}$/.test(key)) return
+  set({ priceKey: key || undefined })
+}
+
 function numberValue(value: number | null | undefined, fallback: number) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
@@ -159,6 +166,19 @@ const decimalItems = computed(() => [0, 1, 2].map(value => ({ value, label: t(`s
                 />
               </UFormField>
             </div>
+            <UFormField
+              :label="t('studio.field.priceKey')"
+              :help="t('studio.field.priceKeyHelp')"
+            >
+              <UInput
+                :model-value="element.priceKey ?? ''"
+                :maxlength="40"
+                placeholder="shirt"
+                autocapitalize="off"
+                data-testid="price-key"
+                @change="setPriceKey(textValue($event))"
+              />
+            </UFormField>
             <UFormField :label="t('studio.field.unit')">
               <UInput
                 :model-value="element.unit"

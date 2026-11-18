@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { IMAGE_MAX_BYTES, IMAGE_MAX_SIDE, IMAGE_MIN_SIDE, IMAGE_TYPES, TEMPLATE_STATUSES } from '#shared/contracts/templates'
+import { REQUEST_KINDS, REQUEST_STATUSES } from '#shared/contracts/template-requests'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 
@@ -90,4 +91,35 @@ export const images = sqliteTable('images', {
   check('images_type_check', sql`${table.type} in (${inList(IMAGE_TYPES)})`),
   check('images_size_check', sql`${table.size} between 1 and ${sql.raw(String(IMAGE_MAX_BYTES))}`),
   check('images_sides_check', sql`${table.width} between ${sql.raw(String(IMAGE_MIN_SIDE))} and ${sql.raw(String(IMAGE_MAX_SIDE))} and ${table.height} between ${sql.raw(String(IMAGE_MIN_SIDE))} and ${sql.raw(String(IMAGE_MAX_SIDE))}`),
+])
+
+/**
+ * Redesign requests (D39; docs/server/data-model.md → template_requests): an owner's photo of their
+ * paper slip and what they want; the platform's queue. Shop-owned; the photo (base64, as `images`)
+ * is private to its shop and the platform. Kept, never deleted.
+ */
+export const templateRequests = sqliteTable('template_requests', {
+  id: text().primaryKey(),
+  shopId: shopId(),
+  requestedBy: createdBy(),
+  kind: text({ enum: REQUEST_KINDS }).notNull(),
+  notes: text().notNull().default(''),
+  status: text({ enum: REQUEST_STATUSES }).notNull().default('new'),
+  templateId: text().references(() => templates.id, { onDelete: 'restrict' }),
+  photoType: text({ enum: IMAGE_TYPES }).notNull(),
+  photoWidth: integer().notNull(),
+  photoHeight: integer().notNull(),
+  photoSize: integer().notNull(),
+  photoData: text().notNull(),
+  version: integer().notNull().default(1),
+  createdAt: timestamp().notNull().default(nowMs),
+  updatedAt: timestamp().notNull().default(nowMs),
+}, table => [
+  // The platform's queue by status, oldest first; a shop's own, newest first.
+  index('template_requests_status_created_idx').on(table.status, table.createdAt),
+  index('template_requests_shop_created_idx').on(table.shopId, table.createdAt),
+  check('template_requests_kind_check', sql`${table.kind} in (${inList(REQUEST_KINDS)})`),
+  check('template_requests_status_check', sql`${table.status} in (${inList(REQUEST_STATUSES)})`),
+  check('template_requests_photo_type_check', sql`${table.photoType} in (${inList(IMAGE_TYPES)})`),
+  check('template_requests_photo_size_check', sql`${table.photoSize} between 1 and ${sql.raw(String(IMAGE_MAX_BYTES))}`),
 ])

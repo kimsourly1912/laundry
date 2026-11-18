@@ -72,6 +72,16 @@ describe('studio form fields', () => {
     await expect.poll(() => page.getByText('The slip can be saved.').count()).toBe(1)
     await page.keyboard.press('Escape')
 
+    // The paper's size (D39), so the printed slip comes out right.
+    // The studio's own ⋯ (a selected field's toolbar has one too).
+    await page.keyboard.press('Escape')
+    await page.getByRole('button', { name: 'More' }).first().click()
+    await page.getByRole('menuitem', { name: 'Paper size' }).click()
+    await page.getByTestId('paper-width').fill('120')
+    await page.getByRole('button', { name: 'Height from the artwork' }).click()
+    await page.getByTestId('paper-apply').click()
+    await expect.poll(() => page.getByTestId('save-status').textContent()).toBe('Saved')
+
     // Every check passes: Publish goes straight ahead.
     await page.getByRole('button', { name: 'Publish', exact: true }).click()
     await expect.poll(() => page.getByText('Everything a slip needs is there.').count()).toBe(1)

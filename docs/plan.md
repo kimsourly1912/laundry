@@ -39,9 +39,9 @@ Small laundry shops already work from a paper slip. The app gives them **the sam
 - **Templates are attached to shops by the platform.** An owner sees only the templates attached to their shop. Usually that's one, made to match their paper slip, plus any new designs added for them later. One template may be attached to several shops; that's the platform's choice per template.
 - **Default template:** the owner chooses one. If none is set, **Create order** first asks the owner to choose, then remembers the choice. If the platform detaches or archives a shop's default, the owner chooses again; old orders are unaffected.
 - **Template versions:** each **Publish** makes a fixed version. New orders use the latest published version. **An order keeps the version it was made on forever**, so a customer's image never changes.
-- **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. There is no "ready" step.
+- **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. ~~There is no "ready" step.~~ **Replaced by [D39](decisions.md#d39-the-product-notes-larger-items-lifecycle-customers-prices-html-templates-requests-paper-size):** an open order is Received, In progress or Ready; only a Ready order is collected; Ready sends "ready for pickup" on Telegram.
 - **Mistakes:** no edit after save. **Cancel and copy** on the order page cancels the order and opens Create order filled with its values; the owner fixes and saves a new order (new number, new QR) ([D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes), Q7).
-- **Telegram sends only the slip image** in the first version: no "ready" or "collected" messages, and no reminders.
+- **Telegram sends the slip image**, and since D39 "ready for pickup"; no "collected" messages and no reminders.
 - **Never delete** orders (cancel instead), templates (archive instead) or shops (suspend instead).
 - **The platform never reads a shop's orders.** `/api/shop/**` still answers `403` to the super admin.
 

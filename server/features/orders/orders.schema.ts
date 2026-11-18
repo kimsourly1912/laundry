@@ -1,8 +1,11 @@
 import { sql } from 'drizzle-orm'
-import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 import { templateVersions } from '#server/features/templates/templates.schema'
-import { ORDER_STATUSES } from '#shared/contracts/orders'
+import { customers } from '#server/features/customers/customers.schema'
+import { priceItems } from '#server/features/prices/prices.schema'
+import { PRICE_UNITS } from '#shared/contracts/prices'
+import { ORDER_STAGES, ORDER_STATUSES } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 
 /**
@@ -38,13 +41,23 @@ export const orders = sqliteTable('orders', {
   /** The owner's values by element id, checked against the template version by the server. */
   values: text({ mode: 'json' }).$type<SlipValues>().notNull(),
   shop: text({ mode: 'json' }).$type<OrderShopCopy>().notNull(),
+  /** The shop's customer (D39), `null` for a walk-in; restrict: a customer with orders stays. */
+  customerId: text().references(() => customers.id, { onDelete: 'restrict' }),
+  /** The customer's name when the order was saved: the slip and the list keep it. */
+  customerName: text(),
+  /** The promised pickup day (`YYYY-MM-DD`, the shop's), set by the owner; `null` when not given. */
+  dueDate: text(),
   /** E.164, from the Phone field; `null` when the order has none. */
   phone: text(),
   /** Minor units of the shop copy's currency, as the owner typed it; `null` when the slip has no Amount. */
   amount: integer(),
   paid: integer({ mode: 'boolean' }).notNull().default(false),
   status: text({ enum: ORDER_STATUSES }).notNull().default('open'),
+  /** The work's stage while open (D39): received → in_progress → ready; rework goes back. */
+  stage: text({ enum: ORDER_STAGES }).notNull().default('received'),
   paidAt: timestamp(),
+  /** The last time it was marked ready; a rework keeps it until the next. */
+  readyAt: timestamp(),
   pickedUpAt: timestamp(),
   cancelledAt: timestamp(),
   version: integer().notNull().default(1),
@@ -60,9 +73,15 @@ export const orders = sqliteTable('orders', {
   index('orders_shop_created_idx').on(table.shopId, table.createdAt),
   // The Orders search by phone: a phone may match several orders (plan §3).
   index('orders_shop_phone_idx').on(table.shopId, table.phone),
+  // A customer's orders, newest first.
+  index('orders_shop_customer_idx').on(table.shopId, table.customerId, table.createdAt),
+  // Overview's counts and the Orders tabs: open orders by stage.
+  index('orders_shop_status_stage_idx').on(table.shopId, table.status, table.stage),
   check('orders_status_check', sql`${table.status} in (${inList(ORDER_STATUSES)})`),
+  check('orders_stage_check', sql`${table.stage} in (${inList(ORDER_STAGES)})`),
   check('orders_number_check', sql`${table.number} >= 1`),
   check('orders_date_check', sql`${table.date} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),
+  check('orders_due_date_check', sql`${table.dueDate} is null or ${table.dueDate} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),
   check('orders_amount_check', sql`${table.amount} is null or ${table.amount} >= 0`),
   check('orders_values_check', sql`json_valid(${table.values})`),
   check('orders_shop_check', sql`json_valid(${table.shop})`),
@@ -70,4 +89,33 @@ export const orders = sqliteTable('orders', {
   check('orders_paid_at_check', sql`${table.paid} = (${table.paidAt} is not null)`),
   check('orders_picked_up_at_check', sql`(${table.status} = 'picked_up') = (${table.pickedUpAt} is not null)`),
   check('orders_cancelled_at_check', sql`(${table.status} = 'cancelled') = (${table.cancelledAt} is not null)`),
+])
+
+/**
+ * The priced lines of an itemized order (D39; docs/server/data-model.md → order_items): one per
+ * count field linked to a price key that has a value. Each keeps what it was priced at, so a later
+ * price change never changes the order. Written with the order, never changed.
+ */
+export const orderItems = sqliteTable('order_items', {
+  id: text().primaryKey(),
+  shopId: shopId(),
+  orderId: text().notNull(),
+  /** The slip field it came from (element id), in the fill order. */
+  fieldId: text().notNull(),
+  position: integer().notNull(),
+  priceItemId: text().notNull().references(() => priceItems.id, { onDelete: 'restrict' }),
+  key: text().notNull(),
+  label: text().notNull(),
+  unit: text({ enum: PRICE_UNITS }).notNull(),
+  /** Pieces, or grams for `kg`. */
+  quantity: integer().notNull(),
+  /** Per piece or per kg, minor units, at saving. */
+  unitPrice: integer().notNull(),
+  lineTotal: integer().notNull(),
+}, table => [
+  foreignKey({ columns: [table.shopId, table.orderId], foreignColumns: [orders.shopId, orders.id], name: 'order_items_order_fk' }).onDelete('restrict'),
+  uniqueIndex('order_items_order_position_unique').on(table.orderId, table.position),
+  check('order_items_unit_check', sql`${table.unit} in (${inList(PRICE_UNITS)})`),
+  check('order_items_quantity_check', sql`${table.quantity} > 0`),
+  check('order_items_amounts_check', sql`${table.unitPrice} >= 0 and ${table.lineTotal} >= 0`),
 ])

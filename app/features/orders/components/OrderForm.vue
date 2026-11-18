@@ -18,6 +18,10 @@ const props = defineProps<{
   problems: FillProblems
   /** The server's own words for a field it refused, by the same keys. */
   serverErrors: Record<string, string>
+  /** D39: the shop's prices by key, for a slip whose counts are linked to them; the amount is then their total. */
+  prices?: ReadonlyMap<string, { label: string, unit: 'piece' | 'kg', price: number }>
+  /** The itemized total (minor units), shown in place of a typed amount. */
+  total?: number | null
 }>()
 const fill = defineModel<SlipFill>({ required: true })
 
@@ -89,6 +93,14 @@ function setAmount(text: string) {
   fill.value = { ...fill.value, amount: text.trim() ? parseMoney(text, props.currency) ?? -1 : null }
 }
 
+/** "2,000៛ each" or "3,000៛ per kg" under a count linked to a price (D39); a missing price says so. */
+function priceHint(step: FillStep): string | undefined {
+  if (step.kind !== 'number' || step.element.type !== 'number' || !step.element.priceKey || !props.prices) return undefined
+  const item = props.prices.get(step.element.priceKey)
+  if (!item) return t('orders.form.noPrice')
+  return t(item.unit === 'kg' ? 'orders.form.perKg' : 'orders.form.each', { price: formatMoney(item.price, props.currency) })
+}
+
 /** Focuses the first field with a problem (after Preview found some). */
 function focusFirstProblem() {
   const first = steps.value.find(step => errorOf(step))
@@ -115,6 +127,7 @@ defineExpose({ focusFirstProblem })
       <UFormField
         v-if="step.kind === 'number'"
         :label="labelOf(step)"
+        :description="priceHint(step)"
         :required="isRequired(step)"
         :error="errorOf(step)"
         orientation="horizontal"
@@ -227,7 +240,16 @@ defineExpose({ focusFirstProblem })
         :error="errorOf(step)"
         :ui="{ label: 'text-base' }"
       >
+        <p
+          v-if="total !== undefined && total !== null"
+          class="text-2xl font-semibold text-highlighted tabular-nums"
+          data-testid="field-total"
+        >
+          {{ formatMoney(total, currency) }}
+          <span class="block text-sm font-normal text-muted">{{ t('orders.form.fromPrices') }}</span>
+        </p>
         <UInput
+          v-else
           :model-value="amountText"
           inputmode="decimal"
           autocomplete="off"

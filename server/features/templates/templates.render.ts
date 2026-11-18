@@ -1,10 +1,13 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
+import satori, { init as initSatori } from 'satori/standalone'
+import { checkHtml } from '#shared/html-slip/catalog'
+import { slipTree } from '#shared/html-slip/build'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import type { ImageType } from '#shared/contracts/templates'
 import { slipSvg } from '#shared/slip/svg'
 import { createSlipText } from '#shared/slip/text'
 import type { SlipText } from '#shared/slip/text'
-import { khmerBold, khmerRegular, resvgWasm } from './templates.assets.mjs'
+import { khmerBold, khmerRegular, resvgWasm, satoriLayout } from './templates.assets.mjs'
 
 /**
  * A slip as the customer's PNG (plan §6.2, D32): the shared SVG builder draws it, text already as
@@ -58,10 +61,52 @@ export function serverSlipSvg(input: RenderInput): string {
   })
 }
 
+let satoriReady: Promise<void> | undefined
+
+/** Starts Satori's layout engine once per Worker instance (D39); a failed start is retried. */
+function loadSatori(): Promise<void> {
+  satoriReady ??= initSatori(satoriLayout).catch((error: unknown) => {
+    satoriReady = undefined
+    throw error
+  })
+  return satoriReady
+}
+
+/** The font's bytes as the ArrayBuffer Satori takes (its own copy). */
+function fontBuffer(bytes: Uint8Array): ArrayBuffer {
+  return bytes.slice().buffer
+}
+
+/**
+ * An HTML slip as SVG (D39): the markup parsed and checked against the catalog, the order's data
+ * put in as text, and Satori's layout with the same Noto Sans Khmer (text as paths, shaped like
+ * HarfBuzz: checked by the spike and by `templates.html.test.ts`). Markup with problems still draws
+ * what could be read; publishing refuses it (`publishProblems`).
+ */
+export async function htmlSlipSvg(input: Pick<RenderInput, 'design' | 'data'>): Promise<string> {
+  const { design, data } = input
+  await loadSatori()
+  const { nodes } = checkHtml(design.html ?? '', design)
+  return satori(slipTree(nodes, design, data) as never, {
+    width: design.width,
+    height: design.height,
+    fonts: [
+      { name: 'Slip', data: fontBuffer(khmerRegular), weight: 400, style: 'normal' },
+      { name: 'Slip', data: fontBuffer(khmerBold), weight: 700, style: 'normal' },
+    ],
+  })
+}
+
+/** The slip's SVG, whichever kind it is: the artwork with its fields (D35), or HTML (D39). */
+export async function renderSlipSvg(input: RenderInput): Promise<string> {
+  return input.design.html === undefined ? serverSlipSvg(input) : htmlSlipSvg(input)
+}
+
 /** The slip as a PNG at the canvas's size. */
 export async function renderSlipPng(input: RenderInput): Promise<Uint8Array<ArrayBuffer>> {
+  const svg = await renderSlipSvg(input)
   await loadResvg()
-  const resvg = new Resvg(serverSlipSvg(input), { font: { loadSystemFonts: false } })
+  const resvg = new Resvg(svg, { font: { loadSystemFonts: false } })
   try {
     const rendered = resvg.render()
     try {
