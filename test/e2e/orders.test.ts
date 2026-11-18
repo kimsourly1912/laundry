@@ -222,15 +222,24 @@ describe('the owner\'s counter', () => {
     await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
     await page.waitForURL(`${host}/`)
 
-    // No. 1: open and unpaid. Mark paid, then Picked up (paid: no question).
+    // No. 1: received and unpaid. Start work, Mark ready, Mark paid, then Picked up (paid: no question).
     await page.goto(`${host}/orders/${savedOrder!.id}`)
+    expect(await page.getByTestId('pick-up').count()).toBe(0)
+    await page.getByTestId('start-work').click()
+    await expect.poll(() => page.getByTestId('order-status').textContent()).toBe('In progress')
+    await page.getByTestId('mark-ready').click()
+    await expect.poll(() => page.getByTestId('order-status').textContent()).toBe('Ready')
     await page.getByTestId('mark-paid').click()
     await expect.poll(() => page.getByTestId('order-paid').textContent()).toBe('Paid')
     expect(await page.getByTestId('cancel').count()).toBe(1)
+    await page.goto(`${host}/`)
+    await expect.poll(() => page.getByTestId('count-ready').textContent()).toContain('1')
+    await shot(page, '10-overview')
+    await page.goto(`${host}/orders/${savedOrder!.id}`)
     await page.getByTestId('pick-up').click()
     await expect.poll(() => page.getByTestId('order-status').textContent()).toBe('Collected')
     expect(await page.getByTestId('order-picked-up-at').count()).toBe(1)
-    expect(await page.getByTestId('cancel').count() + await page.getByTestId('mark-paid').count() + await page.getByTestId('pick-up').count()).toBe(0)
+    expect(await page.getByTestId('cancel').count() + await page.getByTestId('mark-paid').count() + await page.getByTestId('pick-up').count() + await page.getByTestId('mark-ready').count()).toBe(0)
     await shot(page, '06-collected-order')
 
     // No. 2: paid, open. Cancel and copy: it is cancelled; a new order opens with its details.

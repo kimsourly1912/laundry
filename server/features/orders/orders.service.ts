@@ -1,6 +1,6 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
-import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery } from '#shared/contracts/orders'
+import type { CreateOrderInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
 import type { Db, Statement } from '#server/utils/batch'
@@ -10,6 +10,7 @@ import { shopDate } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
+import { readyMessagesStatement, withdrawReadyMessagesStatement } from '#server/features/notifications'
 import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
 import { orderChanged, orderNotAllowed, orderNotFound, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
@@ -24,8 +25,8 @@ import type { OrderRow } from './orders.repository'
  */
 
 function toListItem(row: OrderRow): OrderListItem {
-  const { id, number, date, phone, amount, paid, status, createdAt } = row
-  return { id, number, date, phone, amount, currency: row.shop.currency, paid, status, createdAt: createdAt.toISOString() }
+  const { id, number, date, phone, amount, paid, status, stage, createdAt } = row
+  return { id, number, date, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
 }
 
 const iso = (date: Date | null) => date?.toISOString() ?? null
@@ -47,6 +48,7 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
     shop: row.shop,
     version: row.version,
     paidAt: iso(row.paidAt),
+    readyAt: iso(row.readyAt),
     pickedUpAt: iso(row.pickedUpAt),
     cancelledAt: iso(row.cancelledAt),
   }
@@ -60,7 +62,7 @@ export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery
   const { search, status, paid, page, pageSize } = query
   const wanted = search ? parseOrderSearch(search) : undefined
   if (wanted && 'none' in wanted) return toPage([], query, 0)
-  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, status, paid, page, pageSize })
+  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, page, pageSize })
   return toPage(rows.map(toListItem), query, total)
 }
 
@@ -136,7 +138,21 @@ interface ActionOptions {
   now?: Date
 }
 
-const STATEMENTS = { 'pay': repo.payStatement, 'pick-up': repo.pickUpStatement, 'cancel': repo.cancelStatement } as const
+const STATEMENTS = {
+  'start': repo.startStatement,
+  'ready': repo.readyStatement,
+  'rework': repo.reworkStatement,
+  'pay': repo.payStatement,
+  'pick-up': repo.pickUpStatement,
+  'cancel': repo.cancelStatement,
+} as const
+
+/** A list filter (`received`, `ready`, …, or `open` for every open order) as the stored status and stage. */
+function stateFilter(state: OrderListQuery['status']): { status?: OrderStatus, stage?: OrderStage } {
+  if (!state) return {}
+  if (state === 'open' || state === 'picked_up' || state === 'cancelled') return { status: state }
+  return { status: 'open', stage: state }
+}
 
 /**
  * One action at the version read: 404 for no such order (or another shop's), 409 `INVALID_STATE`
@@ -152,7 +168,7 @@ async function act(db: Db, actor: ShopActor, action: OrderAction, options: Actio
   await runBatch(db, [
     STATEMENTS[action](db, { shopId, id: orderId, version: input.version, now }),
     requireOneChange(db),
-    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: `order.${action}`, targetType: 'order', targetId: orderId, data: { paid: order.paid, status: order.status } }, now),
+    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: `order.${action}`, targetType: 'order', targetId: orderId, data: { paid: order.paid, status: order.status, stage: order.stage } }, now),
     ...extra,
   ], orderChanged)
   return orderId
@@ -173,9 +189,30 @@ export async function markPaid(db: Db, actor: ShopActor, options: ActionOptions 
   return { order: await getOrder(db, actor, id), replayed }
 }
 
-/** The customer took the bag. Allowed unpaid (the app asks first); the audit row records it. */
+/** The customer took the bag: only a Ready order. Allowed unpaid (the app asks first); the audit row records it. */
 export async function pickUpOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
   return getOrder(db, actor, await act(db, actor, 'pick-up', options))
+}
+
+/** Received → In progress. */
+export async function startOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  return getOrder(db, actor, await act(db, actor, 'start', options))
+}
+
+/**
+ * Received or In progress → Ready. In the same batch, "ready for pickup" is queued for every chat
+ * linked to the order (D39); it goes after the commit.
+ */
+export async function markReady(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  const { orderId, now = new Date() } = options
+  const extra = [readyMessagesStatement(db, { shopId: actor.shopId, orderId, readyAt: now })]
+  return getOrder(db, actor, await act(db, actor, 'ready', { ...options, now, extra }))
+}
+
+/** Ready → In progress again (rework). A "ready" message not sent yet is taken back; a later Ready sends anew. */
+export async function reworkOrder(db: Db, actor: ShopActor, options: ActionOptions): Promise<OrderDetail> {
+  const extra = [withdrawReadyMessagesStatement(db, { shopId: actor.shopId, orderId: options.orderId })]
+  return getOrder(db, actor, await act(db, actor, 'rework', { ...options, extra }))
 }
 
 /** Cancels an open order (never deleted, plan §4). A paid order stays paid: its record is kept. */
@@ -198,7 +235,18 @@ export async function orderSlip(db: Db, order: { shopId: string, orderId: string
   return {
     number: row.number,
     status: row.status,
+    stage: row.stage,
     design: version.design,
     data: { values: row.values, order: { number: row.number, date: row.date, phone: row.phone, amount: row.amount, paid: row.paid }, shop: row.shop },
   }
+}
+
+/**
+ * Overview's counts (product notes → Overview; implementation guide: explicit windows): orders
+ * received today (the shop's day, any state), open orders in progress and ready, and unpaid ones
+ * that aren't cancelled. They may overlap: an order can be ready and unpaid.
+ */
+export async function orderOverview(db: Db, actor: ShopActor, now = new Date()): Promise<OrderOverview> {
+  const today = shopDate(now)
+  return { today, ...await repo.overviewCounts(db, actor.shopId, today) }
 }

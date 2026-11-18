@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 import { templateVersions } from '#server/features/templates/templates.schema'
-import { ORDER_STATUSES } from '#shared/contracts/orders'
+import { ORDER_STAGES, ORDER_STATUSES } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 
 /**
@@ -44,7 +44,11 @@ export const orders = sqliteTable('orders', {
   amount: integer(),
   paid: integer({ mode: 'boolean' }).notNull().default(false),
   status: text({ enum: ORDER_STATUSES }).notNull().default('open'),
+  /** The work's stage while open (D39): received → in_progress → ready; rework goes back. */
+  stage: text({ enum: ORDER_STAGES }).notNull().default('received'),
   paidAt: timestamp(),
+  /** The last time it was marked ready; a rework keeps it until the next. */
+  readyAt: timestamp(),
   pickedUpAt: timestamp(),
   cancelledAt: timestamp(),
   version: integer().notNull().default(1),
@@ -60,7 +64,10 @@ export const orders = sqliteTable('orders', {
   index('orders_shop_created_idx').on(table.shopId, table.createdAt),
   // The Orders search by phone: a phone may match several orders (plan §3).
   index('orders_shop_phone_idx').on(table.shopId, table.phone),
+  // Overview's counts and the Orders tabs: open orders by stage.
+  index('orders_shop_status_stage_idx').on(table.shopId, table.status, table.stage),
   check('orders_status_check', sql`${table.status} in (${inList(ORDER_STATUSES)})`),
+  check('orders_stage_check', sql`${table.stage} in (${inList(ORDER_STAGES)})`),
   check('orders_number_check', sql`${table.number} >= 1`),
   check('orders_date_check', sql`${table.date} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),
   check('orders_amount_check', sql`${table.amount} is null or ${table.amount} >= 0`),

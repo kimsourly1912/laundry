@@ -1,5 +1,8 @@
-/** What a queued message says: the order's filled slip, right after the person links (plan §4). */
-export const NOTIFICATION_KINDS = ['slip'] as const
+/**
+ * What a queued message says: `slip`, the order's filled slip, right after the person links (plan
+ * §4); `ready`, the order is ready for pickup (D39).
+ */
+export const NOTIFICATION_KINDS = ['slip', 'ready'] as const
 export type NotificationKind = typeof NOTIFICATION_KINDS[number]
 
 /**

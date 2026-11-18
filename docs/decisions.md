@@ -601,3 +601,13 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **The scan is idempotent.** `/start <token>` links the chat to that order and queues `slip:<order>:<chat>` in one batch, both "insert or nothing", so Telegram's repeats change nothing. The webhook answers at once and delivers that order's slip after the answer (`waitUntil`); `notifications:deliver` (every minute) sends what's left, with backoff.
 - **The picture is the order's own slip**: its version, its values and its shop copy, rendered by the same SVG builder (`renderFilledSlip`), with the shop's name, the number and the amount as the caption. A suspended shop or a missing order: skipped. A blocked bot: skipped, and every link to that chat ends.
 - **The QR on screen** is drawn from `uqr`'s matrix as SVG rects (no `v-html`). It has not yet been scanned from a real phone.
+
+## D39. The product notes' larger items: lifecycle, customers, prices, HTML templates, requests, paper size
+**Owner, 2026-11-18.** The owner asked for the large items of `docs/product-design/` in one PR, following the product notes: the full lifecycle, the price list and customers, HTML + Satori templates with AI import, redesign requests and paper size. **This replaces plan §4's "no ready step" and D31's removal of prices and customers.** One commit per item.
+
+**Lifecycle** (product notes → Owner portal and order lifecycle).
+- **States:** Received → In progress → Ready → Collected, and Cancelled. Received may go straight to Ready; Ready may go back to In progress (rework); only a Ready order is collected; any open order may be cancelled. Paid stays apart.
+- **Stored as a new `stage` column** (`received`, `in_progress`, `ready`) beside `status` (`open`, `picked_up`, `cancelled`), not as new statuses. Changing `status`'s CHECK means rebuilding `orders` in SQLite, and dropping `orders` cascades to its Telegram rows (D1 enforces foreign keys and ignores `PRAGMA foreign_keys=OFF`). `0003_order_stages` adds the column in place; a test applies it to a database with a linked order and checks nothing is lost. The app shows one state: the stage while open, else the status.
+- **"Ready for pickup" on Telegram** is queued in the batch that marks the order ready, one per live chat. Its id carries the ready time, so a later Ready after a rework sends again and a repeat sends nothing. A rework takes back an unsent one. At send time it goes only if the order is still ready. A slip sent to someone who links after Ready says so in its caption.
+- **Overview** counts received today (the shop's day), in progress, ready and unpaid, in one query; each opens the matching orders.
+- **Statement:** `order:work` (start, ready, rework) for owner and staff.

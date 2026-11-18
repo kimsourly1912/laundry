@@ -15,8 +15,13 @@ const router = useRouter()
 const { can } = useSession()
 
 const open = computed(() => props.order.status === 'open')
+const stage = computed(() => props.order.stage)
 const canPay = computed(() => can('order:pay') && !props.order.paid && props.order.status !== 'cancelled')
-const canPickUp = computed(() => can('order:pick-up') && open.value)
+// D39: Received → In progress → Ready → Collected; rework from Ready.
+const canStart = computed(() => can('order:work') && open.value && stage.value === 'received')
+const canReady = computed(() => can('order:work') && open.value && stage.value !== 'ready')
+const canRework = computed(() => can('order:work') && open.value && stage.value === 'ready')
+const canPickUp = computed(() => can('order:pick-up') && open.value && stage.value === 'ready')
 const canCancel = computed(() => can('order:cancel') && open.value)
 
 /** One key per Mark paid tap, kept for its retries; a new one after it succeeds. */
@@ -27,13 +32,21 @@ const pay = useMutation(() => apiFetch<OrderDetail>(`/shop/orders/${props.order.
   headers: { 'Idempotency-Key': paymentKey },
 }), { inline: true, invalidate: ['orders'], success: () => t('orders.actions.paidDone') })
 const pickUp = useMutation(() => apiFetch<OrderDetail>(`/shop/orders/${props.order.id}/pick-up`, { method: 'POST', body: { version: props.order.version } }), { inline: true, invalidate: ['orders'], success: () => t('orders.actions.pickedUpDone') })
+const workStep = useMutation((step: 'start' | 'ready' | 'rework') => apiFetch<OrderDetail>(`/shop/orders/${props.order.id}/${step}`, { method: 'POST', body: { version: props.order.version } }), { inline: true, invalidate: ['orders'] })
 const cancel = useMutation(() => apiFetch<OrderDetail>(`/shop/orders/${props.order.id}/cancel`, { method: 'POST', body: { version: props.order.version } }), { inline: true, invalidate: ['orders'] })
 
-const pending = computed(() => pay.pending.value || pickUp.pending.value || cancel.pending.value)
-const error = computed(() => pay.error.value ?? pickUp.error.value ?? cancel.error.value)
+const pending = computed(() => pay.pending.value || pickUp.pending.value || cancel.pending.value || workStep.pending.value)
+const error = computed(() => pay.error.value ?? pickUp.error.value ?? cancel.error.value ?? workStep.error.value)
 const stale = computed(() => error.value?.code === 'VERSION_CONFLICT' || error.value?.code === 'INVALID_STATE')
 
+async function step(name: 'start' | 'ready' | 'rework') {
+  reset()
+  const result = await workStep.execute(name)
+  if (result.ok) emit('changed', result.data)
+}
+
 function reset() {
+  workStep.reset()
   pay.reset()
   pickUp.reset()
   cancel.reset()
@@ -106,7 +119,7 @@ function confirm() {
 
 <template>
   <div
-    v-if="canPay || canPickUp || canCancel || error"
+    v-if="canPay || canStart || canReady || canRework || canPickUp || canCancel || error"
     class="space-y-3 print:hidden"
   >
     <UAlert
@@ -129,6 +142,44 @@ function confirm() {
 
     <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       <UButton
+        v-if="canReady"
+        :label="t('orders.actions.markReady')"
+        icon="i-lucide-bell-ring"
+        size="lg"
+        block
+        class="sm:w-auto"
+        :loading="workStep.pending.value"
+        :disabled="pending && !workStep.pending.value"
+        data-testid="mark-ready"
+        @click="step('ready')"
+      />
+      <UButton
+        v-if="canStart"
+        :label="t('orders.actions.start')"
+        icon="i-lucide-play"
+        size="lg"
+        color="neutral"
+        variant="outline"
+        block
+        class="sm:w-auto"
+        :disabled="pending"
+        data-testid="start-work"
+        @click="step('start')"
+      />
+      <UButton
+        v-if="canRework"
+        :label="t('orders.actions.rework')"
+        icon="i-lucide-rotate-ccw"
+        size="lg"
+        color="neutral"
+        variant="outline"
+        block
+        class="sm:w-auto"
+        :disabled="pending"
+        data-testid="rework"
+        @click="step('rework')"
+      />
+      <UButton
         v-if="canPay"
         :label="t('orders.actions.markPaid')"
         icon="i-lucide-banknote"
@@ -145,8 +196,8 @@ function confirm() {
         :label="t('orders.actions.pickUp')"
         icon="i-lucide-package-check"
         size="lg"
-        :color="canPay ? 'neutral' : 'primary'"
-        :variant="canPay ? 'outline' : 'solid'"
+        color="primary"
+        variant="solid"
         block
         class="sm:w-auto"
         :loading="pickUp.pending.value"

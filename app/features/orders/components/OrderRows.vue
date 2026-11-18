@@ -5,7 +5,7 @@
  */
 import type { OrderListItem } from '#shared/contracts/orders'
 import { formatPhone } from '#shared/contracts/phone'
-import { ORDER_STATUS_BADGE } from '../utils/order-status'
+import { ORDER_STATE_BADGE, orderState } from '../utils/order-status'
 
 defineProps<{ orders: OrderListItem[] }>()
 
@@ -32,8 +32,8 @@ const { t } = useI18n()
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
         <UBadge
-          :label="t(ORDER_STATUS_BADGE[order.status].key)"
-          :color="ORDER_STATUS_BADGE[order.status].color"
+          :label="t(ORDER_STATE_BADGE[orderState(order)].key)"
+          :color="ORDER_STATE_BADGE[orderState(order)].color"
           variant="subtle"
         />
         <UBadge

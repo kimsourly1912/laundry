@@ -195,7 +195,7 @@ describe('listOrders', () => {
     const page = await listOrders(db, actor, { page: 1, pageSize: 2 })
     expect(page.items.map(item => item.number)).toEqual([3, 2])
     expect(page).toMatchObject({ total: 3, page: 1, pageSize: 2 })
-    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', phone: '+85512345678', amount: 7000, currency: 'KHR', paid: false, status: 'open', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
+    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', phone: '+85512345678', amount: 7000, currency: 'KHR', paid: false, status: 'open', stage: 'received', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
   })
 })
 

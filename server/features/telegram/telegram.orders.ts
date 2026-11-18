@@ -65,6 +65,7 @@ export const BOT_TEXT = {
   scanAtShop: 'Scan the QR code at the laundry to get your slip here.',
   expired: 'This QR code has expired. Ask the laundry to show it again.',
   sending: 'Thank you. Your slip is on its way.',
+  ready: (shop: string, number: number) => `${shop}: your order No. ${number} is ready for pickup.`,
 } as const
 
 /**
@@ -99,17 +100,25 @@ export async function handleUpdate(db: Db, update: TelegramUpdate, options: { bo
 }
 
 /**
- * Sends one queued message: the order's slip as a PNG, drawn on the order's own version. Never for
- * a suspended shop or a missing order (`skipped`); a blocked bot ends the chat's links.
+ * Sends one queued message: `slip`, the order's slip as a PNG drawn on its own version; `ready`, a
+ * line that it's ready for pickup, only while it still is (a rework or a pickup in between skips
+ * it). Never for a suspended shop or a missing order (`skipped`); a blocked bot ends the chat's links.
  */
 export async function sendSlipMessage(db: Db, bot: TelegramBot, message: OutboxMessage): Promise<SendOutcome> {
   if (await shopStatus(db, message.shopId) !== 'active') return { status: 'skipped', error: 'The shop is not active' }
   const slip = await orderSlip(db, { shopId: message.shopId, orderId: message.orderId })
   if (!slip) return { status: 'skipped', error: 'The order is gone' }
-  const png = await renderFilledSlip(db, slip)
-  const amount = slip.data.order.amount === null ? '' : ` · ${formatMoney(slip.data.order.amount, slip.data.shop.currency)}`
-  const caption = `${slip.data.shop.name} · Order No. ${slip.number}${amount}`
+  const ready = slip.status === 'open' && slip.stage === 'ready'
+  if (message.kind === 'ready' && !ready) return { status: 'skipped', error: 'No longer ready' }
   try {
+    if (message.kind === 'ready') {
+      await bot.sendMessage(message.chatId, BOT_TEXT.ready(slip.data.shop.name, slip.number))
+      return { status: 'sent' }
+    }
+    const png = await renderFilledSlip(db, slip)
+    const amount = slip.data.order.amount === null ? '' : ` · ${formatMoney(slip.data.order.amount, slip.data.shop.currency)}`
+    // Linked after Ready: the one message already says so (product notes → Telegram).
+    const caption = `${slip.data.shop.name} · Order No. ${slip.number}${amount}${ready ? ' · Ready for pickup' : ''}`
     await bot.sendPhoto(message.chatId, png, caption)
     return { status: 'sent' }
   }

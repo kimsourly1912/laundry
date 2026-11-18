@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { cancelOrder, createOrder, getOrder, markPaid, pickUpOrder } from '#server/features/orders'
+import { cancelOrder, createOrder, getOrder, markPaid, markReady, pickUpOrder } from '#server/features/orders'
 import { canDo } from '#server/features/orders/orders.rules'
 import { orders } from '#server/features/orders/orders.schema'
 import { auditEvents } from '#server/features/platform/platform.schema'
@@ -33,6 +33,11 @@ beforeEach(async () => {
   await attachTestTemplate(db, { shopId: a.shopId, templateId: template.templateId })
 })
 
+/** Marks the order ready (the only stage a pickup starts from) and answers it as it is now. */
+async function ready(order: { id: string, version: number }) {
+  return markReady(db, a, { orderId: order.id, input: { version: order.version }, now: NOW })
+}
+
 async function newOrder(paid = false) {
   return (await createOrder(db, a, { input: { templateVersionId: versionId, values: { shirt: 2 }, phone: '', amount: 7000, paid }, key: newId(), now: NOW })).order
 }
@@ -44,17 +49,30 @@ function refusal(promise: Promise<unknown>) {
 
 const later = new Date(NOW.getTime() + 60_000)
 
-describe('canDo (plan §4)', () => {
-  it('pays an unpaid open or picked-up order; picks up and cancels only an open one', () => {
-    expect(canDo('pay', { status: 'open', paid: false })).toBe(true)
-    expect(canDo('pay', { status: 'picked_up', paid: false })).toBe(true)
-    expect(canDo('pay', { status: 'open', paid: true })).toBe(false)
-    expect(canDo('pay', { status: 'cancelled', paid: false })).toBe(false)
-    expect(canDo('pick-up', { status: 'open', paid: false })).toBe(true)
-    expect(canDo('pick-up', { status: 'picked_up', paid: true })).toBe(false)
-    expect(canDo('cancel', { status: 'open', paid: true })).toBe(true)
-    expect(canDo('cancel', { status: 'picked_up', paid: true })).toBe(false)
-    expect(canDo('cancel', { status: 'cancelled', paid: false })).toBe(false)
+describe('canDo (D39: the lifecycle; paid apart)', () => {
+  const order = (status: 'open' | 'picked_up' | 'cancelled', stage: 'received' | 'in_progress' | 'ready', paid = false) => ({ status, stage, paid })
+  it('follows Received → In progress → Ready → Collected, with rework and cancel', () => {
+    expect(canDo('start', order('open', 'received'))).toBe(true)
+    expect(canDo('start', order('open', 'in_progress'))).toBe(false)
+    expect(canDo('ready', order('open', 'received'))).toBe(true)
+    expect(canDo('ready', order('open', 'in_progress'))).toBe(true)
+    expect(canDo('ready', order('open', 'ready'))).toBe(false)
+    expect(canDo('rework', order('open', 'ready'))).toBe(true)
+    expect(canDo('rework', order('open', 'in_progress'))).toBe(false)
+    expect(canDo('pick-up', order('open', 'ready'))).toBe(true)
+    expect(canDo('pick-up', order('open', 'in_progress'))).toBe(false)
+    expect(canDo('cancel', order('open', 'ready', true))).toBe(true)
+    for (const action of ['start', 'ready', 'rework', 'pick-up', 'cancel'] as const) {
+      expect(canDo(action, order('picked_up', 'ready'))).toBe(false)
+      expect(canDo(action, order('cancelled', 'received'))).toBe(false)
+    }
+  })
+
+  it('pays an unpaid order that isn\'t cancelled, once', () => {
+    expect(canDo('pay', order('open', 'received'))).toBe(true)
+    expect(canDo('pay', order('picked_up', 'ready'))).toBe(true)
+    expect(canDo('pay', order('open', 'received', true))).toBe(false)
+    expect(canDo('pay', order('cancelled', 'received'))).toBe(false)
   })
 })
 
@@ -65,7 +83,7 @@ describe('markPaid', () => {
     expect(replayed).toBe(false)
     expect(paid).toMatchObject({ paid: true, paidAt: later.toISOString(), status: 'open', version: order.version + 1 })
     expect(await db.select({ action: auditEvents.action, data: auditEvents.data }).from(auditEvents).where(eq(auditEvents.action, 'order.pay')))
-      .toEqual([{ action: 'order.pay', data: { paid: false, status: 'open' } }])
+      .toEqual([{ action: 'order.pay', data: { paid: false, status: 'open', stage: 'received' } }])
   })
 
   it('a retry with the same key answers with the order as it is now; a new key on a paid order is 409', async () => {
@@ -93,7 +111,7 @@ describe('markPaid', () => {
   })
 
   it('pays after an unpaid pickup, never a cancelled order', async () => {
-    const one = await newOrder()
+    const one = await ready(await newOrder())
     const picked = await pickUpOrder(db, a, { orderId: one.id, input: { version: one.version }, now: later })
     expect((await markPaid(db, a, { orderId: one.id, input: { version: picked.version }, key: newId() })).order).toMatchObject({ paid: true, status: 'picked_up' })
     const two = await newOrder()
@@ -103,12 +121,12 @@ describe('markPaid', () => {
 })
 
 describe('pickUpOrder and cancelOrder', () => {
-  it('picks up an open order, paid or not, and records whether it was paid', async () => {
-    const order = await newOrder()
+  it('picks up a ready order, paid or not, and records whether it was paid', async () => {
+    const order = await ready(await newOrder())
     const picked = await pickUpOrder(db, a, { orderId: order.id, input: { version: order.version }, now: later })
     expect(picked).toMatchObject({ status: 'picked_up', pickedUpAt: later.toISOString(), paid: false })
     const [audit] = await db.select().from(auditEvents).where(eq(auditEvents.action, 'order.pick-up'))
-    expect(audit).toMatchObject({ actorUserId: a.userId, shopId: a.shopId, targetId: order.id, data: { paid: false, status: 'open' } })
+    expect(audit).toMatchObject({ actorUserId: a.userId, shopId: a.shopId, targetId: order.id, data: { paid: false, status: 'open', stage: 'ready' } })
     expect(await refusal(pickUpOrder(db, a, { orderId: order.id, input: { version: picked.version } }))).toBe('409 INVALID_STATE')
     expect(await refusal(cancelOrder(db, a, { orderId: order.id, input: { version: picked.version } }))).toBe('409 INVALID_STATE')
   })
@@ -122,9 +140,7 @@ describe('pickUpOrder and cancelOrder', () => {
   })
 
   it('a stale version is 409 VERSION_CONFLICT', async () => {
-    const order = await newOrder()
-    await pickUpOrder(db, a, { orderId: order.id, input: { version: order.version } }).catch(() => {})
-    const other = await newOrder()
+    const other = await ready(await newOrder())
     await db.update(orders).set({ version: 5 }).where(eq(orders.id, other.id))
     expect(await refusal(cancelOrder(db, a, { orderId: other.id, input: { version: other.version } }))).toBe('409 VERSION_CONFLICT')
     expect(await refusal(pickUpOrder(db, a, { orderId: other.id, input: { version: other.version } }))).toBe('409 VERSION_CONFLICT')
@@ -147,13 +163,13 @@ describe('pickUpOrder and cancelOrder', () => {
   }
 
   it('the state is checked again inside the batch: never picked up, paid or cancelled from the wrong state', async () => {
-    const one = await newOrder()
+    const one = await ready(await newOrder())
     expect(await refusal(pickUpOrder(racing({ status: 'cancelled', cancelledAt: NOW }, one.id), a, { orderId: one.id, input: { version: one.version } }))).toBe('409 VERSION_CONFLICT')
     expect((await getOrder(db, a, one.id)).status).toBe('cancelled')
     const two = await newOrder()
     expect(await refusal(markPaid(racing({ status: 'cancelled', cancelledAt: NOW }, two.id), a, { orderId: two.id, input: { version: two.version }, key: newId() }))).toBe('409 VERSION_CONFLICT')
     expect((await getOrder(db, a, two.id)).paid).toBe(false)
-    const three = await newOrder()
+    const three = await ready(await newOrder())
     expect(await refusal(cancelOrder(racing({ status: 'picked_up', pickedUpAt: NOW }, three.id), a, { orderId: three.id, input: { version: three.version } }))).toBe('409 VERSION_CONFLICT')
     expect((await getOrder(db, a, three.id)).status).toBe('picked_up')
   })

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
  * The shop's Overview (plan §3; implementation guide → sheet 01): New order in one tap, then the
- * latest orders. Counts by state come with the order lifecycle (sheets 03, 04).
+ * counts (received today, in progress, ready, unpaid) and the latest orders.
  */
-import { LatestOrders } from '~/features/orders'
+import { LatestOrders, OverviewCounts } from '~/features/orders'
 
 definePageMeta({ layout: 'shop', area: 'shop', permission: 'shop:read', title: 'overview.title' })
 
@@ -33,6 +33,7 @@ const { me, can } = useSession()
           to="/orders/new"
           data-testid="new-order"
         />
+        <OverviewCounts v-if="can('order:read')" />
         <LatestOrders v-if="can('order:read')" />
       </div>
     </template>

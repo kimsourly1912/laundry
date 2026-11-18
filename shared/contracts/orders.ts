@@ -13,6 +13,22 @@ import { AMOUNT_MAX } from '#shared/slip/values'
 export const ORDER_STATUSES = ['open', 'picked_up', 'cancelled'] as const
 export type OrderStatus = typeof ORDER_STATUSES[number]
 
+/**
+ * Where an open order's work is (D39, product notes → order lifecycle): Received, In progress,
+ * Ready. Apart from `status`, so the stored statuses and everything that reads them stay as they
+ * are; a picked-up or cancelled order keeps the stage it ended in.
+ */
+export const ORDER_STAGES = ['received', 'in_progress', 'ready'] as const
+export type OrderStage = typeof ORDER_STAGES[number]
+
+/** What the app shows and filters by: the stage while open, else the status. */
+export const ORDER_STATES = ['received', 'in_progress', 'ready', 'picked_up', 'cancelled'] as const
+export type OrderState = typeof ORDER_STATES[number]
+
+export function orderState(order: { status: OrderStatus, stage: OrderStage }): OrderState {
+  return order.status === 'open' ? order.stage : order.status
+}
+
 /** One value of a slip (`SlipValues`): a number, a text, a ticked box, a chosen option's id. */
 const slipValueSchema = v.union([
   v.pipe(v.number(), v.finite()),
@@ -48,7 +64,8 @@ export type CreateOrderInput = v.InferOutput<typeof createOrderSchema>
 export const orderListQuerySchema = v.object({
   ...pageQuerySchema,
   search: optionalParam(v.pipe(v.string(), v.trim(), v.maxLength(30))),
-  status: optionalParam(v.picklist(ORDER_STATUSES)),
+  /** An open order's stage, or `picked_up`, `cancelled`; `open` is every open order. */
+  status: optionalParam(v.picklist([...ORDER_STATES, 'open'])),
   paid: optionalParam(v.pipe(v.picklist(['true', 'false']), v.transform(value => value === 'true'))),
 })
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
@@ -59,6 +76,16 @@ export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
  */
 export const orderActionSchema = v.strictObject({ version: versionSchema })
 export type OrderActionInput = v.InferOutput<typeof orderActionSchema>
+
+/** `GET /api/shop/orders/overview`: Overview's counts; they may overlap (ready and unpaid). */
+export interface OrderOverview {
+  /** The shop's day the counts are for, `YYYY-MM-DD`. */
+  today: string
+  receivedToday: number
+  inProgress: number
+  ready: number
+  unpaid: number
+}
 
 /** An order in a list (Overview's latest orders). */
 export interface OrderListItem {
@@ -73,6 +100,7 @@ export interface OrderListItem {
   currency: SlipShop['currency']
   paid: boolean
   status: OrderStatus
+  stage: OrderStage
   /** ISO 8601. */
   createdAt: string
 }
@@ -94,6 +122,8 @@ export interface OrderDetail extends OrderListItem {
   shop: SlipShop
   version: number
   paidAt: string | null
+  /** When it was last marked ready; `null` before. */
+  readyAt: string | null
   pickedUpAt: string | null
   cancelledAt: string | null
 }

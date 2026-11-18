@@ -37,6 +37,37 @@ export function queueChatMessageStatement(db: Db, message: { shopId: string, ord
     .onConflictDoNothing()
 }
 
+/**
+ * "Ready for pickup" to every chat linked to the order, in the batch that marks it ready (D39). The
+ * id carries the ready time, so a later Ready after a rework sends again, and a repeat of the same
+ * one sends nothing.
+ */
+export function queueReadyStatement(db: Db, order: { shopId: string, orderId: string, readyAt: Date }): Statement {
+  const { shopId, orderId, readyAt } = order
+  return db.insert(notifications).select(
+    db.select({
+      id: sql<string>`'ready:' || ${telegramLinks.orderId} || ':' || ${telegramLinks.chatId} || ':' || ${readyAt.toISOString()}`.as('id'),
+      shopId: telegramLinks.shopId,
+      orderId: telegramLinks.orderId,
+      chatId: telegramLinks.chatId,
+      kind: sql<NotificationKind>`'ready'`.as('kind'),
+      status: sql<'pending'>`'pending'`.as('status'),
+      attempts: sql<number>`0`.as('attempts'),
+      lastError: sql<null>`null`.as('last_error'),
+      // Bound through the columns' own encoders (timestamp_ms), like an ordinary insert.
+      nextAttemptAt: sql<Date>`${sql.param(readyAt, notifications.nextAttemptAt)}`.as('next_attempt_at'),
+      createdAt: sql<Date>`${sql.param(readyAt, notifications.createdAt)}`.as('created_at'),
+      sentAt: sql<null>`null`.as('sent_at'),
+    }).from(telegramLinks).where(and(eq(telegramLinks.shopId, shopId), eq(telegramLinks.orderId, orderId), isNull(telegramLinks.revokedAt))),
+  ).onConflictDoNothing()
+}
+
+/** A rework takes back a "ready" message not sent yet: it would now be wrong (product notes). */
+export function withdrawReadyStatement(db: Db, order: { shopId: string, orderId: string }): Statement {
+  return db.update(notifications).set({ status: 'skipped', lastError: 'Back to work before it was sent' })
+    .where(and(eq(notifications.shopId, order.shopId), eq(notifications.orderId, order.orderId), eq(notifications.kind, 'ready'), eq(notifications.status, 'pending')))
+}
+
 const outboxColumns = {
   id: notifications.id,
   shopId: notifications.shopId,

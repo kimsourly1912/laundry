@@ -28,8 +28,11 @@ export function orderChanged() {
 }
 
 const STATE_MESSAGES = {
+  'start': 'Work on this order has already started, or it is closed.',
+  'ready': 'This order is already ready, or it is closed.',
+  'rework': 'This order is not ready.',
   'pay': 'This order is already paid or cancelled.',
-  'pick-up': 'This order was already picked up or cancelled.',
+  'pick-up': 'Only a ready order can be picked up.',
   'cancel': 'This order was already picked up or cancelled.',
 } as const
 

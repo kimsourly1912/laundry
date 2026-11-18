@@ -108,10 +108,12 @@ erDiagram
 | `amount` | integer null | Minor units of the copy's currency, as the owner typed it; `null` when the slip has no Amount |
 | `paid` | bool | Default false |
 | `status` | text | `open` \| `picked_up` \| `cancelled` |
+| `stage` | text | `received` \| `in_progress` \| `ready` (D39): the work while open; kept as it ended once picked up or cancelled. Default `received` |
+| `ready_at` | timestamp null | The last time it was marked ready (D39) |
 | `paid_at`, `picked_up_at`, `cancelled_at` | timestamp null | CHECKs: each is set exactly when its state is (`paid`, `picked_up`, `cancelled`) |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
+- Indexes: `(shop_id, status, stage)` Overview's counts and the Orders tabs (migration `0003`); `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
 - **Never deleted.** Cancelled (plan §4).
 
@@ -123,7 +125,7 @@ erDiagram
 - **One order per link** (plan §8). Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
 - **Revoked, never deleted,** when Telegram says the person blocked the bot (every link to that chat, in every shop).
 
-`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip`), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip`, `ready`: D39), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
 - Queued in the batch of the change it tells about.
 - A sender **claims** a row before sending (`attempts` + 1, hidden for a 5-minute lease), so overlapping runs never send the same row at once. At least once: a sender that dies mid-send leaves it to be sent again. Backoff 1, 5, 15, 60 minutes, or the channel's own wait; failed after 5 attempts.
 - Index `(status, next_attempt_at)` for the delivery job's scan across shops; `(shop_id, order_id)` for an order's messages.

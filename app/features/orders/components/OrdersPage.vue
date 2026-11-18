@@ -29,9 +29,7 @@ const orders = useApiQuery('orders:list', () => apiFetch<Page<OrderListItem>>('/
 
 const tabs = computed(() => [
   { label: t('orders.list.tabs.all'), value: '' },
-  { label: t('orders.status.open'), value: 'open' },
-  { label: t('orders.status.picked_up'), value: 'picked_up' },
-  { label: t('orders.status.cancelled'), value: 'cancelled' },
+  ...(['received', 'in_progress', 'ready', 'picked_up', 'cancelled'] as const).map(state => ({ label: t(`orders.state.${state}`), value: state })),
 ])
 const payments = computed(() => [
   { label: t('orders.list.anyPayment'), value: '' },
@@ -96,13 +94,17 @@ function clearFilters() {
 
     <template #body>
       <div class="mx-auto w-full max-w-page space-y-4">
-        <UTabs
-          v-model="filters.status"
-          :items="tabs"
-          :content="false"
-          variant="link"
-          class="w-full"
-        />
+        <!-- Six states: the tab row scrolls sideways on a narrow phone instead of squeezing. -->
+        <div class="-mx-4 overflow-x-auto px-4">
+          <UTabs
+            v-model="filters.status"
+            :items="tabs"
+            :content="false"
+            variant="link"
+            class="w-max min-w-full"
+            data-testid="orders-tabs"
+          />
+        </div>
 
         <PageLoadError
           v-if="orders.error.value && !orders.data.value"

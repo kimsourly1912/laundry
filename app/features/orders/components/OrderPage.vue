@@ -9,7 +9,7 @@
 import type { OrderDetail } from '#shared/contracts/orders'
 import { formatPhone } from '#shared/contracts/phone'
 import { useSlipText } from '~/features/slip-fill'
-import { ORDER_STATUS_BADGE } from '../utils/order-status'
+import { ORDER_STATE_BADGE, orderState } from '../utils/order-status'
 import { printSlip } from '../utils/print-slip'
 import OrderActions from './OrderActions.vue'
 import TelegramCard from './TelegramCard.vue'
@@ -36,7 +36,7 @@ const data = computed(() => {
   }
 })
 
-const STATUS = ORDER_STATUS_BADGE
+const badge = computed(() => order.data.value && ORDER_STATE_BADGE[orderState(order.data.value)])
 
 /** An action's answer is the order as it is now: show it at once. */
 function changed(next: OrderDetail) {
@@ -137,8 +137,8 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
             </div>
             <div class="flex flex-wrap gap-2">
               <UBadge
-                :label="t(STATUS[order.data.value.status].key)"
-                :color="STATUS[order.data.value.status].color"
+                :label="t(badge!.key)"
+                :color="badge!.color"
                 variant="subtle"
                 size="lg"
                 data-testid="order-status"
@@ -186,6 +186,12 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
                 {{ t('orders.order.paidAt') }}
               </dt>
               <dd>{{ formatDateTime(order.data.value.paidAt) }}</dd>
+            </template>
+            <template v-if="order.data.value.readyAt">
+              <dt class="text-muted">
+                {{ t('orders.order.readyAt') }}
+              </dt>
+              <dd>{{ formatDateTime(order.data.value.readyAt) }}</dd>
             </template>
             <template v-if="order.data.value.pickedUpAt">
               <dt class="text-muted">
