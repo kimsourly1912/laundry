@@ -19,7 +19,7 @@ Phone / laptop ──► Nuxt app (SPA screens; /t/** server-rendered)
                      ├──► features ──► D1 (NuxtHub db, Drizzle)
                      └──► Telegram Bot API (after the write commits, via the outbox)
 Telegram ──► POST /api/webhooks/telegram
-Cron ──► Nitro scheduled tasks (outbox delivery from step 4, cleanup)
+Cron ──► Nitro scheduled tasks (outbox delivery, cleanup)
 ```
 
 - **The server owns every rule:** order numbers, dates, template versions, order state, paid state, permissions, tenancy, and the check of every slip value against its template version. The client asks; it never decides.
@@ -55,9 +55,9 @@ Server code is organized by feature, one business area each:
 | `platform` | audit events, idempotency keys, job runs |
 | `shops` | shop settings, suspend/resume |
 | `templates` | templates, versions, attachments to shops, images; the slip renderer and its fonts (D31, D32; code from S1) |
-| `orders` | orders and their counters: create and read (D37); mark paid, pick up, cancel to come |
+| `orders` | orders and their counters: create, read and search (D37), mark paid, pick up, cancel (D38) |
 | `notifications` | which chats get an order's slip (Telegram links), the outbox and its delivery rules (D28) |
-| `telegram` | the Bot API, the webhook's secret check; the QR and the scan from step 4 (D28) |
+| `telegram` | the Bot API, the webhook, the order's QR, the scan and the slip sent as a picture (D28, D38) |
 
 Dependencies point one way: `telegram` → `orders` → `templates` (and `orders` → `shops` for the shop copy), and `telegram` → `notifications`. `notifications` knows nothing about Telegram: `deliverDue` takes the channel's `send`, so the outbox rules (claim, backoff, give up) stay in one place and the channel in another.
 
@@ -227,8 +227,8 @@ HTTP 409
 
 Anything outside the database (Telegram) happens **after** the batch commits, never inside it (spec T11, [D28](../decisions.md#d28-the-receipt-on-telegram)):
 - The action writes **outbox rows** (`notifications`) in its own batch, the row's id its dedupe key.
-- Right after the commit, the webhook asks to deliver this order's rows with `event.waitUntil`, so the slip goes at once without delaying the response (step 4).
-- A `notifications:deliver` job (every minute, back in step 4) sends anything still due, with backoff (1, 5, 15, 60 min); after 5 attempts a row is `failed`.
+- Right after the commit, the webhook asks to deliver this order's rows with `event.waitUntil`, so the slip goes at once without delaying the response.
+- A `notifications:deliver` job (every minute) sends anything still due, with backoff (1, 5, 15, 60 min); after 5 attempts a row is `failed`.
 - A blocked bot (`403`) or a deleted chat marks the row `skipped` and revokes every link to that chat.
 - **Order actions never fail because of Telegram** (spec §16): sending happens after the response, and its failures stay in the outbox.
 - Delivery is at least once: rows are claimed with a conditional update before sending, and a send can repeat only if a run dies mid-send.

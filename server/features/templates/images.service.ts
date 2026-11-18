@@ -10,7 +10,10 @@ import { fromBase64, imageInfo, toBase64 } from './images.bytes'
 import * as repo from './images.repository'
 import type { ImageRow } from './images.repository'
 import { imageNotFound, imageSizeOutOfRange, invalidImage, unknownImage } from './templates.errors'
+import { renderSlipPng } from './templates.render'
 import type { SlipImage } from './templates.render'
+import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
+import { imagesOf } from '#shared/slip/svg'
 
 /**
  * The platform's images (plan §5.9): photos of paper slips, pictures on a slip, shop logos. Shared
@@ -81,4 +84,10 @@ export async function requireImages(db: Db, references: ReadonlyMap<string, stri
 export async function slipImages(db: Db, imageIds: readonly string[]): Promise<Map<string, SlipImage>> {
   const rows = await repo.imagesData(db, imageIds)
   return new Map(rows.map(row => [row.id, { type: row.type, data: row.data }]))
+}
+
+/** A filled slip as the customer's PNG, with the images its design draws (Telegram, plan step 4). */
+export async function renderFilledSlip(db: Db, slip: { design: SlipDesign, data: SlipData }): Promise<Uint8Array<ArrayBuffer>> {
+  const { design, data } = slip
+  return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design)) })
 }

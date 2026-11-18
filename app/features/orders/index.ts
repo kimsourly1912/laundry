@@ -5,3 +5,6 @@
 export { default as LatestOrders } from './components/LatestOrders.vue'
 export { default as NewOrderPage } from './components/NewOrderPage.vue'
 export { default as OrderPage } from './components/OrderPage.vue'
+export { default as OrdersPage } from './components/OrdersPage.vue'
+export { default as PaperSlipsPage } from './components/PaperSlipsPage.vue'
+export { paperSlipsNavigation } from './navigation'

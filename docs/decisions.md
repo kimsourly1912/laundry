@@ -577,3 +577,27 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 **Consequences.**
 - No migration: the `orders` columns of step 1 are enough. `orders.values` is typed as `SlipValues`.
 - Left for the next milestones (current-state → Open questions): the 768 px content width the guide proposes, a zero-padded number (`#002139`), remembering a chosen default (sheet 05), the Telegram QR on the saved screen (plan step 4), the Orders list and search, Mark paid / Picked up / Cancel and copy.
+
+## D38. The owner portal's rest: Orders, actions, Paper slips, Telegram
+**2026-11-18.** The rest of plan steps 3 and 4 that is small to medium, on top of D37. The Ready / In progress lifecycle, item pricing, customers, redesign requests, the phone Studio and AI import stay out (they change D31's product rules or are large).
+
+**Orders and search.** `GET /api/shop/orders` takes `search`: an exact order number (`12`, `#12`) or a phone as typed (`012 345 678`), never a partial text match. The number has its unique index; the phone gets `(shop_id, phone)` (migration `0002`). Text that is neither matches nothing: the slip's other values are JSON and not searched. Filters: state and paid. All in the URL.
+
+**Actions** (plan §3 step 7, §4, D36).
+- **Mark paid** takes an `Idempotency-Key` (architecture → Idempotency), **Picked up** and **Cancel** don't (repeating them changes nothing: the second answers 409 `INVALID_STATE`).
+- **The rule is checked twice:** `canDo` before the batch for a clear 409 `INVALID_STATE`, and the same condition in the `UPDATE`'s `WHERE` with the version, so a change landing in between stops the batch.
+- **Paid stays apart from the state:** an order can be paid while open or after an unpaid pickup, never once cancelled. **An unpaid pickup is allowed** after the app asks; its audit row records who and when (implementation guide → sheet 04). **A paid order can be cancelled** and keeps showing it was paid; refunds are a pilot decision (product notes).
+- **Cancel and copy** cancels first, then opens New order (`?copy=<id>`) on the same template's latest version with the values that still fit; the new order gets its own number and key. If the owner leaves New order, the old order stays cancelled: that is what the confirmation says.
+- **Statements:** `order:pay` and `order:pick-up` for owner and staff, `order:cancel` for the owner only.
+
+**Paper slips** (plan §3 "Templates", §4; implementation guide → sheet 05).
+- **The page is "Paper slips", first in More** (the guide's name and place; the plan's Templates). It lists the attached, published slips with sample values, Make default and Use for a new order (`/orders/new?template=`).
+- **The default has no `version`.** "Make this one the default" says the whole change, and repeating it changes nothing, so the last choice wins. One batch clears the old flag, sets the new one, guards that the template is still attached (404 otherwise) and writes the audit row.
+- **New order remembers** (plan §4, current-state Q17): with several slips and no default, the slip the owner picks becomes the default. If remembering fails, the order still goes on with that slip.
+- **Statement:** `template:set-default`, owner only.
+
+**Telegram** (plan step 4, §8; Q11: no phone check).
+- **The QR is made per view.** `POST /api/shop/orders/:id/telegram` makes a new token each time the order page shows the card (valid a day, only its hash stored; the daily purge removes it). That's a write, so the statement is `order:share` (owner and staff), and the answer also lists what the order's chats were sent. No bot name in the deployment: 409 `TELEGRAM_NOT_SET_UP`, and the app hides the card.
+- **The scan is idempotent.** `/start <token>` links the chat to that order and queues `slip:<order>:<chat>` in one batch, both "insert or nothing", so Telegram's repeats change nothing. The webhook answers at once and delivers that order's slip after the answer (`waitUntil`); `notifications:deliver` (every minute) sends what's left, with backoff.
+- **The picture is the order's own slip**: its version, its values and its shop copy, rendered by the same SVG builder (`renderFilledSlip`), with the shop's name, the number and the amount as the caption. A suspended shop or a missing order: skipped. A blocked bot: skipped, and every link to that chat ends.
+- **The QR on screen** is drawn from `uqr`'s matrix as SVG rects (no `v-html`). It has not yet been scanned from a real phone.

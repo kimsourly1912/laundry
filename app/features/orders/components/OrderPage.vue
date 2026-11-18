@@ -6,10 +6,13 @@
  * says so with the number in big digits for the bag, and Next order; with `?print=1` it opens the
  * print dialog once. Print again never saves anything.
  */
-import type { OrderDetail, OrderStatus } from '#shared/contracts/orders'
+import type { OrderDetail } from '#shared/contracts/orders'
 import { formatPhone } from '#shared/contracts/phone'
 import { useSlipText } from '~/features/slip-fill'
+import { ORDER_STATUS_BADGE } from '../utils/order-status'
 import { printSlip } from '../utils/print-slip'
+import OrderActions from './OrderActions.vue'
+import TelegramCard from './TelegramCard.vue'
 import SlipView from './SlipView.vue'
 
 const props = defineProps<{ orderId: string }>()
@@ -33,10 +36,11 @@ const data = computed(() => {
   }
 })
 
-const STATUS: Record<OrderStatus, { key: string, color: 'info' | 'success' | 'neutral' }> = {
-  open: { key: 'orders.status.open', color: 'info' },
-  picked_up: { key: 'orders.status.picked_up', color: 'success' },
-  cancelled: { key: 'orders.status.cancelled', color: 'neutral' },
+const STATUS = ORDER_STATUS_BADGE
+
+/** An action's answer is the order as it is now: show it at once. */
+function changed(next: OrderDetail) {
+  order.data.value = next
 }
 
 const printing = ref(false)
@@ -137,6 +141,7 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
                 :color="STATUS[order.data.value.status].color"
                 variant="subtle"
                 size="lg"
+                data-testid="order-status"
               />
               <UBadge
                 :label="order.data.value.paid ? t('orders.paid') : t('orders.unpaid')"
@@ -176,7 +181,38 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
             >
               {{ t('orders.order.slipVersion', { name: order.data.value.templateName, version: order.data.value.templateVersionNumber }) }}
             </dd>
+            <template v-if="order.data.value.paidAt">
+              <dt class="text-muted">
+                {{ t('orders.order.paidAt') }}
+              </dt>
+              <dd>{{ formatDateTime(order.data.value.paidAt) }}</dd>
+            </template>
+            <template v-if="order.data.value.pickedUpAt">
+              <dt class="text-muted">
+                {{ t('orders.order.pickedUpAt') }}
+              </dt>
+              <dd data-testid="order-picked-up-at">
+                {{ formatDateTime(order.data.value.pickedUpAt) }}
+              </dd>
+            </template>
+            <template v-if="order.data.value.cancelledAt">
+              <dt class="text-muted">
+                {{ t('orders.order.cancelledAt') }}
+              </dt>
+              <dd>{{ formatDateTime(order.data.value.cancelledAt) }}</dd>
+            </template>
           </dl>
+
+          <OrderActions
+            :order="order.data.value"
+            @changed="changed"
+            @reload="order.refresh()"
+          />
+
+          <TelegramCard
+            :order-id="order.data.value.id"
+            :cancelled="order.data.value.status === 'cancelled'"
+          />
 
           <SlipView
             :design="order.data.value.design"

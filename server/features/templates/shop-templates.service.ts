@@ -3,6 +3,8 @@ import type { ImageType } from '#shared/contracts/templates'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { imagesOf } from '#shared/slip/svg'
 import type { Db, Statement } from '#server/utils/batch'
+import { requireOneChange, runBatch } from '#server/utils/batch'
+import { auditStatement } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import * as attachments from './attachments.repository'
 import { fromBase64 } from './images.bytes'
@@ -67,6 +69,23 @@ export function orderableVersionGuards(db: Db, shopId: string, version: Pick<Ord
 export async function versionsById(db: Db, versionIds: readonly string[]): Promise<Map<string, VersionWithTemplateRow>> {
   const rows = await repo.findVersions(db, [...new Set(versionIds)])
   return new Map(rows.map(row => [row.id, row]))
+}
+
+/**
+ * Makes an attached, published template the shop's default (plan §4): New order starts on it. No
+ * `version`: the request says which template, and saying it twice changes nothing; the last choice
+ * wins. One batch: clear the old default, set the new one, the guard that it is attached (404
+ * otherwise, also for another shop's template), and the audit row.
+ */
+export async function setDefaultTemplate(db: Db, actor: ShopActor, templateId: string, now = new Date()): Promise<OrderTemplate[]> {
+  const { shopId, userId } = actor
+  // Attached is enough: archiving detaches, and a draft can't be attached (attachments.service.ts).
+  await runBatch(db, [
+    ...attachments.setDefaultStatements(db, shopId, templateId),
+    requireOneChange(db),
+    auditStatement(db, { userId, shopId, requestId: actor.requestId }, { action: 'template.default', targetType: 'template', targetId: templateId }, now),
+  ], paperSlipNotFound)
+  return orderTemplates(db, actor)
 }
 
 /** An image the design draws (its artwork), or 404 when the design doesn't draw it. */

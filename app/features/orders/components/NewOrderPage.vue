@@ -9,7 +9,8 @@
  * answer makes one order (architecture → Idempotency). The server sets the number, the day and the
  * version; the order page then shows the saved slip, and prints it for Save & print.
  */
-import type { OrderDetail } from '#shared/contracts/orders'
+import type { OrderDetail, OrderTemplate } from '#shared/contracts/orders'
+import { formatPhone } from '#shared/contracts/phone'
 import type { SlipShop } from '#shared/contracts/slip-design'
 import { checkFill } from '#shared/slip/values'
 import type { SlipFill } from '#shared/slip/values'
@@ -31,10 +32,23 @@ const slipText = useSlipText()
 
 // --- The paper slip ---
 
-const selectedId = ref<string>()
+// `?template=` (Paper slips → Use for a new order) starts on that slip if the shop can use it.
+const selectedId = ref<string | undefined>(typeof route.query.template === 'string' ? route.query.template : undefined)
 watch(() => templates.data.value, (list) => {
   if (list) selectedId.value = startingTemplate(list, selectedId.value)?.templateId
 }, { immediate: true })
+
+// Plan §4: with no default, the owner's choice here becomes the default (remembered for next time).
+const { can } = useSession()
+const rememberChoice = useMutation((templateId: string) => apiFetch<OrderTemplate[]>(`/shop/templates/${templateId}/default`, { method: 'POST' }), { inline: true })
+async function chooseTemplate(templateId: string) {
+  selectedId.value = templateId
+  const list = templates.data.value
+  if (!list || list.some(item => item.isDefault) || !can('template:set-default')) return
+  const result = await rememberChoice.execute(templateId)
+  // Not remembered (offline): the order still goes on with the choice.
+  if (result.ok) templates.data.value = result.data
+}
 const template = computed(() => templates.data.value?.find(item => item.templateId === selectedId.value))
 const templateItems = computed(() => (templates.data.value ?? []).map(item => ({ label: item.name, value: item.templateId })))
 
@@ -58,6 +72,20 @@ watch(fill, (next, before) => {
     if (changed) serverErrors.value = Object.fromEntries(Object.entries(serverErrors.value).filter(([item]) => item !== key))
   }
 })
+
+// Cancel and copy (D36): the cancelled order's template (at its latest version) and the values that still fit.
+const copyId = typeof route.query.copy === 'string' ? route.query.copy : undefined
+const copySource = copyId ? useApiQuery(`orders:copy:${copyId}`, () => apiFetch<OrderDetail>(`/shop/orders/${copyId}`)) : undefined
+const copiedFrom = ref<number>()
+watch([() => templates.data.value, () => copySource?.data.value], async ([list, source]) => {
+  if (!list || !source || copiedFrom.value !== undefined) return
+  selectedId.value = startingTemplate(list, source.templateId)?.templateId
+  await nextTick()
+  const design = template.value?.design
+  if (!design) return
+  fill.value = carryFill({ values: source.values, phone: source.phone ? formatPhone(source.phone) : '', amount: source.amount, paid: source.paid }, design)
+  copiedFrom.value = source.number
+}, { immediate: true })
 
 const shop = computed<SlipShop | undefined>(() => {
   const value = settings.data.value
@@ -210,15 +238,24 @@ function retryLoad() {
               :ui="{ label: 'text-base' }"
             >
               <USelect
-                v-model="selectedId"
+                :model-value="selectedId"
                 :items="templateItems"
                 :placeholder="t('orders.new.chooseSlip')"
                 size="xl"
                 class="w-full"
                 data-testid="slip-select"
+                @update:model-value="chooseTemplate(String($event))"
               />
             </UFormField>
 
+            <UAlert
+              v-if="copiedFrom !== undefined"
+              color="info"
+              variant="subtle"
+              icon="i-lucide-copy"
+              :title="t('orders.new.copiedFrom', { number: copiedFrom })"
+              data-testid="copied-from"
+            />
             <UAlert
               v-if="slipUpdated"
               color="warning"

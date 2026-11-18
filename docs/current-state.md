@@ -2,13 +2,14 @@
 
 Keep this page short: where we are, what's next, what's blocked. History goes in git and `decisions.md`.
 
-## Now: the owner's counter (D37, 2026-11-18)
+## Now: the owner portal and Telegram (D37, D38, 2026-11-18)
 
-**Plan step 3, first milestone, built on branch `claude/admiring-goodall-1pk03z` (draft PR, waiting for the owner's review).** Built to [`product-design/implementation-guide.md`](product-design/implementation-guide.md) (sheets 01, 02, 10, 11), on the existing fields, `checkFill`, `orders` table and SVG builder; no migration.
+**Plan steps 3 and 4 are built** (D37 merged as #17; D38 on branch `claude/admiring-goodall-1pk03z`, waiting for the owner's review). Built to [`product-design/implementation-guide.md`](product-design/implementation-guide.md).
 
-- **Done:** Overview with New order and the latest orders; New order (the attached slip's fields as rows, a slip choice when several are attached, Preview, Edit, Save & print, Save only); the order page (number for the bag, the slip on its own version, Print again, Next order); `GET /api/shop/templates`, `POST`/`GET /api/shop/orders`, `GET /api/shop/orders/:id`, the artwork routes; statements `template:read`, `order:create`, `order:read`. Tests: the orders service and two-shop file, unit tests of the form rules, `test/e2e/orders.test.ts`.
-- **Next milestones (guide → Delivery order):** the Orders list with search; Mark paid, Picked up, Cancel and copy (sheets 03, 04, 11); Paper slips with the default (sheet 05); the Telegram QR on the saved screen (plan step 4).
-- **Open, for the owner** (below): the 768 px width, the number's look, remembering a chosen slip.
+- **The owner can:** take an order (New order → Preview → Save & print / Save only), find any order (Orders: number or phone, state, paid), mark it paid, hand it over (unpaid only after a question), cancel it or Cancel and copy, print it again, choose the default paper slip (Paper slips, first in More), and show the customer the Telegram QR.
+- **The customer:** scans the QR, taps Start; the bot sends the slip as a picture. Needs the bot on staging (Owner notes below). Not yet tried with a real phone.
+- **Left, larger than this round** (guide → Delivery order 3–5): the Received / In progress / Ready lifecycle and the ready message (it changes plan §4's "no ready step"), item pricing and customers, redesign requests (sheet 05), print paper sizes in mm, the phone Studio and AI import.
+- **Open, for the owner** (below): Q15 the 768 px width, Q16 the number's look.
 
 ## Before: the slip studio (D31, 2026-11-17)
 
@@ -78,12 +79,12 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 | Q7, Q11 | Moved to [plan → Open questions](plan.md#10-open-questions) (D31) | Owner | Steps 3 and 4 |
 | Q15 | The guide sets the owner's content width to 768 px; `--container-page` is 640 px (D25). Change it for every shop screen? Kept at 640 px in D37 | Owner | The next owner screens |
 | Q16 | The mockups write the number as `#002139`; the app and the slip write `1`, `2`, … A zero-padded number changes every slip's Order No. drawing. Pad it, and to how many digits? | Owner | Before a pilot shop |
-| Q17 | Plan §4: with several slips and no default, New order asks and then **remembers** the choice. D37 asks each time; remembering is a write to the default (sheet 05). Build it with Paper slips? | Owner | Sheet 05 |
+| Q17 | Answered by plan §4 itself: New order remembers the chosen slip as the default. Built in D38 | — | — |
 
 ## Owner notes
 
 - **Q8 answered (2026-11-16):** the Cloudflare account is on Workers Paid; slips render on the server.
-- **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)) before step 4: create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once.
+- **Set up the Telegram bot on staging** ([operations → Telegram](server/operations.md#telegram)) to try step 4: create it with @BotFather, add `NUXT_TELEGRAM_BOT_USERNAME`, `NUXT_TELEGRAM_BOT_TOKEN` and `NUXT_TELEGRAM_WEBHOOK_SECRET` in the Worker's dashboard **as Secrets**, then run the `setWebhook` command once.
 - **Contact support link:** set `NUXT_PUBLIC_SUPPORT_URL` (a Telegram chat link) on staging **as a Secret**, not a plain variable: each deploy deletes plain variables set in the dashboard.
 - **Each shop's slip:** keep a straight, cropped photo of its paper slip (PNG or JPEG, up to 1 MB, 200–2000 px a side): the studio starts a template from it (plan §5.2).
 - **PR size:** one PR per area, one commit per step: Reset, Studio, Owner + Telegram ([plan §9](plan.md#9-steps), owner 2026-11-17).

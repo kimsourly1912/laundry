@@ -82,6 +82,7 @@ erDiagram
 `template_shops` (shop-owned): `shop_id`, `template_id` (FK restrict), `is_default` (bool), `attached_at`. PK `(shop_id, template_id)`.
 - Which templates a shop may use. **The default is a flag here, not a column on `shop_settings`**: partial UNIQUE `(shop_id)` where `is_default`, so a shop has at most one default and it is always an attached template. Detaching it (deleting the row) leaves the shop with no default; the owner chooses again (plan §4).
 - Index `(template_id)`: the shops a template is attached to.
+- **The owner sets the default** (D38, `POST /api/shop/templates/:id/default`): one batch clears the old flag and sets the new one, so the partial unique index holds at every statement; a guard stops it if the template was detached meanwhile.
 
 `images` (platform): `id`, `name`, `type` (`image/png` \| `image/jpeg`), `width`, `height` (200–2000 each), `size` (bytes, 1 B–1 MB), `data` (**base64 text**), `created_by`, `created_at`. Index `(created_at)`.
 - Slip backgrounds, pictures on a slip, shop logos, shared by every template (plan §5.9). The type and size are read from the file's bytes, never from the request (D28).
@@ -89,7 +90,7 @@ erDiagram
 
 ## `order_counters`, `orders` (owner: `orders`)
 
-**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; mark paid, pick up and cancel come with their screens.
+**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; D38 the search, Mark paid (`Idempotency-Key`), Picked up and Cancel, each at its `version` and guarded in SQL by the state it starts from (`orders.rules.ts → canDo`).
 
 `order_counters`: `shop_id` PK, `last_number` (≥ 0). Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`. Two shops count on their own: the same number in two shops is two orders.
 
@@ -110,13 +111,13 @@ erDiagram
 | `paid_at`, `picked_up_at`, `cancelled_at` | timestamp null | CHECKs: each is set exactly when its state is (`paid`, `picked_up`, `cancelled`) |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
+- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
-- **Never deleted.** Cancelled (plan §4). Step 3 adds the search by phone and its index once the query is known.
+- **Never deleted.** Cancelled (plan §4).
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
-**Status:** tables and the outbox code (deliver, retry, purge) built; step 4 queues the messages and runs the delivery job.
+**Status:** built. A scan links the chat and queues `slip:<order>:<chat>` in one batch (D38); the webhook delivers it at once and `notifications:deliver` sends what's left.
 
 `telegram_links`: `id`, `shop_id`, `order_id` (composite FK `(shop_id, order_id)` → the shop's order, **cascade**), `telegram_user_id`, `chat_id` (Telegram's ids as text: up to 52 bits, only compared), `linked_at`, `revoked_at`.
 - **One order per link** (plan §8). Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
@@ -132,11 +133,11 @@ erDiagram
 
 ## `telegram_invites` (owner: `telegram`)
 
-**Status:** table and its purge built; step 4 makes the QR codes.
+**Status:** built. `POST /api/shop/orders/:id/telegram` makes a token (32 random bytes, base64url) and stores its hash, valid a day (D38).
 
 `telegram_invites`: `token_hash` (SHA-256 of the QR's token) PK, `shop_id`, `order_id` (composite FK, **cascade**), `expires_at`, `created_at`. Only the hash is stored: a database read can't make a working QR. Purged daily once expired (`notifications:purge`).
 
-The phone check's table (`telegram_pending`) comes back in step 4 only if the owner keeps the check (plan Q11).
+No phone check (plan Q11): no `telegram_pending`.
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 

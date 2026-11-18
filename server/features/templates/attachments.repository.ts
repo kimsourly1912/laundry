@@ -100,6 +100,18 @@ export function detachEverywhereStatement(db: Db, templateId: string): Statement
   return db.delete(templateShops).where(eq(templateShops.templateId, templateId))
 }
 
+/**
+ * Makes the template the shop's default (plan §4): the old default's flag is cleared first, in the
+ * same batch, so the partial unique index (one default per shop) holds at every statement. Follow
+ * with `requireOneChange`: the template must still be attached.
+ */
+export function setDefaultStatements(db: Db, shopId: string, templateId: string): Statement[] {
+  return [
+    db.update(templateShops).set({ isDefault: false }).where(and(eq(templateShops.shopId, shopId), eq(templateShops.isDefault, true))),
+    db.update(templateShops).set({ isDefault: true }).where(and(eq(templateShops.shopId, shopId), eq(templateShops.templateId, templateId))),
+  ]
+}
+
 /** Whether the shop exists (an organization: a shop). */
 export async function shopExists(db: Db, shopId: string): Promise<boolean> {
   return (await db.$count(organization, eq(organization.id, shopId))) > 0

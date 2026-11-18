@@ -52,7 +52,8 @@
       "INVALID_STATE": "This was already changed. Reload to see it.",
       "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
       "TEMPLATE_CHANGED": "This paper slip was just updated. Check the order, then preview it again.",
-      "SLIP_VALUES_INVALID": "Some boxes of the slip need a look."
+      "SLIP_VALUES_INVALID": "Some boxes of the slip need a look.",
+      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet."
     }
   },
   "account": {
@@ -471,7 +472,8 @@
       "slipUpdated": "This paper slip was just updated. Check the order, then preview it again.",
       "noSlipTitle": "No paper slip yet",
       "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
-      "preview": "Preview"
+      "preview": "Preview",
+      "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number."
     },
     "preview": {
       "title": "Preview",
@@ -503,17 +505,69 @@
       "printAgain": "Print again",
       "nextOrder": "Next order",
       "notFound": "This order doesn't exist",
-      "toOverview": "Back to Overview"
+      "toOverview": "Back to Overview",
+      "paidAt": "Paid",
+      "pickedUpAt": "Picked up",
+      "cancelledAt": "Cancelled"
     },
     "latest": {
       "title": "Latest orders",
       "number": "No. {number}",
       "emptyTitle": "No orders yet",
-      "emptyDescription": "Orders you save appear here."
+      "emptyDescription": "Orders you save appear here.",
+      "viewAll": "View all orders"
     },
     "form": {
       "more": "Add one {label}",
       "less": "Remove one {label}"
+    },
+    "list": {
+      "nav": "Orders",
+      "title": "Orders",
+      "search": "Order No. or phone",
+      "payment": "Payment",
+      "anyPayment": "All",
+      "noMatch": "No orders match",
+      "tabs": {
+        "all": "All"
+      }
+    },
+    "actions": {
+      "markPaid": "Mark paid",
+      "paidDone": "Marked paid.",
+      "pickUp": "Picked up",
+      "pickedUpDone": "Marked picked up.",
+      "pickUpUnpaidTitle": "Hand over without payment?",
+      "pickUpUnpaidDescription": "This order isn't paid yet. It is marked picked up and stays unpaid; you can still mark it paid later.",
+      "pickUpUnpaid": "Hand over unpaid",
+      "cancel": "Cancel order",
+      "cancelTitle": "Cancel order No. {number}?",
+      "cancelDescription": "The order stays in the list as cancelled. Its number is not used again.",
+      "cancelPaidDescription": "The order stays in the list as cancelled and still shows it was paid. Its number is not used again.",
+      "copy": "Cancel and copy",
+      "copyTitle": "Cancel order No. {number} and copy it?",
+      "copyDescription": "Order No. {number} is cancelled. A new order opens with the same details for you to fix; it gets a new number.",
+      "copyPaidDescription": "Order No. {number} is cancelled and still shows it was paid. A new order opens with the same details, marked paid; check it before saving. It gets a new number."
+    },
+    "slips": {
+      "title": "Paper slips",
+      "intro": "The slips the platform made for your shop. New order starts on the default one. To change a slip's design, contact support.",
+      "default": "Default",
+      "makeDefault": "Make default",
+      "defaultSaved": "New orders now start on this slip.",
+      "use": "Use for a new order",
+      "sample": "{name} with sample values",
+      "sampleNote": "Sample values. Your orders show their own."
+    },
+    "telegram": {
+      "title": "Slip on Telegram",
+      "hint": "The customer scans this with the phone's camera and taps Start: the bot sends them this slip.",
+      "qrLabel": "QR code for the customer's Telegram",
+      "refresh": "New QR code",
+      "pending": "Sending",
+      "sent": "Sent",
+      "skipped": "Not sent: bot blocked",
+      "failed": "Not sent"
     }
   }
 }

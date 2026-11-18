@@ -52,6 +52,8 @@ describe('orders across two shops', () => {
     expect(await refusal(orderImage(db, b, { orderId: order.id, imageId: newId() }))).toBe('404 NOT_FOUND')
     expect((await listOrders(db, b, { page: 1, pageSize: 20 })).total).toBe(0)
     expect((await listOrders(db, a, { page: 1, pageSize: 20 })).total).toBe(1)
+    // The same number searched in the other shop finds only its own (none yet).
+    expect((await listOrders(db, b, { page: 1, pageSize: 20, search: String(order.number) })).total).toBe(0)
   })
 
   it('a shop can\'t fill, list or read the artwork of a template attached only to another', async () => {
