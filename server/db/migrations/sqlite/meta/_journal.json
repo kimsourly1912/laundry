@@ -29,6 +29,13 @@
       "when": 1794982008734,
       "tag": "0003_order_stages",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794982728561,
+      "tag": "0004_customers",
+      "breakpoints": true
     }
   ]
 }

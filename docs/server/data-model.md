@@ -117,6 +117,15 @@ erDiagram
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
 - **Never deleted.** Cancelled (plan §4).
 
+## `customers` (owner: `customers`)
+
+**Status:** built ([D39](../decisions.md#d39-the-product-notes-larger-items-lifecycle-customers-prices-html-templates-requests-paper-size), migration `0004`).
+
+`customers` (shop-owned): `id`, `shop_id`, `name`, `phone` (E.164 null), `version`, `created_at`, `updated_at`.
+- Partial UNIQUE `(shop_id, phone)` where `phone` is set: one customer per phone in a shop. Index `(shop_id, name)`: the list. UNIQUE `(shop_id, id)`.
+- **Never deleted:** `orders.customer_id` points at it (restrict).
+- `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders.
+
 ## `telegram_links`, `notifications` (owner: `notifications`)
 
 **Status:** built. A scan links the chat and queues `slip:<order>:<chat>` in one batch (D38); the webhook delivers it at once and `notifications:deliver` sends what's left.

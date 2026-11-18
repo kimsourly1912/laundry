@@ -21,6 +21,8 @@ const orderColumns = {
   templateVersionId: orders.templateVersionId,
   values: orders.values,
   shop: orders.shop,
+  customerId: orders.customerId,
+  customerName: orders.customerName,
   phone: orders.phone,
   amount: orders.amount,
   paid: orders.paid,
@@ -41,6 +43,8 @@ export interface OrderRow {
   templateVersionId: string
   values: SlipValues
   shop: OrderShopCopy
+  customerId: string | null
+  customerName: string | null
   phone: string | null
   amount: number | null
   paid: boolean
@@ -66,11 +70,12 @@ export interface OrderFilter {
   status?: OrderStatus
   stage?: OrderStage
   paid?: boolean
+  customerId?: string
 }
 
 /** The shop's orders, newest first (`orders_shop_created_idx`), filtered, a page at a time, with how many match. */
 export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pick<OrderListQuery, 'page' | 'pageSize'>): Promise<{ rows: OrderRow[], total: number }> {
-  const { page, pageSize, number, phone, status, stage, paid } = query
+  const { page, pageSize, number, phone, status, stage, paid, customerId } = query
   const where = and(
     eq(orders.shopId, shopId),
     number === undefined ? undefined : eq(orders.number, number),
@@ -78,6 +83,7 @@ export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pi
     status === undefined ? undefined : eq(orders.status, status),
     stage === undefined ? undefined : eq(orders.stage, stage),
     paid === undefined ? undefined : eq(orders.paid, paid),
+    customerId === undefined ? undefined : eq(orders.customerId, customerId),
   )
   const [rows, [counted]] = await db.batch([
     db.select(orderColumns).from(orders).where(where).orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
@@ -112,6 +118,7 @@ interface NewOrder {
   templateVersionId: string
   values: SlipValues
   shop: OrderShopCopy
+  customer: { id: string, name: string } | null
   phone: string | null
   amount: number | null
   paid: boolean
@@ -124,7 +131,7 @@ interface NewOrder {
  * in the same batch: two orders at once never share a number (architecture → Atomic writes).
  */
 export function insertOrderStatement(db: Db, order: NewOrder): Statement {
-  const { id, shopId, date, templateVersionId, values, shop, phone, amount, paid, userId, now } = order
+  const { id, shopId, date, templateVersionId, values, shop, customer, phone, amount, paid, userId, now } = order
   return db.insert(orders).values({
     id,
     shopId,
@@ -133,6 +140,8 @@ export function insertOrderStatement(db: Db, order: NewOrder): Statement {
     templateVersionId,
     values,
     shop,
+    customerId: customer?.id ?? null,
+    customerName: customer?.name ?? null,
     phone,
     amount,
     paid,

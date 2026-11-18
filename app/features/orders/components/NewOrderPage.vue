@@ -16,6 +16,8 @@ import { checkFill } from '#shared/slip/values'
 import type { SlipFill } from '#shared/slip/values'
 import { emptyFill, fillData, useSlipText } from '~/features/slip-fill'
 import { useShopSettings } from '~/features/shop-settings'
+import { CustomerPicker } from '~/features/customers'
+import type { CustomerChoice } from '~/features/customers'
 import { useOrderTemplates } from '../composables/useOrderTemplates'
 import { carryFill, serverProblems, shopToday, startingTemplate, toCreateRequest } from '../utils/order-form'
 import OrderForm from './OrderForm.vue'
@@ -55,6 +57,12 @@ const templateItems = computed(() => (templates.data.value ?? []).map(item => ({
 // --- What the owner fills ---
 
 const fill = ref<SlipFill>(emptyFill())
+// The order's customer (D39), optional. Picking one fills the slip's phone box when it is empty.
+const customer = ref<CustomerChoice | null>(null)
+watch(customer, (picked) => {
+  const hasPhone = template.value?.design.elements.some(element => element.type === 'phone')
+  if (picked?.phone && hasPhone && !fill.value.phone.trim()) fill.value = { ...fill.value, phone: formatPhone(picked.phone) }
+})
 const showProblems = ref(false)
 const serverErrors = ref<Record<string, string>>({})
 const problems = computed(() => (template.value && showProblems.value ? checkFill(template.value.design, fill.value) : {}))
@@ -84,6 +92,7 @@ watch([() => templates.data.value, () => copySource?.data.value], async ([list, 
   const design = template.value?.design
   if (!design) return
   fill.value = carryFill({ values: source.values, phone: source.phone ? formatPhone(source.phone) : '', amount: source.amount, paid: source.paid }, design)
+  if (source.customerId && source.customerName) customer.value = { id: source.customerId, name: source.customerName, phone: source.phone }
   copiedFrom.value = source.number
 }, { immediate: true })
 
@@ -131,7 +140,7 @@ const save = useMutation((body: ReturnType<typeof toCreateRequest>) => apiFetch<
   headers: { 'Idempotency-Key': submissionKey },
 }), { inline: true, invalidate: ['orders'] })
 
-const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid))
+const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid || customer.value !== null))
 useUnsavedChanges(() => dirty.value)
 
 const failure = computed(() => {
@@ -143,7 +152,7 @@ const failure = computed(() => {
 async function submit(print: boolean) {
   const current = template.value
   if (!current || save.pending.value) return
-  const result = await save.execute(toCreateRequest(fill.value, current))
+  const result = await save.execute(toCreateRequest(fill.value, current, customer.value?.id ?? null))
   if (result.ok) {
     saved.value = true
     await router.replace({ path: `/orders/${result.data.id}`, query: print ? { saved: '1', print: '1' } : { saved: '1' } })
@@ -264,6 +273,14 @@ function retryLoad() {
               :title="t('orders.new.slipUpdated')"
               role="alert"
             />
+
+            <UFormField
+              v-if="can('customer:read')"
+              :label="t('customers.pick.label')"
+              :ui="{ label: 'text-base' }"
+            >
+              <CustomerPicker v-model="customer" />
+            </UFormField>
 
             <OrderForm
               v-if="template && shop"

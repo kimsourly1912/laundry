@@ -32,7 +32,7 @@ describe('toCreateRequest', () => {
   it('sends the version filled and the values, trimmed and without empty ones', () => {
     const filled = { ...template('a'), design: design([createElement('number', { id: 'shirt' }, { label }), createElement('textField', { id: 'name' }, { label })]) }
     expect(toCreateRequest({ values: { shirt: 2, name: '' }, phone: ' 012 345 678 ', amount: 7000, paid: false }, filled))
-      .toEqual({ templateVersionId: 'a-v1', values: { shirt: 2 }, phone: '012 345 678', amount: 7000, paid: false })
+      .toEqual({ templateVersionId: 'a-v1', customerId: null, values: { shirt: 2 }, phone: '012 345 678', amount: 7000, paid: false })
   })
 })
 

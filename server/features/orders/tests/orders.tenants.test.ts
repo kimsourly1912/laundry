@@ -32,7 +32,7 @@ beforeEach(async () => {
   await attachTestTemplate(db, { shopId: b.shopId, templateId: templateB.templateId })
 })
 
-const input = (templateVersionId: string): CreateOrderInput => ({ templateVersionId, values: { shirt: 2 }, phone: '', amount: 7000, paid: false })
+const input = (templateVersionId: string): CreateOrderInput => ({ templateVersionId, customerId: null, values: { shirt: 2 }, phone: '', amount: 7000, paid: false })
 
 function refusal(promise: Promise<unknown>) {
   return promise.then(() => 'allowed', (error: { statusCode?: number, data?: { code?: string } }) => `${error.statusCode} ${error.data?.code}`)

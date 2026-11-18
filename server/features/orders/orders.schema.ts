@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm'
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 import { templateVersions } from '#server/features/templates/templates.schema'
+import { customers } from '#server/features/customers/customers.schema'
 import { ORDER_STAGES, ORDER_STATUSES } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 
@@ -38,6 +39,10 @@ export const orders = sqliteTable('orders', {
   /** The owner's values by element id, checked against the template version by the server. */
   values: text({ mode: 'json' }).$type<SlipValues>().notNull(),
   shop: text({ mode: 'json' }).$type<OrderShopCopy>().notNull(),
+  /** The shop's customer (D39), `null` for a walk-in; restrict: a customer with orders stays. */
+  customerId: text().references(() => customers.id, { onDelete: 'restrict' }),
+  /** The customer's name when the order was saved: the slip and the list keep it. */
+  customerName: text(),
   /** E.164, from the Phone field; `null` when the order has none. */
   phone: text(),
   /** Minor units of the shop copy's currency, as the owner typed it; `null` when the slip has no Amount. */
@@ -64,6 +69,8 @@ export const orders = sqliteTable('orders', {
   index('orders_shop_created_idx').on(table.shopId, table.createdAt),
   // The Orders search by phone: a phone may match several orders (plan §3).
   index('orders_shop_phone_idx').on(table.shopId, table.phone),
+  // A customer's orders, newest first.
+  index('orders_shop_customer_idx').on(table.shopId, table.customerId, table.createdAt),
   // Overview's counts and the Orders tabs: open orders by stage.
   index('orders_shop_status_stage_idx').on(table.shopId, table.status, table.stage),
   check('orders_status_check', sql`${table.status} in (${inList(ORDER_STATUSES)})`),

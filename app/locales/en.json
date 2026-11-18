@@ -581,6 +581,36 @@
       "ready": "Ready for pickup",
       "unpaid": "Unpaid",
       "counts": "Today's work"
+    },
+    "customer": {
+      "none": "No orders yet."
+    }
+  },
+  "customers": {
+    "title": "Customers",
+    "add": "Add customer",
+    "search": "Name or phone",
+    "edit": "Edit",
+    "notFound": "This customer doesn't exist",
+    "noPhone": "No phone",
+    "orders": "Orders",
+    "emptyTitle": "No customers yet",
+    "emptyDescription": "Customers you add, here or in New order, appear here.",
+    "noMatch": "No customers match",
+    "form": {
+      "newTitle": "New customer",
+      "editTitle": "Edit customer",
+      "name": "Name",
+      "phone": "Phone",
+      "save": "Save",
+      "badPhone": "Not a valid phone number."
+    },
+    "pick": {
+      "label": "Customer",
+      "placeholder": "Customer: name or phone (optional)",
+      "add": "Add “{text}” as a new customer",
+      "none": "No customer found",
+      "clear": "No customer"
     }
   }
 }

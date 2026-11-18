@@ -31,9 +31,10 @@ export function carryFill(fill: SlipFill, design: SlipDesign): SlipFill {
 }
 
 /** The body of `POST /api/shop/orders`: the version filled, never a number, date or shop. */
-export function toCreateRequest(fill: SlipFill, template: Pick<OrderTemplate, 'versionId' | 'design'>): CreateOrderInput {
+export function toCreateRequest(fill: SlipFill, template: Pick<OrderTemplate, 'versionId' | 'design'>, customerId: string | null = null): CreateOrderInput {
   return {
     templateVersionId: template.versionId,
+    customerId,
     values: cleanValues(template.design, fill.values),
     phone: fill.phone.trim(),
     amount: fill.amount,

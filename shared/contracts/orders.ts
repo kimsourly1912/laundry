@@ -44,6 +44,8 @@ const slipValueSchema = v.union([
  */
 export const createOrderSchema = v.strictObject({
   templateVersionId: idSchema,
+  /** The shop's customer (D39), or `null` for a walk-in. 404 for another shop's. */
+  customerId: v.optional(v.nullable(idSchema), null),
   values: v.pipe(
     v.record(keySchema, slipValueSchema),
     v.check(values => Object.keys(values).length <= MAX_ELEMENTS + MAX_GROUPS, 'Too many values'),
@@ -67,6 +69,8 @@ export const orderListQuerySchema = v.object({
   /** An open order's stage, or `picked_up`, `cancelled`; `open` is every open order. */
   status: optionalParam(v.picklist([...ORDER_STATES, 'open'])),
   paid: optionalParam(v.pipe(v.picklist(['true', 'false']), v.transform(value => value === 'true'))),
+  /** One customer's orders (their history, D39). */
+  customerId: optionalParam(idSchema),
 })
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
 
@@ -93,6 +97,8 @@ export interface OrderListItem {
   number: number
   /** The shop's day, `YYYY-MM-DD`. */
   date: string
+  /** The customer's name as saved with the order (D39), or `null`. */
+  customerName: string | null
   /** E.164, or `null`. */
   phone: string | null
   /** Minor units of `currency`, or `null` when the slip has no amount. */
@@ -111,6 +117,8 @@ export interface OrderListItem {
  * the slip the customer was given.
  */
 export interface OrderDetail extends OrderListItem {
+  /** The shop's customer (D39), or `null` for a walk-in. */
+  customerId: string | null
   /** The template it was made on: Cancel and copy starts the new order on it, at its latest version. */
   templateId: string
   templateVersionId: string

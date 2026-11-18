@@ -10,6 +10,7 @@ import { shopDate } from '#server/utils/time'
 import { auditStatement, runIdempotent } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
 import { shopCopy } from '#server/features/shops'
+import { orderCustomer } from '#server/features/customers'
 import { readyMessagesStatement, withdrawReadyMessagesStatement } from '#server/features/notifications'
 import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
 import { orderChanged, orderNotAllowed, orderNotFound, slipValuesInvalid } from './orders.errors'
@@ -25,8 +26,8 @@ import type { OrderRow } from './orders.repository'
  */
 
 function toListItem(row: OrderRow): OrderListItem {
-  const { id, number, date, phone, amount, paid, status, stage, createdAt } = row
-  return { id, number, date, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
+  const { id, number, date, customerName, phone, amount, paid, status, stage, createdAt } = row
+  return { id, number, date, customerName, phone, amount, currency: row.shop.currency, paid, status, stage, createdAt: createdAt.toISOString() }
 }
 
 const iso = (date: Date | null) => date?.toISOString() ?? null
@@ -39,6 +40,7 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
   if (!version) throw orderNotFound()
   return {
     ...toListItem(row),
+    customerId: row.customerId,
     templateId: version.templateId,
     templateVersionId: row.templateVersionId,
     templateVersionNumber: version.number,
@@ -59,15 +61,16 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
  * text that is neither matches nothing.
  */
 export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery): Promise<Page<OrderListItem>> {
-  const { search, status, paid, page, pageSize } = query
+  const { search, status, paid, customerId, page, pageSize } = query
   const wanted = search ? parseOrderSearch(search) : undefined
   if (wanted && 'none' in wanted) return toPage([], query, 0)
-  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, page, pageSize })
+  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, customerId, page, pageSize })
   return toPage(rows.map(toListItem), query, total)
 }
 
 interface CreateOrderOptions {
-  input: CreateOrderInput
+  /** The validated request; `customerId` may be left out (a walk-in). */
+  input: Omit<CreateOrderInput, 'customerId'> & { customerId?: string | null }
   /** The `Idempotency-Key` header. */
   key: string
   now?: Date
@@ -83,7 +86,8 @@ interface CreateOrderOptions {
  *   counter, the order (numbered from the counter), the audit row and the idempotency key.
  */
 export async function createOrder(db: Db, actor: ShopActor, options: CreateOrderOptions): Promise<{ order: OrderDetail, replayed: boolean }> {
-  const { input, key, now = new Date() } = options
+  const { key, now = new Date() } = options
+  const input = { ...options.input, customerId: options.input.customerId ?? null }
   const { shopId, userId } = actor
   const { id, replayed } = await runIdempotent(db, {
     scope: { shopId, actorUserId: userId, action: 'order.create', key },
@@ -96,6 +100,8 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
       if (Object.keys(problems).length) throw slipValuesInvalid(problems)
       const shop = await shopCopy(db, shopId)
       if (!shop) throw orderNotFound()
+      // The shop's own customer only (404 otherwise); customers are never deleted, so no guard is needed in the batch.
+      const customer = input.customerId ? await orderCustomer(db, shopId, input.customerId) : null
       const orderId = newId()
       await runBatch(db, [
         ...orderableVersionGuards(db, shopId, version),
@@ -107,6 +113,7 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
           templateVersionId: version.versionId,
           values: cleanValues(version.design, values),
           shop,
+          customer,
           phone: phone ? toE164(phone) : null,
           amount,
           paid,

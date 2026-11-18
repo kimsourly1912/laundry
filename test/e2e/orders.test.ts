@@ -262,6 +262,37 @@ describe('the owner\'s counter', () => {
     expect(old).toMatchObject({ number: 2, status: 'cancelled', paid: true })
   })
 
+  it('adds a customer from New order, and finds the order on the customer\'s page (D39)', async () => {
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-customers', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
+    await page.waitForURL(`${host}/`)
+    await page.goto(`${host}/orders/new`)
+    await page.getByTestId('customer-picker').click()
+    await page.keyboard.type('Sokha')
+    await page.getByRole('option', { name: /Add .Sokha. as a new customer/ }).click()
+    expect(await page.getByTestId('customer-name').inputValue()).toBe('Sokha')
+    await page.getByTestId('customer-phone').fill('099 111 222')
+    await page.getByTestId('customer-save').click()
+    // The slip's empty phone box takes the customer's phone.
+    await expect.poll(() => page.getByTestId('field-phone').inputValue()).toBe('099 111 222')
+    await page.locator('[data-field="shirt"]').getByRole('button', { name: /^Add one/ }).click()
+    await page.evaluate(() => window.scrollTo({ top: 0 }))
+    await page.waitForTimeout(400)
+    await shot(page, '11-new-order-customer')
+    await page.getByTestId('preview').click()
+    await page.getByTestId('save-only').click()
+    await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
+    const number = await page.getByTestId('order-number').textContent()
+
+    await page.goto(`${host}/more`)
+    await page.getByRole('link', { name: 'Customers' }).click()
+    await page.waitForURL(`${host}/customers`)
+    await page.getByTestId('customers-list').getByRole('link', { name: 'Sokha' }).click()
+    await expect.poll(() => page.getByTestId('customer-orders').getByRole('link').allTextContents()).toEqual([`No. ${number}`])
+  })
+
   it('with two slips and no default, New order asks and remembers; Paper slips moves the default (sheet 05)', async () => {
     const page = await phone()
     onTestFailed(screenshotOnFailure('orders-slips', [page]))

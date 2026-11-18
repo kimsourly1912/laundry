@@ -611,3 +611,10 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **"Ready for pickup" on Telegram** is queued in the batch that marks the order ready, one per live chat. Its id carries the ready time, so a later Ready after a rework sends again and a repeat sends nothing. A rework takes back an unsent one. At send time it goes only if the order is still ready. A slip sent to someone who links after Ready says so in its caption.
 - **Overview** counts received today (the shop's day), in progress, ready and unpaid, in one query; each opens the matching orders.
 - **Statement:** `order:work` (start, ready, rework) for owner and staff.
+
+**Customers** (product notes → customers; guide → sheet 06).
+- **`customers`** (shop-owned): name, an optional phone (E.164, one customer per phone in a shop, a partial unique index), `version`. Never deleted: an order points at its customer.
+- **An order names its customer** (`customer_id`, optional: a walk-in has none) and keeps the name it had then (`customer_name`), like the shop copy (D33). The server takes only the shop's own customer (404 otherwise); customers are never deleted and never change shop, so the read is enough and no guard rides in the batch.
+- **New order** has a customer picker: type a name or a phone, pick one, or add one in a small dialog; a customer's phone fills the slip's empty Phone box. Customers, in More, lists them; a customer's page shows their orders (`GET /api/shop/orders?customerId=`). The route page puts the orders feature's list inside the customer page, so the two features don't import each other.
+- **Search:** text that reads as a phone matches the phone exactly; anything else, part of the name (`instr`, D1's pattern limit).
+- **Statements:** `customer:read`, `customer:write` for owner and staff. Audit rows name the changed fields, never their values.

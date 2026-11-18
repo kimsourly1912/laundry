@@ -26,6 +26,10 @@ const { t } = useI18n()
         >
           {{ t('orders.latest.number', { number: order.number }) }}
         </ULink>
+        <span
+          v-if="order.customerName"
+          class="text-sm break-words text-highlighted"
+        >{{ order.customerName }}</span>
         <span class="text-sm break-words text-muted">
           {{ formatDate(order.date) }}<template v-if="order.phone"> · {{ formatPhone(order.phone) }}</template><template v-if="order.amount !== null"> · <span class="tabular-nums">{{ formatMoney(order.amount, order.currency) }}</span></template>
         </span>

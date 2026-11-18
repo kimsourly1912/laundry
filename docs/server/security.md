@@ -43,6 +43,7 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 | template | set-default: the shop's default slip (plan §4) | ✓ | |
 | order | create, read | ✓ | ✓ |
 | order | work: start, mark ready, rework (D39) | ✓ | ✓ |
+| customer | read, write (D39) | ✓ | ✓ |
 | order | pay, pick-up | ✓ | ✓ |
 | order | cancel (and Cancel and copy) | ✓ | |
 
