@@ -2,15 +2,14 @@ import { sql } from 'drizzle-orm'
 import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 import { templateVersions } from '#server/features/templates/templates.schema'
+import { ORDER_STATUSES } from '#shared/contracts/orders'
+import type { SlipValues } from '#shared/contracts/slip-design'
 
 /**
  * A shop's orders (D31, plan §4, §7; docs/server/data-model.md → orders): a filled slip. Never
  * deleted: cancelled. The order keeps the template version it was made on and a copy of the shop's
  * details (D33), so its slip never changes.
  */
-
-export const ORDER_STATUSES = ['open', 'picked_up', 'cancelled'] as const
-export type OrderStatus = typeof ORDER_STATUSES[number]
 
 /** The shop's details as they were when the order was saved (D33): what the slip draws. */
 export interface OrderShopCopy {
@@ -37,7 +36,7 @@ export const orders = sqliteTable('orders', {
   date: text().notNull(),
   templateVersionId: text().notNull().references(() => templateVersions.id, { onDelete: 'restrict' }),
   /** The owner's values by element id, checked against the template version by the server. */
-  values: text({ mode: 'json' }).$type<Record<string, unknown>>().notNull(),
+  values: text({ mode: 'json' }).$type<SlipValues>().notNull(),
   shop: text({ mode: 'json' }).$type<OrderShopCopy>().notNull(),
   /** E.164, from the Phone field; `null` when the order has none. */
   phone: text(),

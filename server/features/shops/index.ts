@@ -1,6 +1,6 @@
 import type { Currency } from '#shared/contracts/shop-settings'
 import type { Db } from '#server/utils/batch'
-import { findShopProfile, findShopStatus } from './shops.repository'
+import { findShopCopy, findShopProfile, findShopStatus } from './shops.repository'
 
 /** The shops feature's public API (docs/server/architecture.md → Features). */
 export { createShop, getShop, listShops, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from './shops.service'
@@ -24,4 +24,17 @@ export interface ShopProfile {
   name: string
   currency: Currency
   status: 'active' | 'suspended'
+}
+
+/** The shop's details as an order copies them when it's saved (D33). `undefined` for no such shop. */
+export function shopCopy(db: Db, shopId: string): Promise<ShopCopy | undefined> {
+  return findShopCopy(db, shopId)
+}
+
+export interface ShopCopy {
+  name: string
+  phone: string | null
+  address: string | null
+  logoImageId: string | null
+  currency: Currency
 }

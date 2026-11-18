@@ -551,3 +551,29 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **Labels:** the design's labels change from `{ en, km }` to a string. The staging database has test data only; templates must be made again.
 - **The `shop_settings.language` column is no longer read or written.** Dropping it is a later migration (expand, then contract: operations.md → Migrations).
 - Step 3 builds Cancel and copy instead of an edit.
+
+## D37. The owner's counter: New order, Preview, save once, reprint
+**2026-11-18.** The first owner milestone of plan step 3, built to the product design notes (`docs/product-design/implementation-guide.md`, sheets 01, 02, 10, 11). Keeps D31–D36; the Studio and AI import are untouched.
+
+**Context.** The guide asks for the shortest complete counter loop first: an attached template → fill → preview → save → a number for the bag → print → reopen. A double tap, a retry and a reprint must never make a second order or change the slip. The existing pieces (the design's fields, `checkFill`, the `orders` table, the shared SVG builder) are reused; nothing in the schema changes.
+
+**Decision.**
+- **Intake is a form, not the slip-tap filler.** New order lists the design's fields as rows in the fill order (sheet 01): counts with − and + (an empty box counts from 1, − on 1 empties it), text, choices, phone, the amount typed by hand (free-entry slips keep manual amounts, plan §6.8) and Paid / Not paid. `SlipFiller` stays for the studio's Try it.
+- **Preview is a second step of the same page** (`?step=preview`; the form stays mounted, so Edit brings back every field exactly as typed). Previewing creates nothing; the Order No. box shows a placeholder.
+- **The version the owner filled is sent, and only accepted while it is the latest.** `POST /api/shop/orders` takes `templateVersionId`; the server accepts it only if its template is attached to the shop and published (404 otherwise), checks every value against it (422 `SLIP_VALUES_INVALID`, by field), and guards **inside the batch** that the template is still attached and has no newer version (409 `TEMPLATE_CHANGED`: the app reloads the slip and keeps what still fits). A value is never stored against a version the owner didn't see.
+- **One `Idempotency-Key` per New order page,** kept for every retry (`runIdempotent`): a double tap, two requests at once or a retry after a lost answer make one order; a replay answers with that order even after the platform published again.
+- **The order page is the saved screen and the reprint.** It draws the slip from the order's own version and shop copy; `?saved=1` adds "Order saved" and Next order; Save & print opens the browser's print dialog once the artwork has loaded. Print again never saves; the browser can't tell whether paper came out, so it is always offered.
+- **Printing is the browser's print of the same SVG** (`.print-slip`, a print stylesheet), not a second renderer: what prints is what the server's PNG draws. Paper size in millimetres is later work (guide → Print).
+- **Artwork for shops:** `GET /api/shop/templates/:id/images/:imageId` (an attached template's latest version) and `GET /api/shop/orders/:id/images/:imageId` (the order's own version), each serving only an image its design draws. The platform's image route stays platform-only.
+- **Statements:** shop `template: ['read']`, `order: ['create', 'read']` for owner and staff (staff not assignable yet, spec P3).
+- **`open` is shown as "Received"**, `picked_up` as "Collected" (guide → interaction contract); the stored values don't change.
+- **The page shrinks above the phone's keyboard** (`interactive-widget=resizes-content` in the viewport), so the bottom bar's Preview stays in reach while typing.
+
+**Alternatives.**
+- **The server always uses the latest version:** a Publish between opening the form and saving would check (or store) values against fields the owner never saw.
+- **A server PNG for printing:** one more request per print and a raster on paper; the SVG prints sharp and is already equal to the PNG (D32).
+- **Expose `/api/platform/images/:id` to shops:** it would serve any template's artwork to any shop.
+
+**Consequences.**
+- No migration: the `orders` columns of step 1 are enough. `orders.values` is typed as `SlipValues`.
+- Left for the next milestones (current-state → Open questions): the 768 px content width the guide proposes, a zero-padded number (`#002139`), remembering a chosen default (sheet 05), the Telegram QR on the saved screen (plan step 4), the Orders list and search, Mark paid / Picked up / Cancel and copy.

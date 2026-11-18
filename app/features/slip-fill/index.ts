@@ -6,4 +6,5 @@
 export { SlipSvg } from './components/slip-svg'
 export { default as SlipFiller } from './components/SlipFiller.vue'
 export { useSlipText } from './composables/useSlipText'
-export { emptyFill, fillData } from './utils/fill'
+export { emptyFill, fillData, fillSteps, problemKey, problemMessage } from './utils/fill'
+export type { FillStep } from './utils/fill'

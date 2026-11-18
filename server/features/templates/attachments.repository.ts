@@ -58,7 +58,21 @@ export async function isAttached(db: Db, shopId: string, templateId: string): Pr
   return (await db.$count(templateShops, and(eq(templateShops.shopId, shopId), eq(templateShops.templateId, templateId)))) > 0
 }
 
+/** The shop's attached templates that are published: what a new order may be filled on (plan §4). */
+export function orderableTemplatesOfShop(db: Db, shopId: string): Promise<{ templateId: string, name: string, isDefault: boolean }[]> {
+  return db.select({ templateId: templateShops.templateId, name: templates.name, isDefault: templateShops.isDefault })
+    .from(templateShops)
+    .innerJoin(templates, eq(templates.id, templateShops.templateId))
+    .where(and(eq(templateShops.shopId, shopId), eq(templates.status, 'published')))
+    .orderBy(asc(templates.name), asc(templates.id))
+}
+
 // --- Guards ---
+
+/** Aborts the batch unless the template is still attached to the shop (the platform may detach it meanwhile). */
+export function requireAttached(db: Db, shopId: string, templateId: string): Statement {
+  return requireCount(db, db.$count(templateShops, and(eq(templateShops.shopId, shopId), eq(templateShops.templateId, templateId))), 1)
+}
 
 /**
  * Aborts the batch unless the template is still published (a published template has a version; an

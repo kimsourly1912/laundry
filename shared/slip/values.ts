@@ -101,6 +101,10 @@ export function checkFill(design: SlipDesign, fill: SlipFill): FillProblems {
     else if (typeof value !== 'string' || !options.includes(value)) problems[group.id] = { code: 'invalid' }
   }
 
+  // The phone and the amount are the order's own columns: only a slip with that field may set one.
+  if (!design.elements.some(element => element.type === 'phone') && fill.phone.trim()) problems.phone = { code: 'invalid' }
+  if (!design.elements.some(element => element.type === 'amount') && fill.amount !== null) problems.amount = { code: 'invalid' }
+
   for (const key of Object.keys(fill.values)) {
     if (!known.has(key) || key === PAID_KEY) problems[key] = { code: 'invalid' }
   }

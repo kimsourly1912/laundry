@@ -20,7 +20,9 @@ export const shopStatements = {
   // used, and closed over HTTP (auth-endpoints.ts). Listed so no role gets them by accident.
   ...organizationPluginStatements,
   shop: ['read', 'update'],
-  // Orders and templates come back with the owner portal (plan step 3).
+  // The owner portal (plan step 3): the attached templates an order is filled on, and the orders.
+  template: ['read'],
+  order: ['create', 'read'],
 } as const
 
 export const shopAc = createAccessControl(shopStatements)
@@ -28,9 +30,14 @@ export const shopAc = createAccessControl(shopStatements)
 export const shopRoles = {
   owner: shopAc.newRole({
     shop: ['read', 'update'],
+    template: ['read'],
+    order: ['create', 'read'],
   }),
+  // Staff take orders at the counter too (spec P3: not assignable until Phase 2).
   staff: shopAc.newRole({
     shop: ['read'],
+    template: ['read'],
+    order: ['create', 'read'],
   }),
 }
 

@@ -1,8 +1,8 @@
-import { and, count, desc, eq, inArray, max, ne, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gt, inArray, max, ne, sql } from 'drizzle-orm'
 import type { TemplateListQuery, TemplateStatus } from '#shared/contracts/templates'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import type { Db, Statement } from '#server/utils/batch'
-import { readInChunks } from '#server/utils/batch'
+import { readInChunks, requireCount } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
 import { templates, templateVersions } from './templates.schema'
 
@@ -82,6 +82,21 @@ export async function latestNumbers(db: Db, templateIds: readonly string[]): Pro
 /** The template's latest published version, or `undefined` before its first Publish. */
 export function findLatestVersion(db: Db, templateId: string): Promise<VersionRow | undefined> {
   return firstRow(db.select(versionColumns).from(templateVersions).where(eq(templateVersions.templateId, templateId)).orderBy(desc(templateVersions.number)))
+}
+
+export interface VersionWithTemplateRow extends VersionRow {
+  templateName: string
+}
+
+/** Versions by id with their template's name (an order's version: never a later one). */
+export function findVersions(db: Db, versionIds: readonly string[]): Promise<VersionWithTemplateRow[]> {
+  return readInChunks(versionIds, ids => db.select({ ...versionColumns, templateName: templates.name })
+    .from(templateVersions).innerJoin(templates, eq(templates.id, templateVersions.templateId)).where(inArray(templateVersions.id, ids)))
+}
+
+/** Aborts the batch when the template has a version after `number`: it was published again meanwhile. */
+export function requireNoVersionAfter(db: Db, templateId: string, number: number): Statement {
+  return requireCount(db, db.$count(templateVersions, and(eq(templateVersions.templateId, templateId), gt(templateVersions.number, number))), 0)
 }
 
 // --- Write statements ---

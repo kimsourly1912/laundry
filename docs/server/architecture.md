@@ -55,11 +55,11 @@ Server code is organized by feature, one business area each:
 | `platform` | audit events, idempotency keys, job runs |
 | `shops` | shop settings, suspend/resume |
 | `templates` | templates, versions, attachments to shops, images; the slip renderer and its fonts (D31, D32; code from S1) |
-| `orders` | orders and their counters: create, mark paid, pick up, cancel (code from step 3) |
+| `orders` | orders and their counters: create and read (D37); mark paid, pick up, cancel to come |
 | `notifications` | which chats get an order's slip (Telegram links), the outbox and its delivery rules (D28) |
 | `telegram` | the Bot API, the webhook's secret check; the QR and the scan from step 4 (D28) |
 
-Dependencies point one way: `telegram` → `orders` → `templates`, and `telegram` → `notifications`. `notifications` knows nothing about Telegram: `deliverDue` takes the channel's `send`, so the outbox rules (claim, backoff, give up) stay in one place and the channel in another.
+Dependencies point one way: `telegram` → `orders` → `templates` (and `orders` → `shops` for the shop copy), and `telegram` → `notifications`. `notifications` knows nothing about Telegram: `deliverDue` takes the channel's `send`, so the outbox rules (claim, backoff, give up) stay in one place and the channel in another.
 
 ```text
 server/

@@ -46,6 +46,8 @@ Amount  12,000 ៛ · Paid ( ) Not paid (•) · Phone (optional)
 - **Done step:** the order number in big digits (to write on the bag), the Telegram QR, the next useful action ("Next order", "View order"), and nothing that undoes it by accident.
 - **Expanded:** the same steps in a centered card. Never a different flow on a wide screen.
 
+**As built (D37):** New order lists the slip's fields as rows in its fill order, with a sticky Preview; the preview is the slip with the number's box empty, then Edit, Save & print or Save only. The slip-tap filler drawn above is the studio's Try it.
+
 **Mark paid, Picked up and Cancel** are single actions on the order page (plan §3), not flows.
 
 ## 3. Resource index

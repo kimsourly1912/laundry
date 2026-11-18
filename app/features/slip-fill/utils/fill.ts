@@ -2,7 +2,7 @@ import type { SlipData, SlipDesign, SlipElement, SlipShop } from '#shared/contra
 import { PAID_KEY } from '#shared/contracts/slip-design'
 import { toE164 } from '#shared/contracts/phone'
 import { fillOrderOf } from '#shared/slip/fields'
-import type { SlipFill } from '#shared/slip/values'
+import type { FillProblem, SlipFill } from '#shared/slip/values'
 
 /** A fresh slip: nothing filled, not paid. */
 export function emptyFill(): SlipFill {
@@ -48,4 +48,14 @@ export function problemKey(step: FillStep): string {
 export function stepOf(steps: FillStep[], element: SlipElement): number {
   const key = element.type === 'option' ? element.group : element.type === 'paid' ? PAID_KEY : element.id
   return steps.findIndex(step => step.key === key)
+}
+
+/** The i18n key (under `slipFill.problems`) and its values for a problem: Try it and New order say it the same way. */
+export function problemMessage(problem: FillProblem): { key: string, params?: Record<string, number> } {
+  switch (problem.code) {
+    case 'range': return { key: 'range', params: { min: problem.min, max: problem.max } }
+    case 'decimals': return problem.decimals ? { key: 'decimals', params: { decimals: problem.decimals } } : { key: 'whole' }
+    case 'tooLong': return { key: 'tooLong', params: { max: problem.max } }
+    default: return { key: problem.code }
+  }
 }
