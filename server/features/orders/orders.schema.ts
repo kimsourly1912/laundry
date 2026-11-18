@@ -58,6 +58,8 @@ export const orders = sqliteTable('orders', {
   // Overview (today's orders) and the list, newest first.
   index('orders_shop_date_idx').on(table.shopId, table.date, table.createdAt),
   index('orders_shop_created_idx').on(table.shopId, table.createdAt),
+  // The Orders search by phone: a phone may match several orders (plan §3).
+  index('orders_shop_phone_idx').on(table.shopId, table.phone),
   check('orders_status_check', sql`${table.status} in (${inList(ORDER_STATUSES)})`),
   check('orders_number_check', sql`${table.number} >= 1`),
   check('orders_date_check', sql`${table.date} glob '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`),

@@ -509,11 +509,23 @@
       "title": "Latest orders",
       "number": "No. {number}",
       "emptyTitle": "No orders yet",
-      "emptyDescription": "Orders you save appear here."
+      "emptyDescription": "Orders you save appear here.",
+      "viewAll": "View all orders"
     },
     "form": {
       "more": "Add one {label}",
       "less": "Remove one {label}"
+    },
+    "list": {
+      "nav": "Orders",
+      "title": "Orders",
+      "search": "Order No. or phone",
+      "payment": "Payment",
+      "anyPayment": "Any payment",
+      "noMatch": "No orders match",
+      "tabs": {
+        "all": "All"
+      }
     }
   }
 }

@@ -13,6 +13,7 @@ import { shopCopy } from '#server/features/shops'
 import { orderableVersion, orderableVersionGuards, templateChangedForOrder, versionImage, versionsById } from '#server/features/templates'
 import { orderNotFound, slipValuesInvalid } from './orders.errors'
 import * as repo from './orders.repository'
+import { parseOrderSearch } from './orders.rules'
 import type { OrderRow } from './orders.repository'
 
 /**
@@ -49,8 +50,15 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
   }
 }
 
+/**
+ * The shop's orders, newest first. `search` is an exact order number or phone (`parseOrderSearch`);
+ * text that is neither matches nothing.
+ */
 export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery): Promise<Page<OrderListItem>> {
-  const { rows, total } = await repo.listOrders(db, actor.shopId, query)
+  const { search, status, paid, page, pageSize } = query
+  const wanted = search ? parseOrderSearch(search) : undefined
+  if (wanted && 'none' in wanted) return toPage([], query, 0)
+  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, status, paid, page, pageSize })
   return toPage(rows.map(toListItem), query, total)
 }
 

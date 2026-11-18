@@ -53,10 +53,25 @@ export function findOrder(db: Db, shopId: string, orderId: string): Promise<Orde
   return firstRow(db.select(orderColumns).from(orders).where(and(eq(orders.shopId, shopId), eq(orders.id, orderId))))
 }
 
-/** The shop's orders, newest first (`orders_shop_created_idx`), a page at a time, with how many there are. */
-export async function listOrders(db: Db, shopId: string, query: OrderListQuery): Promise<{ rows: OrderRow[], total: number }> {
-  const { page, pageSize } = query
-  const where = eq(orders.shopId, shopId)
+export interface OrderFilter {
+  /** Exact: the unique `(shop_id, number)` index. */
+  number?: number
+  /** Exact E.164 (`orders_shop_phone_idx`): one phone may have several orders. */
+  phone?: string
+  status?: OrderStatus
+  paid?: boolean
+}
+
+/** The shop's orders, newest first (`orders_shop_created_idx`), filtered, a page at a time, with how many match. */
+export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pick<OrderListQuery, 'page' | 'pageSize'>): Promise<{ rows: OrderRow[], total: number }> {
+  const { page, pageSize, number, phone, status, paid } = query
+  const where = and(
+    eq(orders.shopId, shopId),
+    number === undefined ? undefined : eq(orders.number, number),
+    phone === undefined ? undefined : eq(orders.phone, phone),
+    status === undefined ? undefined : eq(orders.status, status),
+    paid === undefined ? undefined : eq(orders.paid, paid),
+  )
   const [rows, [counted]] = await db.batch([
     db.select(orderColumns).from(orders).where(where).orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ total: count() }).from(orders).where(where),

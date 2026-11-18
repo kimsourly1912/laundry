@@ -199,6 +199,24 @@ describe('listOrders', () => {
   })
 })
 
+describe('listOrders search and filters', () => {
+  it('finds by exact number or phone, and filters by status and paid', async () => {
+    const one = (await create({ phone: '012 345 678', paid: true })).order
+    const two = (await create({ phone: '099 888 777' })).order
+    const three = (await create({ phone: '012 345 678' })).order
+    await db.update(orders).set({ status: 'cancelled', cancelledAt: NOW }).where(eq(orders.id, three.id))
+    const numbers = async (query: Partial<Parameters<typeof listOrders>[2]>) => (await listOrders(db, actor, { page: 1, pageSize: 20, ...query })).items.map(item => item.number)
+    expect(await numbers({ search: '2' })).toEqual([two.number])
+    expect(await numbers({ search: '#1' })).toEqual([one.number])
+    expect(await numbers({ search: '012345678' })).toEqual([three.number, one.number])
+    expect(await numbers({ search: 'Dara' })).toEqual([])
+    expect(await numbers({ search: '9' })).toEqual([])
+    expect(await numbers({ status: 'cancelled' })).toEqual([three.number])
+    expect(await numbers({ paid: true })).toEqual([one.number])
+    expect(await numbers({ search: '012 345 678', status: 'open', paid: false })).toEqual([])
+  })
+})
+
 describe('the slip\'s artwork', () => {
   it('an order and an attached template serve only the images their design draws', async () => {
     const admin = await createTestUser(db, { role: 'superadmin' })

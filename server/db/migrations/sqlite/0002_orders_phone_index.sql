@@ -1,0 +1,1 @@
+CREATE INDEX `orders_shop_phone_idx` ON `orders` (`shop_id`,`phone`);

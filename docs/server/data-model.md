@@ -110,9 +110,9 @@ erDiagram
 | `paid_at`, `picked_up_at`, `cancelled_at` | timestamp null | CHECKs: each is set exactly when its state is (`paid`, `picked_up`, `cancelled`) |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
+- Indexes: `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
-- **Never deleted.** Cancelled (plan §4). Step 3 adds the search by phone and its index once the query is known.
+- **Never deleted.** Cancelled (plan §4).
 
 ## `telegram_links`, `notifications` (owner: `notifications`)
 

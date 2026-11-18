@@ -191,6 +191,19 @@ describe('the owner\'s counter', () => {
     await page.getByTestId('print').click()
     await expect.poll(() => printed(page)).toBe(1)
     await shot(page, '05-reopened-order')
+
+    // --- Orders: search by number or phone (sheet 03) ---
+    await page.getByRole('button', { name: 'Open sidebar' }).click()
+    await page.getByRole('link', { name: 'Orders' }).click()
+    await page.waitForURL(`${host}/orders`)
+    await expect.poll(() => page.getByTestId('orders-list').getByRole('listitem').count()).toBe(2)
+    await page.getByTestId('orders-search').fill('#1')
+    await page.waitForURL(`${host}/orders?search=%231`)
+    await expect.poll(() => page.getByTestId('orders-list').getByRole('listitem').count()).toBe(1)
+    await page.getByTestId('orders-search').fill('012 345 678')
+    await expect.poll(() => page.getByTestId('orders-list').getByRole('link').allTextContents()).toEqual(['No. 1'])
+    await page.getByTestId('orders-search').fill('Dara')
+    await expect.poll(() => page.getByTestId('orders-no-match').count()).toBe(1)
   })
 
   it('another shop\'s owner can\'t open the order or its artwork: the same 404 as a missing one', async () => {

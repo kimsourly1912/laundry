@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { idSchema, pageQuerySchema } from './common'
+import { idSchema, optionalParam, pageQuerySchema } from './common'
 import { keySchema, MAX_ELEMENTS, MAX_GROUPS, TEXT_FIELD_MAX } from './slip-design'
 import type { SlipDesign, SlipShop } from './slip-design'
 import { AMOUNT_MAX } from '#shared/slip/values'
@@ -40,8 +40,17 @@ export const createOrderSchema = v.strictObject({
 })
 export type CreateOrderInput = v.InferOutput<typeof createOrderSchema>
 
-/** `GET /api/shop/orders?page=&pageSize=`: newest first. */
-export const orderListQuerySchema = v.object({ ...pageQuerySchema })
+/**
+ * `GET /api/shop/orders?search=&status=&paid=&page=&pageSize=`: newest first. `search` is an order
+ * number (`12`, `#12`) or a phone (`012 345 678`), matched exactly (plan §3: "searchable by order
+ * number or phone").
+ */
+export const orderListQuerySchema = v.object({
+  ...pageQuerySchema,
+  search: optionalParam(v.pipe(v.string(), v.trim(), v.maxLength(30))),
+  status: optionalParam(v.picklist(ORDER_STATUSES)),
+  paid: optionalParam(v.pipe(v.picklist(['true', 'false']), v.transform(value => value === 'true'))),
+})
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
 
 /** An order in a list (Overview's latest orders). */
