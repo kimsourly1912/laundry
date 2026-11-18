@@ -69,7 +69,7 @@ onMounted(() => {
       htmlLanguage.data.of({ autocomplete: complete }),
       lintGutter(),
       editing.of(editable(props.readOnly)),
-      EditorView.contentAttributes.of({ 'aria-label': props.label, autocapitalize: 'off', spellcheck: 'false' }),
+      EditorView.contentAttributes.of({ 'aria-label': props.label, 'autocapitalize': 'off', 'spellcheck': 'false' }),
       EditorView.lineWrapping,
       EditorView.theme({
         '&': { minHeight: '24rem', maxHeight: '65vh', fontSize: '13px' },

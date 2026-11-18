@@ -128,7 +128,10 @@ function clearFilters() {
                   v-if="template.design.html !== undefined"
                   class="grid h-full place-items-center bg-elevated text-muted"
                 >
-                  <UIcon name="i-lucide-file-code" class="size-6" />
+                  <UIcon
+                    name="i-lucide-file-code"
+                    class="size-6"
+                  />
                 </div>
                 <SlipSvg
                   v-else-if="text"

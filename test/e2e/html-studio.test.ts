@@ -34,6 +34,11 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await expect.poll(() => preview.getAttribute('src')).toMatch(/^blob:/)
   expect(createRequests).toBe(0)
 
+  await page.getByTestId('count-label').fill('Bag count')
+  await page.getByTestId('field-key').fill('bag_count')
+  await page.getByTestId('add-count').click()
+  await expect.poll(() => page.getByText('{{fields.bag_count}}', { exact: true }).count()).toBe(1)
+
   const invalid = '<div class="flex">{{fields.unknown}}</div>'
   await editor.fill(invalid)
   await expect.poll(() => page.getByTestId('html-problems').textContent()).toContain('fields.unknown')

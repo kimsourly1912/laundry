@@ -425,7 +425,10 @@ const tabs = computed(() => [
         <h2 class="font-semibold text-highlighted">
           {{ t('studio.html.fieldsTitle') }}
         </h2>
-        <div v-if="!draft" class="flex flex-wrap items-center gap-2">
+        <div
+          v-if="!draft"
+          class="flex flex-wrap items-center gap-2"
+        >
           <span class="text-sm text-muted">{{ t('studio.html.intakePreset') }}</span>
           <UButton
             v-for="preset in HTML_INTAKE_PRESETS"
@@ -499,25 +502,49 @@ const tabs = computed(() => [
             />
           </li>
         </ul>
-        <form v-if="!readOnly" class="flex flex-wrap items-start gap-2" @submit.prevent="addField">
+        <form
+          v-if="!readOnly"
+          class="flex flex-wrap items-start gap-2"
+          @submit.prevent="addField"
+        >
           <UFormField :label="t('studio.html.fieldLabel')">
-            <UInput v-model="newLabel" :maxlength="60" size="sm" data-testid="count-label" />
+            <UInput
+              v-model="newLabel"
+              :maxlength="60"
+              size="sm"
+              data-testid="count-label"
+            />
           </UFormField>
           <UFormField
             :label="t('studio.html.fieldKey')"
             :error="fieldKey && !validFieldKey ? t('studio.html.fieldKeyError') : undefined"
           >
-            <UInput v-model="newFieldKey" :maxlength="40" size="sm" autocapitalize="off" data-testid="field-key" />
+            <UInput
+              v-model="newFieldKey"
+              :maxlength="40"
+              size="sm"
+              autocapitalize="off"
+              data-testid="field-key"
+            />
           </UFormField>
           <UFormField :label="t('studio.html.fieldType.title')">
-            <USelect v-model="newType" :items="fieldTypes" size="sm" />
+            <USelect
+              v-model="newType"
+              :items="fieldTypes"
+              size="sm"
+            />
           </UFormField>
           <UFormField
             v-if="usesPrice"
             :label="t('studio.field.priceKey')"
             :error="!validPriceKey(priceKey) ? t('studio.html.priceKeyError') : undefined"
           >
-            <UInput v-model="newPriceKey" size="sm" autocapitalize="off" data-testid="count-key" />
+            <UInput
+              v-model="newPriceKey"
+              size="sm"
+              autocapitalize="off"
+              data-testid="count-key"
+            />
           </UFormField>
           <UButton
             type="submit"
@@ -573,10 +600,32 @@ const tabs = computed(() => [
           :aria-label="t('studio.html.sample')"
         />
         <div class="flex flex-wrap items-center gap-2">
-          <UButton :label="t('studio.canvas.fit')" color="neutral" variant="outline" size="xs" @click="zoom = 100" />
-          <UButton icon="i-lucide-minus" color="neutral" variant="ghost" size="xs" :aria-label="t('studio.html.zoomOut')" :disabled="zoom <= 50" @click="zoom -= 25" />
+          <UButton
+            :label="t('studio.canvas.fit')"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            @click="zoom = 100"
+          />
+          <UButton
+            icon="i-lucide-minus"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('studio.html.zoomOut')"
+            :disabled="zoom <= 50"
+            @click="zoom -= 25"
+          />
           <span class="text-xs tabular-nums text-muted">{{ zoom }}%</span>
-          <UButton icon="i-lucide-plus" color="neutral" variant="ghost" size="xs" :aria-label="t('studio.html.zoomIn')" :disabled="zoom >= 200" @click="zoom += 25" />
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('studio.html.zoomIn')"
+            :disabled="zoom >= 200"
+            @click="zoom += 25"
+          />
           <UButton
             v-if="previewCurrent && previewUrl"
             :label="t('studio.html.downloadSvg')"
@@ -588,7 +637,13 @@ const tabs = computed(() => [
             variant="outline"
             size="xs"
           />
-          <span v-if="!previewCurrent && previewUrl" role="status" class="text-xs text-warning">{{ t('studio.html.previewStale') }}</span>
+          <span
+            v-if="!previewCurrent && previewUrl"
+            role="status"
+            class="text-xs text-warning"
+          >
+            {{ t('studio.html.previewStale') }}
+          </span>
         </div>
         <div class="max-h-[70vh] w-full overflow-auto rounded border border-default bg-elevated">
           <img
@@ -604,7 +659,12 @@ const tabs = computed(() => [
             class="w-full"
             :style="{ aspectRatio: `${design.width} / ${design.height}` }"
           />
-          <p v-else-if="!previewError" class="p-6 text-sm text-muted">{{ t('studio.html.previewInvalid') }}</p>
+          <p
+            v-else-if="!previewError"
+            class="p-6 text-sm text-muted"
+          >
+            {{ t('studio.html.previewInvalid') }}
+          </p>
         </div>
         <PageLoadError
           v-if="previewError"
