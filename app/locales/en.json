@@ -263,7 +263,9 @@
         "groupTooSmall": "{name} needs at least two options.",
         "missingLabel": "{name} needs a label.",
         "htmlInvalid": "The HTML has problems: see the list under the markup.",
-        "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML."
+        "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML.",
+        "htmlRenderFailed": "The slip could not be rendered with sample order data.",
+        "missingPrintBinding": "Add {name} to the HTML to show this required field."
       },
       "warnings": {
         "offCanvas": "{name} is partly off the slip.",
@@ -280,7 +282,7 @@
         "current": "Current"
       },
       "empty": "No templates yet",
-      "emptyDescription": "Start one from a photo of a shop's paper slip.",
+      "emptyDescription": "Create an HTML template for a shop's paper slip.",
       "noMatch": "No templates match",
       "version": "Version {number}",
       "neverPublished": "Not published yet",
@@ -288,24 +290,7 @@
       "shops": "No shops|1 shop|{count} shops"
     },
     "new": {
-      "title": "New template",
-      "start": "Start from",
-      "copy": "A copy of a template",
-      "copyHint": "The same design, as a new draft.",
-      "copyFrom": "Template to copy",
-      "chooseTemplate": "Choose a template",
-      "copyName": "Copy of {name}",
-      "create": "Create and open",
-      "artwork": "An artwork",
-      "artworkHint": "The slip's look, made by AI or a designer: PNG, JPEG or SVG. The canvas takes its size.",
-      "html": "HTML (an AI's answer)",
-      "htmlHint": "Paste the JSON your AI answered to Copy AI prompt, or start from the sample. Fields and paper size are set in the studio.",
-      "answer": "The AI's answer",
-      "answerHelp": "One JSON object: version, name, html (and reviewNotes).",
-      "useSample": "Start from the sample",
-      "sampleName": "HTML slip",
-      "width": "Width (px)",
-      "height": "Height (px)"
+      "title": "Create template"
     },
     "undo": "Undo",
     "redo": "Redo",
@@ -504,22 +489,45 @@
       "markup": "The slip's HTML",
       "at": "Line {line}, column {column}:",
       "ok": "The HTML is fine.",
-      "fieldsTitle": "The owner's fields",
-      "fieldsHint": "What the owner fills in New order. Put each in the HTML with its placeholder.",
+      "fieldsTitle": "Intake fields",
+      "fieldsHint": "Set what staff enter on an order and where each value appears on the slip. Match a field’s price key to the shop’s price list.",
       "fieldLabel": "Label",
       "copyPlaceholder": "Copy the placeholder",
       "copied": "Placeholder copied.",
       "removeField": "Remove the field",
-      "countLabel": "A count",
-      "byKg": "By weight (kg)",
-      "addCount": "Add",
       "sample": "Sample order",
       "samples": {
         "blank": "Blank",
         "typical": "Typical",
         "crowded": "Crowded"
       },
-      "previewAlt": "The slip with a sample order"
+      "previewAlt": "The slip with a sample order",
+      "intakePreset": "Intake preset",
+      "presets": {
+        "byWeight": "By weight",
+        "byItem": "By item"
+      },
+      "replacePreset": "Replace this draft’s HTML and intake fields with the selected preset?",
+      "saveDraft": "Save draft",
+      "addField": "Add field",
+      "fieldKey": "Field key",
+      "fieldKeyError": "Use a unique key starting with a lowercase letter. Use lowercase letters, digits, or underscores.",
+      "priceKeyError": "Use up to 40 lowercase letters, digits, dots, underscores, or dashes. Start with a letter or digit.",
+      "fieldType": {
+        "title": "Field type",
+        "count": "Whole number",
+        "weight": "Weight (kg)",
+        "text": "Text",
+        "checkbox": "Checkbox"
+      },
+      "intakeRequired": "Required at intake",
+      "printRequired": "Required on slip",
+      "paperRatio": "Choose a less narrow paper size so the slip can render at the right proportions.",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "downloadSvg": "Download SVG",
+      "previewStale": "Preview is out of date.",
+      "previewInvalid": "Fix the HTML errors to show a preview."
     }
   },
   "slipFill": {

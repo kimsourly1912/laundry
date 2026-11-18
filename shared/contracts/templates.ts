@@ -16,6 +16,8 @@ export const TEMPLATE_NAME_MAX = 80
 export const templateNameSchema = nameSchema(TEMPLATE_NAME_MAX, 'Template name')
 
 /** How a new template starts (plan §5.2, D35). */
+const htmlDraftDesignSchema = v.pipe(designSchema, v.check(design => design.html !== undefined && design.background.imageId === null, 'Use an HTML slip design'))
+
 export const templateStartSchema = v.variant('kind', [
   /** An uploaded artwork (made by AI or a designer): the canvas takes its size. */
   v.strictObject({ kind: v.literal('artwork'), imageId: idSchema }),
@@ -25,6 +27,7 @@ export const templateStartSchema = v.variant('kind', [
    * D39: an HTML slip (an AI's answer, or a sample to start from), on a canvas of this size, with the
    * usual owner fields to start from: phone, amount, paid or not. The Studio adds counts.
    */
+  v.strictObject({ kind: v.literal('htmlDraft'), design: htmlDraftDesignSchema }),
   v.strictObject({ kind: v.literal('html'), html: v.pipe(v.string(), v.maxLength(64 * 1024)), width: canvasSideSchema, height: canvasSideSchema }),
 ])
 export type TemplateStart = v.InferOutput<typeof templateStartSchema>
@@ -58,6 +61,8 @@ export const previewTemplateSchema = v.strictObject({
   sample: v.optional(v.picklist(['blank', 'typical', 'crowded']), 'typical'),
 })
 export type PreviewTemplateInput = v.InferOutput<typeof previewTemplateSchema>
+
+export const previewHtmlTemplateSchema = v.strictObject({ ...previewTemplateSchema.entries, design: htmlDraftDesignSchema })
 
 /** `GET /api/platform/templates?status=&search=&page=&pageSize=`: search is the name. */
 export const templateListQuerySchema = v.object({

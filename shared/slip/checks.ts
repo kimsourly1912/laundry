@@ -1,6 +1,6 @@
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { FIXED_TYPES, isOwnerField } from './fields'
-import { checkHtml, placeholdersIn } from '#shared/html-slip/catalog'
+import { checkHtml, FIELD_PREFIX, placeholdersIn } from '#shared/html-slip/catalog'
 
 /**
  * What a template needs before it's published (plan §5.6). Errors stop Publish, in the studio and on
@@ -11,6 +11,8 @@ import { checkHtml, placeholdersIn } from '#shared/html-slip/catalog'
 export type PublishError
   = | 'noOrderNo'
     | 'htmlInvalid'
+    | 'htmlRenderFailed'
+    | 'missingPrintBinding'
     | 'noQrCode'
     | 'duplicateFixed'
     | 'groupTooSmall'
@@ -63,6 +65,11 @@ export function publishProblems(design: SlipDesign): PublishProblems {
     const used = placeholdersIn(nodes)
     if (!used.has('order.number')) errors.push({ code: 'noOrderNo' })
     if (!used.has('order.qrCode')) errors.push({ code: 'noQrCode' })
+    for (const element of elements) {
+      if ('printRequired' in element && element.printRequired && !used.has(`${FIELD_PREFIX}${element.id}`)) {
+        errors.push({ code: 'missingPrintBinding', key: `${FIELD_PREFIX}${element.id}` })
+      }
+    }
   }
   else if (!elements.some(element => element.type === 'orderNo')) errors.push({ code: 'noOrderNo' })
 
@@ -92,6 +99,8 @@ export function publishProblems(design: SlipDesign): PublishProblems {
 export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   noOrderNo: 'Add an Order No. field.',
   htmlInvalid: 'The slip\'s HTML has problems.',
+  htmlRenderFailed: 'The slip could not be rendered with sample order data.',
+  missingPrintBinding: 'A required print binding is missing from the HTML.',
   noQrCode: 'Put {{order.qrCode}} in the slip\'s HTML.',
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',

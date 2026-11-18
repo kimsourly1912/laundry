@@ -128,7 +128,7 @@ export function readAiAnswer(pasted: string): { answer: AiAnswer } | { problems:
 }
 
 interface PromptOptions {
-  design: Pick<SlipDesign, 'width' | 'height' | 'elements' | 'groups' | 'paper'>
+  design: Pick<SlipDesign, 'width' | 'height' | 'elements' | 'groups' | 'paper' | 'htmlPreset'>
   /** The design brief: what the shop wants (Keep the layout / Redesign it, and notes). */
   brief: string
 }
@@ -137,7 +137,11 @@ interface PromptOptions {
 export function aiPrompt(options: PromptOptions): string {
   const { design, brief } = options
   const fields = [
-    ...design.elements.filter(isOwnerField).map(element => `- {{${FIELD_PREFIX}${element.id}}}: ${element.label} (${element.type})`),
+    ...design.elements.filter(isOwnerField).map((element) => {
+      const required = 'printRequired' in element && element.printRequired ? '; required on the slip' : ''
+      const example = element.type === 'number' ? (element.unit === 'kg' ? '2.50 kg' : '2') : element.type === 'checkbox' ? '✓' : 'Sample text'
+      return `- {{${FIELD_PREFIX}${element.id}}}: ${element.label} (${element.type}; example: ${example}${required})`
+    }),
     ...design.groups.map(group => `- {{${FIELD_PREFIX}${group.id}}}: ${group.label} (the chosen option's label)`),
   ]
   const paper = design.paper ? `${design.paper.widthMm} × ${design.paper.heightMm} mm` : 'not set yet'
@@ -151,7 +155,8 @@ export function aiPrompt(options: PromptOptions): string {
     `Use only these tags: ${HTML_TAGS.map(tag => `<${tag}>`).join(', ')}. Only the class attribute: Tailwind utilities for layout (flex, grid, gap, padding, margin, width, height), text (size, weight, alignment), colours and borders. No images, links, scripts, styles or other attributes.`,
     'Draw count boxes and rows with bordered divs and flex layouts. Write & as &amp; and < as &lt;.',
     '',
-    'Put values only through these placeholders (written exactly, with double braces):',
+    'Put values only through these placeholders (written exactly, with double braces, in text content only):',
+    'Use {{order.number}} and {{order.qrCode}}. Keep prices, calculations, conditionals, and loops in Laundry.',
     ...Object.entries(TEXT_PLACEHOLDERS).map(([name, what]) => `- {{${name}}}: ${what}`),
     ...Object.entries(BLOCK_PLACEHOLDERS).map(([name, what]) => `- {{${name}}}: ${what} (a block: put it alone in its own div)`),
     ...(fields.length ? ['The shop\'s own fields:', ...fields] : []),

@@ -2,6 +2,10 @@
 
 Keep this page short: where we are, what's next, what's blocked. History goes in git and `decisions.md`.
 
+## HTML-first Template Studio
+
+[Implementation and contract](html-template-studio-plan.md): direct Create template route, CodeMirror, SVG preview before saving, and By weight / By item bindings. Physical print size and QR scanning remain pilot checks.
+
 ## Now: the product notes' larger items (D39, 2026-11-18)
 
 **Built on branch `claude/admiring-goodall-1pk03z`, waiting for the owner's review** (one commit per item). D37 (#17) and D38 (#18) are merged.

@@ -648,3 +648,7 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **The HTML Studio** (an HTML slip opens it instead of the artwork canvas): Edit (the markup and its problems), Fields (labels, counts with a price key, the paper size), Preview (the server's PNG with a blank, typical or crowded sample). On a phone these are tabs and switching keeps the draft; from `lg` the editor and the preview sit side by side. It saves and publishes like the artwork studio (`useTemplateDraft`). New template gains "HTML (an AI's answer)", with a sample to start from.
 - **For the owner:** New order's preview and the order page show the server's SVG (`POST /api/shop/orders/preview`, `GET /api/shop/orders/:id/slip?qr=`); Telegram gets its PNG through resvg; print prints the image at the version's paper size.
 - **Not done:** the guide's two-pane HTML editor with syntax highlighting, and checking the printed QR with a phone (the pilot).
+
+## D40. HTML-first Template Studio
+
+Create template opens a new split editor with an unsaved starter design. Existing orders retain their issued versions. Templates created from artwork stay available through their saved routes. The implementation reuses version checks and the Satori renderer. The selected intake preset and stable field bindings are part of the design JSON fixed at publish. See the [implementation plan and AI binding contract](html-template-studio-plan.md).

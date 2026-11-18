@@ -69,6 +69,7 @@ const valueStyle = {
 
 /** "Draw a border": a thin box, for designs with no printed box (plan §5.3.1). */
 const border = { border: v.boolean() }
+const printBinding = { printRequired: v.optional(v.boolean()) }
 
 /** Number fields: 0–999 by default (plan §5.3.2). */
 export const NUMBER_LIMIT = 1_000_000
@@ -81,6 +82,7 @@ export const elementSchema = v.variant('type', [
     type: v.literal('number'),
     label: labelSchema,
     required: v.boolean(),
+    ...printBinding,
     ...valueStyle,
     ...border,
     /** 0: whole numbers; 1 or 2: decimal places. */
@@ -100,11 +102,12 @@ export const elementSchema = v.variant('type', [
     type: v.literal('textField'),
     label: labelSchema,
     required: v.boolean(),
+    ...printBinding,
     ...valueStyle,
     ...border,
     maxLength: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TEXT_FIELD_MAX)),
   }),
-  v.strictObject({ ...base, type: v.literal('checkbox'), label: labelSchema, required: v.boolean(), ...border, mark: v.picklist(MARKS), color: colorSchema }),
+  v.strictObject({ ...base, type: v.literal('checkbox'), label: labelSchema, required: v.boolean(), ...printBinding, ...border, mark: v.picklist(MARKS), color: colorSchema }),
   /** One spot of a choice group (`groups`): the group's mark is drawn here when it's the chosen one. */
   v.strictObject({ ...base, type: v.literal('option'), group: keySchema, label: labelSchema, ...border, color: colorSchema }),
 
@@ -147,6 +150,9 @@ const paperSideSchema = v.pipe(v.number(), v.finite(), v.minValue(PAPER_MIN_MM, 
 export const paperSchema = v.strictObject({ widthMm: paperSideSchema, heightMm: paperSideSchema })
 export type Paper = v.InferOutput<typeof paperSchema>
 
+export const HTML_INTAKE_PRESETS = ['byWeight', 'byItem'] as const
+export type HtmlIntakePreset = typeof HTML_INTAKE_PRESETS[number]
+
 export const designSchema = v.pipe(
   v.strictObject({
     width: canvasSideSchema,
@@ -159,6 +165,7 @@ export const designSchema = v.pipe(
      * form and are placed in the markup as `{{fields.<id>}}`. Absent: an artwork slip (D35).
      */
     html: v.optional(v.pipe(v.string(), v.maxLength(64 * 1024, 'At most 64 KB of markup'))),
+    htmlPreset: v.optional(v.picklist(HTML_INTAKE_PRESETS)),
     /** The artwork (plan §5.2, D35) over a colour; `null` only before one is uploaded (tests). */
     background: v.strictObject({ color: colorSchema, imageId: v.nullable(idSchema) }),
     elements: v.pipe(v.array(elementSchema), v.maxLength(MAX_ELEMENTS, `At most ${MAX_ELEMENTS} elements`)),
