@@ -88,6 +88,7 @@ const SHOP_STATEMENTS: Record<string, string> = {
   // The owner portal (plan step 3): templates to fill, and orders.
   'shop/templates/index.get.ts': `{ template: ['read'] }`,
   'shop/templates/[id]/images/[imageId].get.ts': `{ template: ['read'] }`,
+  'shop/templates/[id]/default.post.ts': `{ template: ['set-default'] }`,
   'shop/orders/index.post.ts': `{ order: ['create'] }`,
   'shop/orders/index.get.ts': `{ order: ['read'] }`,
   'shop/orders/[id]/index.get.ts': `{ order: ['read'] }`,

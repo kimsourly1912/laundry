@@ -547,6 +547,16 @@
       "copyTitle": "Cancel order No. {number} and copy it?",
       "copyDescription": "Order No. {number} is cancelled. A new order opens with the same details for you to fix; it gets a new number.",
       "copyPaidDescription": "Order No. {number} is cancelled and still shows it was paid. A new order opens with the same details, marked paid; check it before saving. It gets a new number."
+    },
+    "slips": {
+      "title": "Paper slips",
+      "intro": "The slips the platform made for your shop. New order starts on the default one. To change a slip's design, contact support.",
+      "default": "Default",
+      "makeDefault": "Make default",
+      "defaultSaved": "New orders now start on this slip.",
+      "use": "Use for a new order",
+      "sample": "{name} with sample values",
+      "sampleNote": "Sample values. Your orders show their own."
     }
   }
 }

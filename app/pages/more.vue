@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * More (D27): everything besides the daily pages, as one list: the shop's settings, the account,
+ * More (D27): everything besides the daily pages, as one list: Paper slips, the shop's settings, the account,
  * and contact support (the platform makes changes on request, D26).
  */
+import { paperSlipsNavigation } from '~/features/orders'
 import { shopSettingsNavigation } from '~/features/shop-settings'
 
 definePageMeta({ layout: 'shop', area: 'shop', title: 'more.title' })
@@ -10,6 +11,7 @@ definePageMeta({ layout: 'shop', area: 'shop', title: 'more.title' })
 const { t } = useI18n()
 const { supportUrl } = useRuntimeConfig().public
 const links = computed(() => [
+  ...paperSlipsNavigation.map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
   ...shopSettingsNavigation.map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
   { label: t('account.page.title'), icon: 'i-lucide-circle-user', to: '/account' },
 ])

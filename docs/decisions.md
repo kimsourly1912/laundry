@@ -589,3 +589,9 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **Paid stays apart from the state:** an order can be paid while open or after an unpaid pickup, never once cancelled. **An unpaid pickup is allowed** after the app asks; its audit row records who and when (implementation guide → sheet 04). **A paid order can be cancelled** and keeps showing it was paid; refunds are a pilot decision (product notes).
 - **Cancel and copy** cancels first, then opens New order (`?copy=<id>`) on the same template's latest version with the values that still fit; the new order gets its own number and key. If the owner leaves New order, the old order stays cancelled: that is what the confirmation says.
 - **Statements:** `order:pay` and `order:pick-up` for owner and staff, `order:cancel` for the owner only.
+
+**Paper slips** (plan §3 "Templates", §4; implementation guide → sheet 05).
+- **The page is "Paper slips", first in More** (the guide's name and place; the plan's Templates). It lists the attached, published slips with sample values, Make default and Use for a new order (`/orders/new?template=`).
+- **The default has no `version`.** "Make this one the default" says the whole change, and repeating it changes nothing, so the last choice wins. One batch clears the old flag, sets the new one, guards that the template is still attached (404 otherwise) and writes the audit row.
+- **New order remembers** (plan §4, current-state Q17): with several slips and no default, the slip the owner picks becomes the default. If remembering fails, the order still goes on with that slip.
+- **Statement:** `template:set-default`, owner only.

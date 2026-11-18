@@ -82,6 +82,7 @@ erDiagram
 `template_shops` (shop-owned): `shop_id`, `template_id` (FK restrict), `is_default` (bool), `attached_at`. PK `(shop_id, template_id)`.
 - Which templates a shop may use. **The default is a flag here, not a column on `shop_settings`**: partial UNIQUE `(shop_id)` where `is_default`, so a shop has at most one default and it is always an attached template. Detaching it (deleting the row) leaves the shop with no default; the owner chooses again (plan §4).
 - Index `(template_id)`: the shops a template is attached to.
+- **The owner sets the default** (D38, `POST /api/shop/templates/:id/default`): one batch clears the old flag and sets the new one, so the partial unique index holds at every statement; a guard stops it if the template was detached meanwhile.
 
 `images` (platform): `id`, `name`, `type` (`image/png` \| `image/jpeg`), `width`, `height` (200–2000 each), `size` (bytes, 1 B–1 MB), `data` (**base64 text**), `created_by`, `created_at`. Index `(created_at)`.
 - Slip backgrounds, pictures on a slip, shop logos, shared by every template (plan §5.9). The type and size are read from the file's bytes, never from the request (D28).

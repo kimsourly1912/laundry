@@ -79,7 +79,9 @@ beforeAll(async () => {
   await signIn(admin, accounts.admin.username, accounts.admin.password)
   await admin.waitForURL(`${host}/platform/shops`)
   template = await createCounterTemplate(admin, { name: 'Linda Laundry', design: lindaDesign(), shopNames: [accounts.counterOwner.shop] })
+  // The other shop has two slips and no default: New order asks, then remembers (plan §4).
   await createCounterTemplate(admin, { name: 'Beta Wash', design: lindaDesign(), shopNames: [accounts.otherOwner.shop] })
+  await createCounterTemplate(admin, { name: 'Beta Wash express', design: lindaDesign(), shopNames: [accounts.otherOwner.shop] })
 })
 
 afterAll(async () => {
@@ -246,6 +248,36 @@ describe('the owner\'s counter', () => {
     expect(await page.getByTestId('order-number').textContent()).toBe('3')
     const old = await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}`)).json(), secondOrderId!) as OrderDetail
     expect(old).toMatchObject({ number: 2, status: 'cancelled', paid: true })
+  })
+
+  it('with two slips and no default, New order asks and remembers; Paper slips moves the default (sheet 05)', async () => {
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-slips', [page]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.otherOwner.username, accounts.otherOwner.password)
+    await page.waitForURL(`${host}/`)
+    await page.getByTestId('new-order').click()
+    await page.waitForURL(`${host}/orders/new`)
+    // No slip chosen yet: nothing to fill, no Preview.
+    expect(await page.getByTestId('preview').count()).toBe(0)
+    await page.getByTestId('slip-select').click()
+    await page.getByRole('option', { name: 'Beta Wash express' }).click()
+    await expect.poll(() => page.getByTestId('preview').count()).toBe(1)
+    const defaults = () => page.evaluate(async () => ((await (await fetch('/api/shop/templates')).json()) as OrderTemplate[]).filter(item => item.isDefault).map(item => item.name))
+    await expect.poll(defaults).toEqual(['Beta Wash express'])
+
+    // Next time it starts there: no question.
+    await page.goto(`${host}/orders/new`)
+    await expect.poll(() => page.getByTestId('preview').count()).toBe(1)
+
+    await page.goto(`${host}/more`)
+    await page.getByRole('link', { name: 'Paper slips' }).click()
+    await page.waitForURL(`${host}/paper-slips`)
+    await expect.poll(() => page.getByTestId('paper-slips').getByRole('listitem').count()).toBe(2)
+    await page.getByTestId('make-default-Beta Wash').click()
+    await expect.poll(defaults).toEqual(['Beta Wash'])
+    await page.evaluate(() => window.scrollTo({ top: 0 }))
+    await shot(page, '08-paper-slips')
   })
 
   it('another shop\'s owner can\'t open the order or its artwork: the same 404 as a missing one', async () => {

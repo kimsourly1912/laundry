@@ -21,7 +21,7 @@ export const shopStatements = {
   ...organizationPluginStatements,
   shop: ['read', 'update'],
   // The owner portal (plan step 3): the attached templates an order is filled on, and the orders.
-  template: ['read'],
+  template: ['read', 'set-default'],
   order: ['create', 'read', 'pay', 'pick-up', 'cancel'],
 } as const
 
@@ -30,7 +30,7 @@ export const shopAc = createAccessControl(shopStatements)
 export const shopRoles = {
   owner: shopAc.newRole({
     shop: ['read', 'update'],
-    template: ['read'],
+    template: ['read', 'set-default'],
     order: ['create', 'read', 'pay', 'pick-up', 'cancel'],
   }),
   // Staff run the counter (take orders, payment, pickup) but don't cancel (spec P3: not assignable until Phase 2).
