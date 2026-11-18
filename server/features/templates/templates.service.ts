@@ -18,7 +18,7 @@ import { findImage } from './images.repository'
 import { requireImages, slipImages } from './images.service'
 import { shopCounts, detachEverywhereStatement } from './attachments.repository'
 import { alreadyArchived, imageNotFound, notArchived, nothingToPublish, publishChecksFailed, templateArchived, templateChanged, templateNameTaken, templateNotFound } from './templates.errors'
-import { renderSlipPng } from './templates.render'
+import { htmlSlipSvg, renderSlipPng } from './templates.render'
 import * as repo from './templates.repository'
 import type { TemplateRow } from './templates.repository'
 
@@ -109,6 +109,7 @@ async function startingDesign(db: Db, start: CreateTemplateInput['start']): Prom
     return { ...blankDesign(image.width, image.height), background: { color: '#ffffff', imageId: image.id } }
   }
   if (start.kind === 'html') return htmlStartDesign(start)
+  if (start.kind === 'htmlDraft') return start.design
   return (await loadTemplate(db, start.templateId)).design
 }
 
@@ -184,6 +185,14 @@ export async function publishTemplate(db: Db, actor: PlatformActor, templateId: 
   const { errors } = publishProblems(row.design)
   if (errors.length) throw publishChecksFailed(errors)
   await requireImages(db, imageReferences(row.design, 'design'))
+  if (row.design.html !== undefined) {
+    try {
+      await previewHtmlTemplate({ design: row.design, sample: 'crowded' }, now)
+    }
+    catch {
+      throw publishChecksFailed([{ code: 'htmlRenderFailed' }])
+    }
+  }
   const number = (latest?.number ?? 0) + 1
   await runBatch(db, [
     repo.updateTemplateAtVersion(db, { id: templateId, version, now, set: { status: 'published' } }),
@@ -204,4 +213,11 @@ export async function previewTemplate(db: Db, templateId: string, input: Omit<Pr
   await requireImages(db, imageReferences(design, 'design'))
   const data = sampleOrder(design, { sample, date: shopDate(now) })
   return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design)) })
+}
+
+/** Sample artwork for the HTML editor, including before its first save. */
+export function previewHtmlTemplate(input: PreviewTemplateInput, now = new Date()): Promise<string> {
+  const { design, sample } = input
+  const data = sampleOrder(design, { sample, date: shopDate(now) })
+  return htmlSlipSvg({ design, data })
 }

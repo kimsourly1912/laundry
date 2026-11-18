@@ -43,6 +43,10 @@ export function placeholderText(name: string, design: SlipDesign, data: SlipData
   const element = design.elements.find(item => item.id === key)
   if (!element) return ''
   if (element.type === 'checkbox') return values[key] === true ? '✓' : ''
+  const value = values[key]
+  if (design.htmlPreset && element.type === 'number' && element.unit === 'kg' && typeof value === 'number') {
+    return `${value.toFixed(element.decimals)} kg`
+  }
   return valueText(element, data)
 }
 

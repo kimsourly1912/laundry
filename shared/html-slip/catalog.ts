@@ -59,6 +59,14 @@ const UTILITY = new RegExp(`^-?(?:${[
   'relative', 'absolute', '(?:inset|top|right|bottom|left)(?:-[xy])?-[\\w./[\\]%-]+', 'z-[\\w-]+',
 ].join('|')})$`)
 
+/** Representative classes for completion, from the same families the validator accepts. */
+export const UTILITY_SUGGESTIONS = [
+  'flex', 'flex-row', 'flex-col', 'flex-wrap', 'items-center', 'items-end', 'justify-between',
+  'gap-2', 'gap-4', 'p-2', 'p-4', 'px-4', 'py-2', 'w-full', 'h-full', 'w-[50%]',
+  'text-sm', 'text-xl', 'text-[24px]', 'text-center', 'font-bold', 'leading-tight',
+  'border', 'border-b', 'border-2', 'border-gray-400', 'rounded', 'bg-white', 'text-black',
+] as const
+
 export function isKnownUtility(name: string): boolean {
   return UTILITY.test(name)
 }
@@ -72,7 +80,7 @@ export function fieldPlaceholders(design: Pick<SlipDesign, 'elements' | 'groups'
 }
 
 export function isKnownPlaceholder(name: string, design: Pick<SlipDesign, 'elements' | 'groups'>): boolean {
-  return name in TEXT_PLACEHOLDERS || name in BLOCK_PLACEHOLDERS || fieldPlaceholders(design).includes(name)
+  return Object.hasOwn(TEXT_PLACEHOLDERS, name) || Object.hasOwn(BLOCK_PLACEHOLDERS, name) || fieldPlaceholders(design).includes(name)
 }
 
 /** Every placeholder the markup uses, by name. */
@@ -88,14 +96,29 @@ export function placeholdersIn(nodes: readonly HtmlNode[]): Set<string> {
  * The markup's problems against the catalog and the design's fields: the parser's, unknown
  * utilities and unknown placeholders, each where it is, with the choices that exist.
  */
-export function checkHtml(source: string, design: Pick<SlipDesign, 'elements' | 'groups'>): { nodes: HtmlNode[], problems: HtmlProblem[] } {
+export function checkHtml(source: string, design: Pick<SlipDesign, 'elements' | 'groups' | 'htmlPreset'>): { nodes: HtmlNode[], problems: HtmlProblem[] } {
   const { nodes, problems } = parseHtml(source)
   for (const node of walk(nodes)) {
     if ('tag' in node) {
       for (const name of node.classes) {
         if (!isKnownUtility(name)) problems.push({ line: node.line, column: node.column, message: `The class ${name} isn't supported (layout, spacing, size, text, colour, borders only).` })
       }
+      if (design.htmlPreset) {
+        for (const child of node.children) {
+          if (!('text' in child)) continue
+          for (const match of child.text.matchAll(PLACEHOLDER)) {
+            const name = match[1]!
+            if (Object.hasOwn(BLOCK_PLACEHOLDERS, name) && (node.tag !== 'div' || node.children.some(other => other !== child && (!('text' in other) || other.text.trim())) || child.text.trim() !== match[0])) {
+              problems.push({ line: child.line, column: child.column, message: `Put {{${name}}} by itself inside a div.` })
+            }
+          }
+        }
+      }
       continue
+    }
+    const unboundText = design.htmlPreset ? node.text.replaceAll(PLACEHOLDER, '') : ''
+    if (unboundText.includes('{{') || unboundText.includes('}}')) {
+      problems.push({ line: node.line, column: node.column, message: 'Write a binding as {{name}} using a key from the catalog.' })
     }
     for (const match of node.text.matchAll(PLACEHOLDER)) {
       const name = match[1]!

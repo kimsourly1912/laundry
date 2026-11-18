@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { newHtmlSlip } from '../presets'
+import { sampleOrder } from '../sample'
+import { publishProblems } from '#shared/slip/checks'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import { createElement, createGroup } from '#shared/slip/elements'
@@ -133,7 +136,7 @@ describe('the AI import (v1)', () => {
     const prompt = aiPrompt({ design: { ...design, paper: { widthMm: 80, heightMm: 52 } }, brief: 'Redesign it: bigger boxes' })
     expect(prompt).toContain('{{order.number}}')
     expect(prompt).toContain('{{order.qrCode}}')
-    expect(prompt).toContain('{{fields.shirt}}: អាវ / Shirt (number)')
+    expect(prompt).toContain('{{fields.shirt}}: អាវ / Shirt (number; example: 2)')
     expect(prompt).toContain('80 × 52 mm')
     expect(prompt).toContain('Redesign it: bigger boxes')
   })
@@ -149,5 +152,37 @@ describe('sampleOrder (the Studio\'s blank, typical and crowded)', () => {
     const crowded = sampleOrder(priced, { sample: 'crowded', date: '2026-11-18' })
     expect(crowded.order.lines!.length).toBeGreaterThanOrEqual(8)
     expect(crowded.values.shirt).toBe(999)
+  })
+})
+
+describe('HTML intake presets', () => {
+  it('publishes with the starter bindings and shows the same priced sample weight and total', () => {
+    const design = newHtmlSlip('byWeight')
+    expect(publishProblems(design).errors).toEqual([])
+    const typical = sampleOrder(design, { sample: 'typical', date: '2026-11-18' })
+    expect(typical.values.weight_kg).toBe(2.5)
+    expect(typical.order.lines).toEqual([{ label: 'Weight', unit: 'kg', quantity: 2500, lineTotal: 7500 }])
+    expect(typical.order.amount).toBe(7500)
+    const blank = sampleOrder(design, { sample: 'blank', date: '2026-11-18' })
+    expect(blank.values.weight_kg).toBeUndefined()
+  })
+
+  it('requires the configured print binding and standalone QR and disallows expressions', () => {
+    const design = newHtmlSlip('byWeight')
+    const html = design.html!.replace('{{fields.weight_kg}}', '{{order.total + 1}}').replace('{{order.qrCode}}', 'QR {{order.qrCode}}')
+    const changed = { ...design, html }
+    expect(checkHtml(html, changed).problems.map(problem => problem.message)).toEqual(expect.arrayContaining([
+      'Write a binding as {{name}} using a key from the catalog.',
+      'Put {{order.qrCode}} by itself inside a div.',
+    ]))
+    expect(publishProblems(changed).errors).toContainEqual({ code: 'missingPrintBinding', key: 'fields.weight_kg' })
+  })
+
+  it('supports by-item totals from the starter garment keys', () => {
+    const design = newHtmlSlip('byItem')
+    expect(publishProblems(design).errors).toEqual([])
+    expect(design.fillOrder).toContain('shirt_count')
+    expect(design.fillOrder).toContain('trousers_count')
+    expect(sampleOrder(design, { sample: 'typical', date: '2026-11-18' }).order.lines).toHaveLength(2)
   })
 })

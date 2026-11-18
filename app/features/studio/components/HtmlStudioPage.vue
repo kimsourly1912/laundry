@@ -1,37 +1,76 @@
 <script setup lang="ts">
 /**
- * The Studio for an HTML slip (D39; product notes → Template Studio; guide → sheets 08, 09): the
- * markup with its problems as you type, the owner's fields, and the server's preview with a blank,
+ * The Studio for an HTML slip: the markup with its problems as you type, intake fields,
+ * and the server's SVG preview with a blank,
  * typical or crowded sample. On a phone the three are tabs (Edit, Fields, Preview) and switching
  * keeps the draft; from `lg` the editor and the preview sit side by side. Copy AI prompt and Import
  * AI answer follow the v1 contract. The draft saves itself (`useTemplateDraft`); Publish runs the
  * same checks as the server.
  */
-import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
+import { CANVAS_MAX_SIDE, CANVAS_MIN_SIDE, HTML_INTAKE_PRESETS, MAX_ELEMENTS, PAPER_MAX_MM, PAPER_MIN_MM } from '#shared/contracts/slip-design'
+import type { HtmlIntakePreset, SlipDesign } from '#shared/contracts/slip-design'
+import { TEMPLATE_NAME_MAX } from '#shared/contracts/templates'
 import type { TemplateDetail } from '#shared/contracts/templates'
 import { checkHtml, FIELD_PREFIX } from '#shared/html-slip/catalog'
 import { aiPrompt, readAiAnswer } from '#shared/html-slip/ai'
 import type { AnswerProblem } from '#shared/html-slip/ai'
+import { newHtmlSlip } from '#shared/html-slip/presets'
 import { SAMPLES } from '#shared/html-slip/sample'
 import type { Sample } from '#shared/html-slip/sample'
 import { publishProblems } from '#shared/slip/checks'
-import { createElement, newKey } from '#shared/slip/elements'
+import { createElement } from '#shared/slip/elements'
 import { isOwnerField } from '#shared/slip/fields'
+import type { OwnerField } from '#shared/slip/fields'
 import { useTemplateDraft } from '../composables/useTemplateDraft'
+import HtmlCodeEditor from './HtmlCodeEditor.vue'
 import TemplateShopsModal from './TemplateShopsModal.vue'
 
-const props = defineProps<{ template: TemplateDetail }>()
+const props = defineProps<{ template?: TemplateDetail }>()
 
 const { t, te } = useI18n()
 const toast = useToast()
 const { can } = useSession()
-const draft = useTemplateDraft(props.template)
-const design = shallowRef<SlipDesign>(props.template.design)
-const readOnly = computed(() => !can('template:write') || draft.saved.value.status === 'archived')
+const draft = props.template ? useTemplateDraft(props.template) : undefined
+const initial = props.template?.design ?? newHtmlSlip()
+const design = shallowRef<SlipDesign>(initial)
+const newName = ref('')
+const creating = ref(false)
+const created = shallowRef<TemplateDetail>()
+const createError = shallowRef<unknown>()
+const name = computed(() => draft?.name.value ?? newName.value)
+const readOnly = computed(() => !can('template:write') || draft?.saved.value.status === 'archived' || creating.value || Boolean(created.value))
+const saveStatus = computed(() => draft?.status.value ?? (creating.value ? 'saving' : 'dirty'))
 
 function change(next: SlipDesign) {
   design.value = next
-  draft.saveDesign(next)
+  draft?.saveDesign(next)
+}
+
+function rename(value: string) {
+  if (draft && value.trim()) draft.rename(value.trim())
+  else if (!draft) newName.value = value
+}
+
+useUnsavedChanges(() => !draft && !created.value && (design.value !== initial || Boolean(newName.value)))
+
+async function saveFirstDraft() {
+  const templateName = newName.value.trim()
+  if (!templateName || creating.value || created.value) return
+  createError.value = undefined
+  creating.value = true
+  try {
+    created.value = await apiFetch<TemplateDetail>('/platform/templates', {
+      method: 'POST',
+      body: { name: templateName, start: { kind: 'htmlDraft', design: design.value } },
+    })
+    await navigateTo(`/platform/templates/${created.value.id}`, { replace: true })
+  }
+  catch (error) {
+    createError.value = error
+  }
+  finally {
+    creating.value = false
+  }
 }
 
 // --- Edit: the markup, checked as you type ---
@@ -45,28 +84,66 @@ const check = computed(() => checkHtml(html.value, design.value))
 // --- Fields: the owner's form (D35's fields), placed in the markup as {{fields.<id>}} ---
 
 const fields = computed(() => design.value.elements.filter(isOwnerField))
-/** A field's placeholder, `{{fields.<id>}}`, as the markup writes it. */
+const bindings = computed(() => [
+  ...fields.value.map(field => ({ name: `${FIELD_PREFIX}${field.id}`, label: field.label })),
+  ...design.value.groups.map(group => ({ name: `${FIELD_PREFIX}${group.id}`, label: group.label })),
+])
 const placeholderOf = (id: string) => `{{${FIELD_PREFIX}${id}}}`
-function relabel(element: SlipElement, label: string) {
-  change({ ...design.value, elements: design.value.elements.map(item => (item.id === element.id && 'label' in item ? { ...item, label } as SlipElement : item)) })
+
+function updateField(field: OwnerField, patch: { label?: string, required?: boolean, printRequired?: boolean, priceKey?: string }) {
+  change({ ...design.value, elements: design.value.elements.map(item => item.id === field.id ? { ...field, ...patch } : item) })
 }
-function remove(element: SlipElement) {
-  change({ ...design.value, elements: design.value.elements.filter(item => item.id !== element.id), fillOrder: design.value.fillOrder.filter(key => key !== element.id) })
+function remove(field: OwnerField) {
+  change({ ...design.value, elements: design.value.elements.filter(item => item.id !== field.id), fillOrder: design.value.fillOrder.filter(key => key !== field.id) })
 }
+function hasPrintBinding(field: OwnerField): boolean {
+  return 'printRequired' in field && Boolean(field.printRequired)
+}
+
 const newLabel = ref('')
-const newKeyText = ref('')
-const newKg = ref(false)
-function addCount() {
+const newFieldKey = ref('')
+const newPriceKey = ref('')
+const newType = ref<'count' | 'weight' | 'text' | 'checkbox'>('count')
+const fieldTypes = computed(() => (['count', 'weight', 'text', 'checkbox'] as const).map(value => ({ value, label: t(`studio.html.fieldType.${value}`) })))
+const usesPrice = computed(() => newType.value === 'count' || newType.value === 'weight')
+const fieldKey = computed(() => newFieldKey.value.trim())
+const priceKey = computed(() => newPriceKey.value.trim())
+const validPriceKey = (key: string) => !key || /^[a-z\d][a-z\d._-]{0,39}$/.test(key)
+const validFieldKey = computed(() =>
+  /^[a-z][a-z\d_]{0,39}$/.test(fieldKey.value)
+  && fieldKey.value !== 'paid'
+  && ![...design.value.elements, ...design.value.groups].some(item => item.id === fieldKey.value),
+)
+const canAddField = computed(() => Boolean(newLabel.value.trim() && validFieldKey.value
+  && (!usesPrice.value || validPriceKey(priceKey.value)) && design.value.elements.length < MAX_ELEMENTS))
+
+function addField() {
+  if (!canAddField.value) return
   const label = newLabel.value.trim()
-  if (!label) return
-  const priceKey = newKeyText.value.trim().toLowerCase() || undefined
-  if (priceKey && !/^[a-z\d][a-z\d._-]{0,39}$/.test(priceKey)) return
-  const element = createElement('number', { id: newKey() }, { label, priceKey, decimals: newKg.value ? 2 : 0, max: newKg.value ? 100 : 999, unit: newKg.value ? 'kg' : '' })
-  change({ ...design.value, elements: [...design.value.elements, element], fillOrder: [...design.value.fillOrder, element.id] })
+  const id = fieldKey.value
+  const kg = newType.value === 'weight'
+  const field = newType.value === 'text'
+    ? createElement('textField', { id }, { label })
+    : newType.value === 'checkbox'
+      ? createElement('checkbox', { id }, { label })
+      : createElement('number', { id }, { label, priceKey: priceKey.value || undefined, decimals: kg ? 2 : 0, max: kg ? 100 : 999, unit: kg ? 'kg' : '' })
+  change({ ...design.value, elements: [...design.value.elements, field], fillOrder: [...design.value.fillOrder, id] })
   newLabel.value = ''
-  newKeyText.value = ''
-  newKg.value = false
+  newFieldKey.value = ''
+  newPriceKey.value = ''
 }
+function setPriceKey(field: OwnerField, value: string) {
+  const key = value.trim()
+  if (validPriceKey(key)) updateField(field, { priceKey: key || undefined })
+}
+function changePreset(preset: HtmlIntakePreset) {
+  if (preset === design.value.htmlPreset) return
+  const currentPreset = newHtmlSlip(design.value.htmlPreset)
+  const customized = html.value !== currentPreset.html || JSON.stringify(design.value.elements) !== JSON.stringify(currentPreset.elements)
+  if (customized && !window.confirm(t('studio.html.replacePreset'))) return
+  change({ ...newHtmlSlip(preset), width: design.value.width, height: design.value.height, paper: design.value.paper })
+}
+
 async function copyText(text: string, done: string) {
   try {
     await navigator.clipboard.writeText(text)
@@ -77,32 +154,59 @@ async function copyText(text: string, done: string) {
   }
 }
 
-// --- Preview: the server's PNG, with a sample order ---
+// --- Preview: the server's SVG, with a sample order ---
 
 const sample = ref<Sample>('typical')
 const previewUrl = ref<string>()
 const previewError = shallowRef<unknown>()
+const previewCurrent = ref(false)
+const previewLoading = ref(true)
+const zoom = ref(100)
 let previewTimer: ReturnType<typeof setTimeout> | undefined
 let previewTicket = 0
+let controller: AbortController | undefined
+
 async function loadPreview() {
+  if (check.value.problems.length) return
+  clearTimeout(previewTimer)
+  controller?.abort()
+  controller = new AbortController()
   const ticket = ++previewTicket
+  previewLoading.value = true
   try {
-    const blob = await apiFetch<Blob>(`/platform/templates/${props.template.id}/preview`, { method: 'POST', body: { design: design.value, sample: sample.value }, responseType: 'blob' })
+    const blob = await apiFetch<Blob>('/platform/templates/preview', {
+      method: 'POST',
+      body: { design: design.value, sample: sample.value },
+      responseType: 'blob',
+      signal: controller.signal,
+    })
     if (ticket !== previewTicket) return
     if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
     previewUrl.value = URL.createObjectURL(blob)
     previewError.value = undefined
+    previewCurrent.value = true
   }
   catch (error) {
     if (ticket === previewTicket) previewError.value = error
   }
+  finally {
+    if (ticket === previewTicket) previewLoading.value = false
+  }
 }
 watch([design, sample], () => {
+  if (!import.meta.client) return
   clearTimeout(previewTimer)
-  previewTimer = setTimeout(loadPreview, 500)
-}, { immediate: true })
+  previewTicket++
+  controller?.abort()
+  previewCurrent.value = false
+  previewError.value = undefined
+  previewLoading.value = !check.value.problems.length
+  if (previewLoading.value) previewTimer = setTimeout(loadPreview, 500)
+}, { immediate: true, flush: 'sync' })
 onBeforeUnmount(() => {
   clearTimeout(previewTimer)
+  previewTicket++
+  controller?.abort()
   if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 
@@ -122,6 +226,7 @@ function importAnswer() {
   }
   importProblems.value = []
   reviewNotes.value = read.answer.reviewNotes ?? []
+  if (!draft && !newName.value) newName.value = read.answer.name
   change({ ...design.value, html: read.answer.html })
   importOpen.value = false
   pasted.value = ''
@@ -134,6 +239,7 @@ const problems = computed(() => publishProblems(design.value))
 const publishOpen = ref(false)
 const publishing = ref(false)
 async function publish() {
+  if (!draft) return
   publishing.value = true
   try {
     await draft.publish()
@@ -148,11 +254,20 @@ async function publish() {
   }
 }
 const shopsOpen = ref(false)
-const paperWidth = ref<number | null>(props.template.design.paper?.widthMm ?? null)
-const paperHeight = ref<number | null>(props.template.design.paper?.heightMm ?? null)
+const paperWidth = ref<number | null>(initial.paper?.widthMm ?? null)
+const paperHeight = ref<number | null>(initial.paper?.heightMm ?? null)
 function setPaper() {
-  if (!paperWidth.value || !paperHeight.value) return
-  change({ ...design.value, paper: { widthMm: paperWidth.value, heightMm: paperHeight.value } })
+  const widthMm = paperWidth.value
+  const heightMm = paperHeight.value
+  if (widthMm === null || heightMm === null || [widthMm, heightMm].some(side => side < PAPER_MIN_MM || side > PAPER_MAX_MM)) return
+  const factor = Math.max(CANVAS_MIN_SIDE / Math.min(widthMm, heightMm), Math.min(8, CANVAS_MAX_SIDE / Math.max(widthMm, heightMm)))
+  const width = Math.round(widthMm * factor)
+  const height = Math.round(heightMm * factor)
+  if (width > CANVAS_MAX_SIDE || height > CANVAS_MAX_SIDE) {
+    toast.add({ title: t('studio.html.paperRatio'), color: 'error' })
+    return
+  }
+  change({ ...design.value, width, height, paper: { widthMm, heightMm } })
 }
 
 // --- Layout: tabs on a phone, panes from lg ---
@@ -176,18 +291,32 @@ const tabs = computed(() => [
         :aria-label="t('common.actions.back')"
       />
       <UInput
-        :model-value="draft.name.value"
+        :model-value="name"
+        :maxlength="TEMPLATE_NAME_MAX"
+        :placeholder="t('studio.html.name')"
         :disabled="readOnly"
         class="min-w-0 flex-1 sm:max-w-xs"
         :aria-label="t('studio.html.name')"
-        @change="draft.rename(($event.target as HTMLInputElement).value.trim() || draft.name.value)"
+        @update:model-value="!draft && rename(String($event ?? ''))"
+        @change="draft && rename(($event.target as HTMLInputElement).value)"
+        @keydown.enter="($event.target as HTMLInputElement).blur()"
       />
       <span
         class="text-xs text-muted"
         data-testid="save-status"
-      >{{ t(`studio.save.${draft.status.value}`) }}</span>
+      >{{ t(`studio.save.${saveStatus}`) }}</span>
       <div class="ms-auto flex flex-wrap gap-2">
         <UButton
+          v-if="!draft"
+          :label="t('studio.html.saveDraft')"
+          icon="i-lucide-save"
+          size="sm"
+          :disabled="!newName.trim() || readOnly"
+          :loading="creating"
+          @click="saveFirstDraft"
+        />
+        <UButton
+          v-if="draft"
           :label="t('studio.html.shops')"
           icon="i-lucide-store"
           color="neutral"
@@ -196,7 +325,7 @@ const tabs = computed(() => [
           @click="shopsOpen = true"
         />
         <UButton
-          v-if="!readOnly"
+          v-if="draft && !readOnly"
           :label="t('studio.publish.open')"
           icon="i-lucide-upload"
           size="sm"
@@ -207,6 +336,12 @@ const tabs = computed(() => [
       </div>
     </header>
 
+    <UAlert
+      v-if="createError"
+      class="m-3"
+      color="error"
+      :title="errorText(createError, t, te)"
+    />
     <UTabs
       v-model="tab"
       :items="tabs"
@@ -216,7 +351,7 @@ const tabs = computed(() => [
       data-testid="html-tabs"
     />
 
-    <div class="grid flex-1 gap-4 p-3 lg:grid-cols-2">
+    <div class="grid flex-1 content-start gap-4 p-3 lg:grid-cols-2">
       <!-- Edit and Fields: one of them on a phone, both stacked from lg. -->
       <section
         class="space-y-3"
@@ -250,18 +385,18 @@ const tabs = computed(() => [
           :title="t('studio.html.reviewNotes')"
           :description="reviewNotes.join(' · ')"
         />
-        <UTextarea
-          v-model="html"
-          :disabled="readOnly"
-          :rows="18"
-          autoresize
-          :maxrows="40"
-          class="w-full"
-          :ui="{ base: 'font-mono text-xs' }"
-          :aria-label="t('studio.html.markup')"
-          spellcheck="false"
-          data-testid="html-source"
-        />
+        <ClientOnly>
+          <HtmlCodeEditor
+            v-model="html"
+            :read-only="readOnly"
+            :fields="bindings"
+            :problems="check.problems"
+            :label="t('studio.html.markup')"
+          />
+          <template #fallback>
+            <USkeleton class="h-96 w-full" />
+          </template>
+        </ClientOnly>
         <ul
           v-if="check.problems.length"
           class="space-y-1 text-sm text-error"
@@ -290,6 +425,22 @@ const tabs = computed(() => [
         <h2 class="font-semibold text-highlighted">
           {{ t('studio.html.fieldsTitle') }}
         </h2>
+        <div
+          v-if="!draft"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <span class="text-sm text-muted">{{ t('studio.html.intakePreset') }}</span>
+          <UButton
+            v-for="preset in HTML_INTAKE_PRESETS"
+            :key="preset"
+            :label="t(`studio.html.presets.${preset}`)"
+            :variant="preset === design.htmlPreset ? 'solid' : 'outline'"
+            :aria-pressed="preset === design.htmlPreset"
+            :disabled="readOnly"
+            size="sm"
+            @click="changePreset(preset)"
+          />
+        </div>
         <p class="text-sm text-muted">
           {{ t('studio.html.fieldsHint') }}
         </p>
@@ -305,14 +456,32 @@ const tabs = computed(() => [
               size="sm"
               class="min-w-0 flex-1"
               :aria-label="t('studio.html.fieldLabel')"
-              @change="relabel(field, ($event.target as HTMLInputElement).value)"
+              @change="updateField(field, { label: ($event.target as HTMLInputElement).value })"
             />
             <code class="text-xs text-muted">{{ placeholderOf(field.id) }}</code>
-            <UBadge
-              v-if="field.type === 'number' && field.priceKey"
-              :label="field.priceKey"
-              variant="subtle"
+            <UInput
+              v-if="field.type === 'number'"
+              :model-value="field.priceKey ?? ''"
+              :disabled="readOnly"
+              :aria-label="t('studio.field.priceKey')"
+              :placeholder="t('studio.field.priceKey')"
+              class="w-28"
               size="sm"
+              @change="setPriceKey(field, ($event.target as HTMLInputElement).value)"
+            />
+            <UCheckbox
+              v-if="field.type !== 'phone' && field.type !== 'amount'"
+              :model-value="field.required"
+              :disabled="readOnly"
+              :label="t('studio.html.intakeRequired')"
+              @update:model-value="updateField(field, { required: $event === true })"
+            />
+            <UCheckbox
+              v-if="field.type !== 'phone' && field.type !== 'amount'"
+              :model-value="hasPrintBinding(field)"
+              :disabled="readOnly"
+              :label="t('studio.html.printRequired')"
+              @update:model-value="updateField(field, { printRequired: $event === true })"
             />
             <UButton
               icon="i-lucide-copy"
@@ -335,35 +504,55 @@ const tabs = computed(() => [
         </ul>
         <form
           v-if="!readOnly"
-          class="flex flex-wrap items-end gap-2"
-          @submit.prevent="addCount"
+          class="flex flex-wrap items-start gap-2"
+          @submit.prevent="addField"
         >
-          <UFormField :label="t('studio.html.countLabel')">
+          <UFormField :label="t('studio.html.fieldLabel')">
             <UInput
               v-model="newLabel"
+              :maxlength="60"
               size="sm"
               data-testid="count-label"
             />
           </UFormField>
-          <UFormField :label="t('studio.field.priceKey')">
+          <UFormField
+            :label="t('studio.html.fieldKey')"
+            :error="fieldKey && !validFieldKey ? t('studio.html.fieldKeyError') : undefined"
+          >
             <UInput
-              v-model="newKeyText"
+              v-model="newFieldKey"
+              :maxlength="40"
               size="sm"
-              placeholder="shirt"
+              autocapitalize="off"
+              data-testid="field-key"
+            />
+          </UFormField>
+          <UFormField :label="t('studio.html.fieldType.title')">
+            <USelect
+              v-model="newType"
+              :items="fieldTypes"
+              size="sm"
+            />
+          </UFormField>
+          <UFormField
+            v-if="usesPrice"
+            :label="t('studio.field.priceKey')"
+            :error="!validPriceKey(priceKey) ? t('studio.html.priceKeyError') : undefined"
+          >
+            <UInput
+              v-model="newPriceKey"
+              size="sm"
               autocapitalize="off"
               data-testid="count-key"
             />
           </UFormField>
-          <UCheckbox
-            v-model="newKg"
-            :label="t('studio.html.byKg')"
-          />
           <UButton
             type="submit"
-            :label="t('studio.html.addCount')"
+            :label="t('studio.html.addField')"
             icon="i-lucide-plus"
             size="sm"
-            :disabled="!newLabel.trim()"
+            class="mt-6"
+            :disabled="!canAddField"
             data-testid="add-count"
           />
         </form>
@@ -399,7 +588,7 @@ const tabs = computed(() => [
 
       <!-- Preview: its own tab on a phone, the right pane from lg. -->
       <section
-        class="space-y-3 lg:col-start-2 lg:row-span-2 lg:row-start-1"
+        class="min-w-0 space-y-3 lg:sticky lg:top-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start"
         :class="tab === 'preview' ? '' : 'hidden lg:block'"
       >
         <URadioGroup
@@ -410,21 +599,72 @@ const tabs = computed(() => [
           size="sm"
           :aria-label="t('studio.html.sample')"
         />
-        <div
-          class="w-full overflow-hidden rounded border border-default bg-white"
-          :style="{ aspectRatio: `${design.width} / ${design.height}` }"
-        >
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            :label="t('studio.canvas.fit')"
+            color="neutral"
+            variant="outline"
+            size="xs"
+            @click="zoom = 100"
+          />
+          <UButton
+            icon="i-lucide-minus"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('studio.html.zoomOut')"
+            :disabled="zoom <= 50"
+            @click="zoom -= 25"
+          />
+          <span class="text-xs tabular-nums text-muted">{{ zoom }}%</span>
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :aria-label="t('studio.html.zoomIn')"
+            :disabled="zoom >= 200"
+            @click="zoom += 25"
+          />
+          <UButton
+            v-if="previewCurrent && previewUrl"
+            :label="t('studio.html.downloadSvg')"
+            :to="previewUrl"
+            external
+            download="laundry-slip.svg"
+            icon="i-lucide-download"
+            color="neutral"
+            variant="outline"
+            size="xs"
+          />
+          <span
+            v-if="!previewCurrent && previewUrl"
+            role="status"
+            class="text-xs text-warning"
+          >
+            {{ t('studio.html.previewStale') }}
+          </span>
+        </div>
+        <div class="max-h-[70vh] w-full overflow-auto rounded border border-default bg-elevated">
           <img
             v-if="previewUrl"
             :src="previewUrl"
             :alt="t('studio.html.previewAlt')"
-            class="h-full w-full"
+            :style="{ width: `${zoom}%` }"
+            class="mx-auto block h-auto max-w-none bg-white"
             data-testid="html-preview"
           >
           <USkeleton
-            v-else
-            class="h-full w-full"
+            v-else-if="previewLoading"
+            class="w-full"
+            :style="{ aspectRatio: `${design.width} / ${design.height}` }"
           />
+          <p
+            v-else-if="!previewError"
+            class="p-6 text-sm text-muted"
+          >
+            {{ t('studio.html.previewInvalid') }}
+          </p>
         </div>
         <PageLoadError
           v-if="previewError"
@@ -502,7 +742,7 @@ const tabs = computed(() => [
 
     <UModal
       v-model:open="publishOpen"
-      :title="t('studio.publish.title', { number: (draft.saved.value.latestVersion ?? 0) + 1 })"
+      :title="t('studio.publish.title', { number: (draft?.saved.value.latestVersion ?? 0) + 1 })"
     >
       <template #body>
         <ul
@@ -546,6 +786,7 @@ const tabs = computed(() => [
     </UModal>
 
     <TemplateShopsModal
+      v-if="template && draft"
       v-model:open="shopsOpen"
       :template-id="template.id"
       :published="draft.saved.value.latestVersion !== null"

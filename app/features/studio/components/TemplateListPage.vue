@@ -4,7 +4,6 @@ import type { Page } from '#shared/contracts/common'
 import type { TemplateListItem } from '#shared/contracts/templates'
 import { sampleData } from '#shared/slip/fields'
 import { SlipSvg, useSlipText } from '~/features/slip-fill'
-import NewTemplateModal from './NewTemplateModal.vue'
 
 const { t } = useI18n()
 const { can } = useSession()
@@ -20,7 +19,6 @@ watch(search, (value) => {
 onBeforeUnmount(() => clearTimeout(typing))
 
 const templates = useApiQuery('studio:templates', () => apiFetch<Page<TemplateListItem>>('/platform/templates', { query: query.value }), { watch: [query] })
-const creating = ref(false)
 // Thumbnails: each template's draft drawn by the shared builder, with sample values.
 const { text } = useSlipText()
 const today = new Date().toISOString().slice(0, 10)
@@ -59,7 +57,7 @@ function clearFilters() {
             v-if="can('template:write')"
             :label="t('studio.new.title')"
             icon="i-lucide-plus"
-            @click="creating = true"
+            to="/platform/templates/new"
           />
         </template>
       </UDashboardNavbar>
@@ -106,7 +104,7 @@ function clearFilters() {
         :description="filtered ? undefined : t('studio.list.emptyDescription')"
         :actions="filtered
           ? [{ label: t('common.actions.clearFilters'), color: 'neutral', variant: 'outline', onClick: clearFilters }]
-          : can('template:write') ? [{ label: t('studio.new.title'), icon: 'i-lucide-plus', onClick: () => { creating = true } }] : []"
+          : can('template:write') ? [{ label: t('studio.new.title'), icon: 'i-lucide-plus', to: '/platform/templates/new' }] : []"
       />
       <template v-else>
         <ul
@@ -126,8 +124,17 @@ function clearFilters() {
                 :style="{ aspectRatio: `${template.width} / ${template.height}` }"
                 aria-hidden="true"
               >
+                <div
+                  v-if="template.design.html !== undefined"
+                  class="grid h-full place-items-center bg-elevated text-muted"
+                >
+                  <UIcon
+                    name="i-lucide-file-code"
+                    class="size-6"
+                  />
+                </div>
                 <SlipSvg
-                  v-if="text"
+                  v-else-if="text"
                   :design="template.design"
                   :data="sampleData(template.design, { date: today })"
                   :text="text"
@@ -167,6 +174,4 @@ function clearFilters() {
       </template>
     </template>
   </UDashboardPanel>
-
-  <NewTemplateModal v-model:open="creating" />
 </template>

@@ -338,11 +338,12 @@ describe('the owner\'s counter', () => {
     await signIn(studio, accounts.admin.username, accounts.admin.password)
     await studio.waitForURL(`${host}/platform/shops`)
     await studio.goto(`${host}/platform/templates`)
-    await studio.getByRole('button', { name: 'New template' }).first().click()
-    await studio.getByRole('radio', { name: /HTML/ }).check()
-    await studio.getByTestId('use-sample').click()
+    await studio.getByRole('link', { name: 'Create template' }).first().click()
+    await studio.waitForURL('**/platform/templates/new')
+    await studio.getByRole('tab', { name: 'Fields' }).click()
+    await studio.getByRole('button', { name: 'By item' }).click()
     await studio.getByLabel('Template name').fill('Linda HTML')
-    await studio.getByRole('button', { name: 'Create and open' }).click()
+    await studio.getByRole('button', { name: 'Save draft' }).click()
     await studio.waitForURL(/\/platform\/templates\/[\da-f-]{36}$/)
     const templateId = studio.url().split('/').at(-1)!
     await expect.poll(() => studio.getByTestId('html-ok').count()).toBe(1)
@@ -355,13 +356,11 @@ describe('the owner\'s counter', () => {
     const html = '<div class="flex flex-col w-full h-full p-6 gap-2"><div class="flex justify-between"><span class="text-[36px] font-bold">{{shop.name}}</span><span class="text-[30px]">No. {{order.number}}</span></div><span>{{customer.name}}</span><div class="flex flex-col border-t border-b border-gray-400 py-2">{{order.itemLines}}</div><div class="flex justify-between items-end"><span class="text-[30px] font-bold">{{order.total}}</span><div class="flex">{{order.qrCode}}</div></div></div>'
     await studio.getByTestId('answer-text').fill(JSON.stringify({ version: 1, name: 'Compact', html, reviewNotes: ['Check the total\'s size'] }))
     await studio.getByTestId('answer-import').click()
-    await expect.poll(() => studio.getByTestId('html-source').inputValue()).toBe(html)
+    await expect.poll(() => studio.getByTestId('html-source').locator('.cm-content').textContent()).toBe(html)
 
-    // Fields: a count priced by the shop's "shirt".
+    // The By item preset already contains the count linked to the shop's "shirt" price.
     await studio.getByRole('tab', { name: 'Fields' }).click()
-    await studio.getByTestId('count-label').fill('អាវ / Shirt')
-    await studio.getByTestId('count-key').fill('shirt')
-    await studio.getByTestId('add-count').click()
+    await expect.poll(() => studio.getByText('{{fields.shirt_count}}', { exact: true }).count()).toBe(1)
     await studio.getByRole('tab', { name: 'Preview' }).click()
     await expect.poll(() => studio.getByTestId('html-preview').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
     await expect.poll(() => studio.getByTestId('save-status').textContent()).toBe('Saved')
@@ -382,7 +381,7 @@ describe('the owner\'s counter', () => {
     await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
     await page.waitForURL(`${host}/`)
     await page.goto(`${host}/orders/new?template=${templateId}`)
-    const shirt = page.locator('[data-field]').filter({ hasText: 'Shirt' })
+    const shirt = page.locator('[data-field="shirt_count"]')
     await shirt.getByRole('button', { name: /^Add one/ }).click()
     await shirt.getByRole('button', { name: /^Add one/ }).click()
     await expect.poll(() => page.getByTestId('field-total').textContent()).toContain('4,000')
