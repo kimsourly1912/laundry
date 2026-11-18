@@ -41,6 +41,7 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 | shop | update | ✓ | |
 | template | read: the attached, published templates and their artwork (New order, Paper slips) | ✓ | ✓ |
 | template | set-default: the shop's default slip (plan §4) | ✓ | |
+| template | request: ask the platform for a new design, with a private photo (D39) | ✓ | |
 | order | create, read | ✓ | ✓ |
 | order | work: start, mark ready, rework (D39) | ✓ | ✓ |
 | customer | read, write (D39) | ✓ | ✓ |

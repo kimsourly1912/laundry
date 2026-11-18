@@ -21,7 +21,7 @@ export const shopStatements = {
   ...organizationPluginStatements,
   shop: ['read', 'update'],
   // The owner portal (plan step 3): the attached templates an order is filled on, and the orders.
-  template: ['read', 'set-default'],
+  template: ['read', 'set-default', 'request'],
   order: ['create', 'read', 'work', 'pay', 'pick-up', 'cancel', 'share'],
   // D39: the shop's customers and price list.
   customer: ['read', 'write'],
@@ -33,7 +33,7 @@ export const shopAc = createAccessControl(shopStatements)
 export const shopRoles = {
   owner: shopAc.newRole({
     shop: ['read', 'update'],
-    template: ['read', 'set-default'],
+    template: ['read', 'set-default', 'request'],
     order: ['create', 'read', 'work', 'pay', 'pick-up', 'cancel', 'share'],
     customer: ['read', 'write'],
     price: ['read', 'write'],

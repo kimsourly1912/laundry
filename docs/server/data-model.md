@@ -88,6 +88,12 @@ erDiagram
 - Slip backgrounds, pictures on a slip, shop logos, shared by every template (plan §5.9). The type and size are read from the file's bytes, never from the request (D28).
 - Base64 text, not a BLOB: D1 returns a BLOB as an array of numbers, and the SVG wants base64 anyway. 1 MB of image is 1.34 MB of text, under D1's 2 MB row limit. **Every query leaves `data` out** but the ones that draw or serve the image.
 
+## `template_requests` (owner: `templates`)
+
+**Status:** built (D39, migration `0006`).
+
+`template_requests` (shop-owned): `id`, `shop_id`, `requested_by` (→ `user.id`), `kind` (`keep` \| `redesign`), `notes`, `status` (`new` \| `in_progress` \| `done` \| `declined`), `template_id` (FK restrict, null until done), `photo_type`, `photo_width`, `photo_height`, `photo_size` (1 B–1 MB), `photo_data` (base64), `version`, timestamps. Indexes `(status, created_at)` the platform's queue, `(shop_id, created_at)` a shop's own. **Kept, never deleted.** Every query leaves `photo_data` out but the photo's own.
+
 ## `order_counters`, `orders` (owner: `orders`)
 
 **Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; D38 the search, Mark paid (`Idempotency-Key`), Picked up and Cancel, each at its `version` and guarded in SQL by the state it starts from (`orders.rules.ts → canDo`).

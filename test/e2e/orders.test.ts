@@ -390,6 +390,42 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => page.evaluate(() => [...document.querySelectorAll('style')].some(style => style.textContent?.includes('size: 80mm 52mm')))).toBe(true)
   })
 
+  it('an owner asks for a new design with a photo; the platform finds it in its queue and marks it done (D39)', async () => {
+    const page = await phone()
+    onTestFailed(screenshotOnFailure('orders-requests', [page, admin]))
+    await page.goto(`${host}/sign-in`)
+    await signIn(page, accounts.otherOwner.username, accounts.otherOwner.password)
+    await page.waitForURL(`${host}/`)
+    await page.goto(`${host}/paper-slips`)
+    // A photo of the paper slip, drawn in the page.
+    const png = Buffer.from(await page.evaluate(async () => {
+      const canvas = Object.assign(document.createElement('canvas'), { width: 800, height: 500 })
+      const ink = canvas.getContext('2d')!
+      ink.fillStyle = '#fffdf5'
+      ink.fillRect(0, 0, 800, 500)
+      ink.strokeRect(20, 20, 760, 460)
+      const blob = await new Promise<Blob>(resolve => canvas.toBlob(value => resolve(value!), 'image/png'))
+      return [...new Uint8Array(await blob.arrayBuffer())]
+    }))
+    await page.getByTestId('ask-design').click()
+    await page.getByTestId('request-photo').setInputFiles({ name: 'my-slip.png', mimeType: 'image/png', buffer: png })
+    await page.getByRole('radio', { name: /Redesign it/ }).check()
+    await page.getByTestId('request-notes').fill('Bigger boxes for counts, please')
+    await page.waitForTimeout(400)
+    await shot(page, '13-ask-for-design')
+    await page.getByTestId('request-send').click()
+    await expect.poll(() => page.getByTestId('my-requests').getByText('Sent').count()).toBe(1)
+
+    await admin.goto(`${host}/platform/templates`)
+    await admin.getByTestId('requests-link').click()
+    await admin.waitForURL(`${host}/platform/template-requests`)
+    await admin.getByTestId('requests-list').getByText(accounts.otherOwner.shop).click()
+    await admin.getByTestId('request-done').click()
+    await expect.poll(() => admin.getByTestId('requests-list').count()).toBe(0)
+    await page.reload()
+    await expect.poll(() => page.getByTestId('my-requests').getByText('Done').count()).toBe(1)
+  })
+
   it('another shop\'s owner can\'t open the order or its artwork: the same 404 as a missing one', async () => {
     expect(savedOrder).toBeDefined()
     const page = await newDevice(browser)

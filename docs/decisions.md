@@ -632,3 +632,9 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **A design may carry `paper: { widthMm, heightMm }`** (20–400 mm a side), set in the Studio's ⋯ → Paper size, with "Height from the artwork" to keep its proportions. Publishing fixes it in the version, so a reprint prints the same size. Missing, Publish warns (`noPaperSize`) and the slip prints at the paper's width as before.
 - **Print uses it:** the order page adds `@page { size: W mm H mm; margin: 0 }` and sizes `.print-slip` to it. The canvas stays pixels for the screen and Telegram; millimetres are for paper only.
 - **Not yet checked on a real printer** (the pilot's job, guide → Delivery order 6).
+
+**Redesign requests** (product notes → AI-assisted design; guide → sheets 05, 09).
+- **The owner asks from Paper slips:** a photo of their slip (scaled in the browser like an artwork, ≤ 2000 px and ≤ 1 MB; the server checks type and size from the bytes), Keep the layout or Redesign it, and notes. The dialog suggests a blank slip or covering customers' details. Their requests show with a status.
+- **`template_requests`** (shop-owned, in the templates feature): the photo as base64 in the row, as `images` (D28), never served to another shop (404). The platform's queue (Templates → Requests) lists them oldest first by status; the platform starts one, declines it, or marks it done naming the template it made, at the version read, audited. Attaching that template to the shop stays the platform's usual step.
+- **The photo's route** is `POST /api/shop/template-requests` with the bytes as the body (the Worker allows 1 MB on that path), like an image upload.
+- **Statements:** `template:request` for the owner; the platform's `template:read` / `template:write`.

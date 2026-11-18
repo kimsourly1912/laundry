@@ -5,3 +5,4 @@ export { getImage, imageBytes, listImages, renderFilledSlip, uploadImage } from 
 export { orderableVersion, orderableVersionGuards, orderTemplateImage, orderTemplates, setDefaultTemplate, versionImage, versionsById } from './shop-templates.service'
 export type { OrderableVersion } from './shop-templates.service'
 export { templateChangedForOrder } from './templates.errors'
+export { createRequest, getRequest, requestPhoto, requestQueue, setRequestStatus, shopRequests } from './requests.service'

@@ -76,6 +76,11 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   'platform/templates/[id]/shops/index.post.ts': `{ template: ['write'], shop: ['update'] }`,
   'platform/templates/[id]/shops/[shopId].delete.ts': `{ template: ['write'], shop: ['update'] }`,
   'platform/shops/[shopId]/templates.get.ts': `{ shop: ['read'], template: ['read'] }`,
+  // D39: redesign requests, the platform's queue.
+  'platform/template-requests/index.get.ts': `{ template: ['read'] }`,
+  'platform/template-requests/[id]/index.get.ts': `{ template: ['read'] }`,
+  'platform/template-requests/[id]/photo.get.ts': `{ template: ['read'] }`,
+  'platform/template-requests/[id]/status.post.ts': `{ template: ['write'] }`,
 }
 
 /**
@@ -106,6 +111,9 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
   'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,
   'shop/prices/index.get.ts': `{ price: ['read'] }`,
+  'shop/template-requests/index.get.ts': `{ template: ['request'] }`,
+  'shop/template-requests/index.post.ts': `{ template: ['request'] }`,
+  'shop/template-requests/[id]/photo.get.ts': `{ template: ['request'] }`,
   'shop/prices/index.post.ts': `{ price: ['write'] }`,
   'shop/prices/[id].patch.ts': `{ price: ['write'] }`,
   'shop/prices/[id]/archive.post.ts': `{ price: ['write'] }`,

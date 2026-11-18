@@ -48,6 +48,14 @@ function clearFilters() {
         </template>
         <template #right>
           <UButton
+            :label="t('studio.requests.title')"
+            icon="i-lucide-inbox"
+            color="neutral"
+            variant="outline"
+            to="/platform/template-requests"
+            data-testid="requests-link"
+          />
+          <UButton
             v-if="can('template:write')"
             :label="t('studio.new.title')"
             icon="i-lucide-plus"

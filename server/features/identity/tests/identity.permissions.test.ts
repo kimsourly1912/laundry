@@ -3,7 +3,7 @@ import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements
 
 describe('shop roles (spec §5)', () => {
   it('give the owner the shop\'s settings, its templates and its orders (plan step 3)', () => {
-    expect(grantedShopStatements('owner').sort()).toEqual(['customer:read', 'customer:write', 'order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'price:read', 'price:write', 'shop:read', 'shop:update', 'template:read', 'template:set-default'])
+    expect(grantedShopStatements('owner').sort()).toEqual(['customer:read', 'customer:write', 'order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'price:read', 'price:write', 'shop:read', 'shop:update', 'template:read', 'template:request', 'template:set-default'])
   })
 
   it('give staff the counter: orders, payment and pickup, but no cancel and no settings changes', () => {

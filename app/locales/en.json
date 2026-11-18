@@ -448,6 +448,28 @@
       "height": "Height (mm)",
       "proportional": "Height from the artwork",
       "apply": "Set size"
+    },
+    "requests": {
+      "title": "Requests",
+      "empty": "Nothing here",
+      "from": "Request from {shop}",
+      "photoOf": "{shop}'s slip",
+      "noNotes": "No notes.",
+      "madeTemplate": "The template made for it",
+      "chooseTemplate": "Choose when done",
+      "decline": "Decline",
+      "start": "Start",
+      "done": "Done",
+      "kind": {
+        "keep": "Keep the layout",
+        "redesign": "Redesign it"
+      },
+      "status": {
+        "new": "New",
+        "in_progress": "In progress",
+        "done": "Done",
+        "declined": "Declined"
+      }
     }
   },
   "slipFill": {
@@ -609,6 +631,29 @@
     },
     "customer": {
       "none": "No orders yet."
+    },
+    "requests": {
+      "ask": "Ask for a new design",
+      "title": "Ask for a new design",
+      "description": "Send a photo of your paper slip. The platform makes the design and adds it to Paper slips.",
+      "photo": "Photo of your slip",
+      "photoHelp": "A blank slip, or cover customers' names and phones.",
+      "photoAlt": "The photo you chose",
+      "kind": "What should change?",
+      "keep": "Keep the layout",
+      "keepHelp": "Make it like this slip.",
+      "redesign": "Redesign it",
+      "redesignHelp": "A new, cleaner design from this slip.",
+      "notes": "Notes for the platform",
+      "send": "Send",
+      "sent": "Sent. The platform will get back to you.",
+      "mine": "Your requests",
+      "status": {
+        "new": "Sent",
+        "in_progress": "In progress",
+        "done": "Done",
+        "declined": "Declined"
+      }
     }
   },
   "customers": {
