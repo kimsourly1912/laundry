@@ -3,7 +3,9 @@
  * The Studio for an HTML slip, laid out like VS Code: an activity bar on the left edge picks the
  * sidebar's view (Intake fields, Presets, Images, AI, and Paper size at the bottom), then the markup
  * with its problems as you type, then the server's SVG preview with a blank, typical or crowded
- * sample. From `lg` the sidebar, editor and preview sit in one resizable splitter; the sidebar
+ * sample. Each of these is its own card on a quiet background, so the work areas read apart.
+ * From `lg` the sidebar, editor and preview sit in one resizable splitter, its handles the gaps
+ * between the cards; the sidebar
  * collapses when its open icon is picked again or it's dragged narrower than its minimum. On a phone
  * the editor and preview are tabs (Edit, Preview), switching keeps the draft, and the sidebar opens
  * as a slideover from the left. A new template starts with no HTML: the empty editor offers a
@@ -49,13 +51,16 @@ const createError = shallowRef<unknown>()
 const name = computed(() => draft?.name.value ?? newName.value)
 const readOnly = computed(() => !can('template:write') || draft?.saved.value.status === 'archived' || creating.value || Boolean(created.value))
 const saveStatus = computed(() => draft?.status.value ?? (creating.value ? 'saving' : 'pending'))
-const saveDot = computed(() => ({
-  saved: 'bg-success',
-  saving: 'bg-info animate-pulse',
-  pending: 'bg-info',
-  failed: 'bg-error',
-  conflict: 'bg-error',
-} as Record<string, string>)[saveStatus.value] ?? 'bg-info')
+// The save status is an icon after the name; its words are in a tooltip, and shown when saving failed.
+const SAVE_ICONS: Record<string, { name: string, class: string }> = {
+  saved: { name: 'i-lucide-cloud-check', class: 'text-success' },
+  saving: { name: 'i-lucide-loader-circle', class: 'animate-spin text-muted' },
+  pending: { name: 'i-lucide-circle-dot', class: 'text-info' },
+  failed: { name: 'i-lucide-cloud-alert', class: 'text-error' },
+  conflict: { name: 'i-lucide-cloud-alert', class: 'text-error' },
+}
+const saveIcon = computed(() => SAVE_ICONS[saveStatus.value] ?? SAVE_ICONS.pending!)
+const saveFailed = computed(() => saveStatus.value === 'failed' || saveStatus.value === 'conflict')
 
 function change(next: SlipDesign) {
   design.value = next
@@ -307,34 +312,46 @@ const panels = computed(() => [
         to="/platform/templates"
         class="font-semibold"
       />
-      <template v-if="!template">
-        <USeparator
-          orientation="vertical"
-          class="hidden h-6 sm:block"
-        />
-        <h1 class="hidden font-semibold text-highlighted sm:block">
-          {{ t('studio.new.title') }}
-        </h1>
-      </template>
+      <USeparator
+        orientation="vertical"
+        class="h-6"
+      />
+      <h1
+        v-if="!template"
+        class="sr-only"
+      >
+        {{ t('studio.new.title') }}
+      </h1>
+      <!-- The name is the title: plain text until hovered or focused, then it edits in place. -->
       <UInput
         :model-value="name"
         :maxlength="TEMPLATE_NAME_MAX"
-        :placeholder="t('studio.html.name')"
+        :placeholder="t('studio.html.untitled')"
         :disabled="readOnly"
+        variant="ghost"
         class="min-w-0 flex-1 sm:max-w-xs"
+        :ui="{ base: 'font-semibold text-highlighted placeholder:font-normal hover:ring hover:ring-default focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-100' }"
         :aria-label="t('studio.html.name')"
         @update:model-value="!draft && rename(String($event ?? ''))"
         @change="draft && rename(($event.target as HTMLInputElement).value)"
         @keydown.enter="($event.target as HTMLInputElement).blur()"
       />
-      <span class="flex items-center gap-1.5 text-xs text-muted">
+      <UTooltip :text="t(`studio.save.${saveStatus}`)">
         <span
-          class="size-2 shrink-0 rounded-full"
-          :class="saveDot"
-          aria-hidden="true"
-        />
-        <span data-testid="save-status">{{ t(`studio.save.${saveStatus}`) }}</span>
-      </span>
+          class="-ms-2 flex items-center gap-1.5 text-xs"
+          :class="saveFailed ? 'text-error' : 'text-muted'"
+        >
+          <UIcon
+            :name="saveIcon.name"
+            class="size-4 shrink-0"
+            :class="saveIcon.class"
+          />
+          <span
+            data-testid="save-status"
+            :class="{ 'sr-only': !saveFailed }"
+          >{{ t(`studio.save.${saveStatus}`) }}</span>
+        </span>
+      </UTooltip>
       <div class="ms-auto flex flex-wrap gap-2">
         <UColorModeButton />
         <UButton
@@ -371,63 +388,66 @@ const panels = computed(() => [
       :title="errorText(createError, t, te)"
     />
 
-    <div class="flex min-h-0 flex-1">
+    <!-- The work area: each part is a card on a quiet background, a gap between each. -->
+    <div class="flex min-h-0 flex-1 bg-elevated/50 p-2 max-lg:gap-2">
       <HtmlActivityBar
         :active="activeView"
         :hidden="hiddenViews"
         @pick="pickView"
       />
 
-      <div class="flex min-w-0 flex-1 flex-col">
+      <div class="flex min-w-0 flex-1 flex-col gap-2">
         <UTabs
           v-model="tab"
           :items="tabs"
           :content="false"
-          variant="link"
-          class="w-full px-3 lg:hidden"
+          variant="pill"
+          size="sm"
+          class="w-full lg:hidden"
           data-testid="html-tabs"
         />
 
+        <!-- Each handle is the gap before the next card; its grip shows where to drag. -->
         <USplitter
           id="html-studio"
           ref="splitter"
           auto-save-id="html-studio-sidebar"
           :items="panels"
           class="min-h-0 flex-1"
-          :ui="{ handle: 'w-px max-lg:hidden' }"
+          :ui="{ handle: 'w-2 max-lg:hidden' }"
           @collapse="index => index === 0 && (panelOpen = false)"
           @expand="index => index === 0 && (panelOpen = true)"
         >
           <template #resize-handle>
             <span
-              class="absolute inset-0 bg-accented"
-              aria-hidden="true"
-            />
-            <span
-              class="absolute inset-y-0 -inset-x-px bg-primary opacity-0 transition-opacity group-hover:opacity-100 group-data-[resize-handle-state=drag]:opacity-100"
+              class="absolute inset-y-0 left-1/2 my-auto h-10 w-1 -translate-x-1/2 rounded-full bg-accented transition-colors group-hover:bg-primary group-data-[resize-handle-state=drag]:bg-primary"
               aria-hidden="true"
             />
           </template>
 
-          <!-- Sidebar: the view the activity bar picked. -->
+          <!-- Sidebar: the view the activity bar picked, the rest of the activity bar's card. -->
           <template #sidebar="{ collapsed }">
-            <HtmlStudioSidebar
+            <div
               v-if="wide && !collapsed"
-              :view="sidebarView"
-              :design="design"
-              :read-only="readOnly"
-              :empty="empty"
-              @change="change"
-              @preset="applyPreset"
-              @image="insertImage"
-              @import="importAnswer"
-              @close="setSidebarOpen(false)"
-            />
+              class="scrollbar-on-hover flex min-w-0 flex-1 overflow-hidden rounded-e-lg border border-s-0 border-default"
+            >
+              <HtmlStudioSidebar
+                :view="sidebarView"
+                :design="design"
+                :read-only="readOnly"
+                :empty="empty"
+                @change="change"
+                @preset="applyPreset"
+                @image="insertImage"
+                @import="importAnswer"
+                @close="setSidebarOpen(false)"
+              />
+            </div>
           </template>
 
           <!-- HTML: the editor filling the panel, and its problems. -->
           <template #edit>
-            <section class="flex min-w-0 flex-1 flex-col overflow-hidden bg-default">
+            <section class="scrollbar-on-hover flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-default bg-default">
               <!-- One editor tab, as in VS Code: the slip's markup is a single file. -->
               <div class="flex items-stretch border-b border-default bg-elevated/25">
                 <div class="flex items-center gap-2 border-e border-t-2 border-default border-t-primary bg-default px-4 py-2">
@@ -438,6 +458,12 @@ const panels = computed(() => [
                   <h2 class="text-sm font-medium text-highlighted">
                     {{ t('studio.html.fileName') }}
                   </h2>
+                  <!-- VS Code's unsaved mark; the header's save status says it in words. -->
+                  <span
+                    v-if="saveStatus !== 'saved'"
+                    class="size-2 shrink-0 rounded-full bg-current text-muted"
+                    aria-hidden="true"
+                  />
                 </div>
                 <!-- Editor actions sit at the tab strip's end, as in VS Code. -->
                 <div class="ms-auto flex items-center px-2">
@@ -521,7 +547,7 @@ const panels = computed(() => [
                 </div>
               </div>
               <!-- Problems, as VS Code's panel under the editor. -->
-              <div class="border-t border-default px-4 py-2.5">
+              <div class="border-t border-default bg-elevated/25 px-4 py-2.5">
                 <ul
                   v-if="check.problems.length"
                   class="max-h-28 space-y-1 overflow-auto text-sm text-error"
@@ -566,11 +592,42 @@ const panels = computed(() => [
 
           <!-- Preview: samples, zoom, print and download over a dotted canvas. -->
           <template #preview>
-            <section class="flex min-w-0 flex-1 flex-col overflow-hidden bg-default">
-              <div class="flex flex-wrap items-center gap-2 border-b border-default px-4 py-2">
+            <section class="scrollbar-on-hover flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-default bg-default">
+              <!-- Title row: what the panel is, and what leaves it (print, download). -->
+              <div class="flex flex-wrap items-center gap-2 border-b border-default bg-elevated/25 py-2 ps-4 pe-2">
+                <UIcon
+                  name="i-lucide-printer"
+                  class="size-4 shrink-0 text-primary"
+                />
                 <h2 class="me-auto text-sm font-semibold text-highlighted">
                   {{ t('studio.html.tabs.preview') }}
                 </h2>
+                <UButton
+                  v-if="preview && design.paper"
+                  :label="t('studio.html.printSample')"
+                  :disabled="!previewCurrent"
+                  :loading="printingSample"
+                  icon="i-lucide-printer"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  @click="printSample"
+                />
+                <UButton
+                  v-if="preview"
+                  :label="t('studio.html.downloadSvg')"
+                  :to="previewCurrent ? preview.url : undefined"
+                  :disabled="!previewCurrent"
+                  external
+                  download="laundry-slip.svg"
+                  icon="i-lucide-download"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                />
+              </div>
+              <!-- Toolbar row: which sample fills the slip, and how big it shows. -->
+              <div class="flex flex-wrap items-center gap-2 border-b border-default px-4 py-2">
                 <URadioGroup
                   v-model="presetSample"
                   :items="sampleItems"
@@ -596,54 +653,43 @@ const panels = computed(() => [
                     :disabled="empty"
                   />
                 </HtmlCustomSampleModal>
-                <UFieldGroup size="sm">
+                <div class="ms-auto flex items-center gap-2">
                   <UButton
                     :label="t('studio.canvas.fit')"
+                    icon="i-lucide-scan"
                     color="neutral"
                     variant="outline"
+                    size="sm"
                     :disabled="!preview"
                     @click="fit"
                   />
-                  <UButton
-                    icon="i-lucide-minus"
-                    color="neutral"
-                    variant="outline"
-                    :aria-label="t('studio.html.zoomOut')"
-                    :disabled="!preview || !canZoomOut"
-                    @click="zoomOut"
-                  />
-                  <UButton
-                    icon="i-lucide-plus"
-                    color="neutral"
-                    variant="outline"
-                    :aria-label="t('studio.html.zoomIn')"
-                    :disabled="!preview || !canZoomIn"
-                    @click="zoomIn"
-                  />
-                </UFieldGroup>
-                <UButton
-                  v-if="preview && design.paper"
-                  :label="t('studio.html.printSample')"
-                  :disabled="!previewCurrent"
-                  :loading="printingSample"
-                  icon="i-lucide-printer"
-                  color="neutral"
-                  variant="outline"
-                  size="sm"
-                  @click="printSample"
-                />
-                <UButton
-                  v-if="preview"
-                  :label="t('studio.html.downloadSvg')"
-                  :to="previewCurrent ? preview.url : undefined"
-                  :disabled="!previewCurrent"
-                  external
-                  download="laundry-slip.svg"
-                  icon="i-lucide-download"
-                  color="neutral"
-                  variant="outline"
-                  size="sm"
-                />
+                  <!-- The zoom level sits between its buttons, as one control. -->
+                  <UFieldGroup size="sm">
+                    <UButton
+                      icon="i-lucide-minus"
+                      color="neutral"
+                      variant="outline"
+                      :aria-label="t('studio.html.zoomOut')"
+                      :disabled="!preview || !canZoomOut"
+                      @click="zoomOut"
+                    />
+                    <span
+                      class="flex w-14 items-center justify-center border-y border-default text-xs text-default tabular-nums"
+                      :class="{ 'text-dimmed': !preview }"
+                    >
+                      <span class="sr-only">{{ t('studio.canvas.zoom') }}</span>
+                      {{ t('studio.html.zoomPercent', { percent: Math.round(zoom) }) }}
+                    </span>
+                    <UButton
+                      icon="i-lucide-plus"
+                      color="neutral"
+                      variant="outline"
+                      :aria-label="t('studio.html.zoomIn')"
+                      :disabled="!preview || !canZoomIn"
+                      @click="zoomIn"
+                    />
+                  </UFieldGroup>
+                </div>
               </div>
               <div class="@container-size relative min-h-0 flex-1 bg-muted bg-[radial-gradient(var(--ui-border-accented)_1px,transparent_1px)] bg-size-[16px_16px]">
                 <div
@@ -702,7 +748,7 @@ const panels = computed(() => [
                 :loading="previewLoading"
                 @retry="loadPreview"
               />
-              <div class="flex items-center gap-x-4 border-t border-default px-4 py-2.5 text-sm text-muted">
+              <div class="flex items-center gap-x-4 border-t border-default bg-elevated/25 px-4 py-2.5 text-sm text-muted">
                 <div class="min-w-0 flex-1">
                   <span
                     v-if="preview && (previewLoading ? previewUpdating : !previewCurrent)"
@@ -731,13 +777,7 @@ const panels = computed(() => [
                   id="html-preview-keys"
                   class="sr-only"
                 >{{ t('studio.html.previewKeyboardHint') }}</span>
-                <div class="flex shrink-0 gap-x-4 tabular-nums">
-                  <span v-if="preview">
-                    <span class="sr-only">{{ t('studio.canvas.zoom') }}</span>
-                    {{ t('studio.html.zoomPercent', { percent: Math.round(zoom) }) }}
-                  </span>
-                  <span>{{ design.width }} × {{ design.height }} px</span>
-                </div>
+                <span class="shrink-0 tabular-nums">{{ design.width }} × {{ design.height }} px</span>
               </div>
             </section>
           </template>

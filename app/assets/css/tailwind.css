@@ -31,8 +31,42 @@
 @layer base {
   * {
     scrollbar-width: thin;
-    scrollbar-color: var(--ui-border-accented) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
+
+  /* The registered property below always has a value, so the default thumb is set at the root. */
+  :root {
+    --scrollbar-thumb: var(--ui-border-accented);
+  }
+
+  /*
+   * Like VS Code: inside `.scrollbar-on-hover` the thumb is hidden until the pointer is over that
+   * panel. The custom property is inherited, so every scroller in the panel follows.
+   */
+  .scrollbar-on-hover {
+    --scrollbar-thumb: transparent;
+    /* Fades out a moment after the pointer leaves, so it doesn't flicker when crossing the panel edge. */
+    transition: --scrollbar-thumb 0.3s ease 0.4s;
+  }
+
+  .scrollbar-on-hover:hover {
+    --scrollbar-thumb: var(--ui-border-accented);
+    transition: --scrollbar-thumb 0.15s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .scrollbar-on-hover,
+    .scrollbar-on-hover:hover {
+      transition: none;
+    }
+  }
+}
+
+/* Registered as a colour so the browser can fade it; plain custom properties switch instantly. */
+@property --scrollbar-thumb {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
 }
 
 /*

@@ -473,6 +473,7 @@
     },
     "html": {
       "name": "Template name",
+      "untitled": "Untitled template",
       "shops": "Shops",
       "tabs": {
         "edit": "Edit",
@@ -487,6 +488,13 @@
           "images": "Images",
           "ai": "AI",
           "paper": "Paper size"
+        },
+        "short": {
+          "fields": "Fields",
+          "presets": "Presets",
+          "images": "Images",
+          "ai": "AI",
+          "paper": "Paper"
         }
       },
       "ai": {
@@ -522,7 +530,13 @@
       "at": "Line {line}, column {column}:",
       "ok": "No HTML errors",
       "fieldsTitle": "Intake fields",
-      "fieldsHint": "What staff enter on each order. Priced as links a count or weight to an item each shop sets a price for. A required field must be filled in and printed on the slip.",
+      "fieldsHint": "What staff enter on each order. Priced as picks the price-list item a count or weight is charged at. ✱ marks a required field.",
+      "builtInTitle": "Order details",
+      "builtInHint": "Every order has this. Rename it, but it can’t be removed.",
+      "addBuiltIn": "Add {field}",
+      "itemsTitle": "Items and services",
+      "noItems": "No items yet. Add them from the list or add your own.",
+      "usedHint": "The HTML prints this field. Remove {placeholder} from the HTML first.",
       "fieldLabel": "Label",
       "copyPlaceholder": "Copy {placeholder}",
       "copied": "Placeholder copied.",
@@ -602,7 +616,9 @@
         "count": "Whole number",
         "weight": "Weight (kg)",
         "text": "Text",
-        "checkbox": "Checkbox"
+        "checkbox": "Checkbox",
+        "phone": "Phone",
+        "amount": "Amount"
       },
       "required": "Required",
       "paperRatio": "Choose a less narrow paper size so the slip can render at the right proportions.",

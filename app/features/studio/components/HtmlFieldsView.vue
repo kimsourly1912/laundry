@@ -6,13 +6,14 @@
  */
 import { MAX_ELEMENTS } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
-import { FIELD_PREFIX } from '#shared/html-slip/catalog'
+import { FIELD_PREFIX, PLACEHOLDER } from '#shared/html-slip/catalog'
 import type { IntakeItem } from '#shared/html-slip/items'
 import { intakeField } from '#shared/html-slip/items'
 import { createElement } from '#shared/slip/elements'
 import { isOwnerField } from '#shared/slip/fields'
 import type { OwnerField } from '#shared/slip/fields'
 import HtmlItemListModal from './HtmlItemListModal.vue'
+import HtmlFieldRow from './HtmlFieldRow.vue'
 import PriceKeySelect from './PriceKeySelect.vue'
 
 const props = defineProps<{ design: SlipDesign, readOnly: boolean }>()
@@ -24,6 +25,25 @@ const fields = computed(() => props.design.elements.filter(isOwnerField))
 const full = computed(() => props.design.elements.length >= MAX_ELEMENTS)
 const placeholderOf = (id: string) => `{{${FIELD_PREFIX}${id}}}`
 
+/**
+ * Phone and amount are the order's own details (every order stores them): built in, renamed but
+ * never removed here. A design without one (an old draft) offers to add it back.
+ */
+const BUILT_IN = ['phone', 'amount'] as const
+type BuiltInType = typeof BUILT_IN[number]
+const isBuiltIn = (field: OwnerField) => (BUILT_IN as readonly string[]).includes(field.type)
+const builtIns = computed(() => fields.value.filter(isBuiltIn))
+const items = computed(() => fields.value.filter(field => !isBuiltIn(field)))
+const missingBuiltIns = computed(() => BUILT_IN.filter(type => !fields.value.some(field => field.type === type)))
+function addBuiltIn(type: BuiltInType) {
+  const id = uniqueKey(type === 'amount' ? 'total' : 'phone')
+  change({ elements: [...props.design.elements, createElement(type, { id })], fillOrder: [...props.design.fillOrder, id] })
+}
+
+/** Fields the markup prints: removing one would leave an unknown placeholder, so it waits for the HTML. */
+const usedInHtml = computed(() => new Set([...(props.design.html ?? '').matchAll(PLACEHOLDER)].map(match => match[1]!)))
+const isUsed = (field: OwnerField) => usedInHtml.value.has(`${FIELD_PREFIX}${field.id}`)
+
 function change(patch: Partial<SlipDesign>) {
   emit('change', { ...props.design, ...patch })
 }
@@ -33,12 +53,6 @@ function updateField(field: OwnerField, patch: { label?: string, required?: bool
 function remove(field: OwnerField) {
   change({ elements: props.design.elements.filter(item => item.id !== field.id), fillOrder: props.design.fillOrder.filter(key => key !== field.id) })
 }
-/** One Required box for both checks: staff must enter it, and the HTML must print it. */
-function requiredState(field: OwnerField): boolean | 'indeterminate' {
-  const onSlip = 'printRequired' in field && Boolean(field.printRequired)
-  return field.required === onSlip ? onSlip : 'indeterminate'
-}
-
 /** A stable key from the label ("Bed sheets" → `bed_sheets`), made unique within the design. */
 function keyFromLabel(label: string): string {
   return uniqueKey(label.toLowerCase().replace(/[^a-z\d]+/g, '_').replace(/^[^a-z]+|_+$/g, '').slice(0, 36) || 'field')
@@ -113,72 +127,68 @@ async function copyPlaceholder(id: string) {
       {{ t('studio.html.fieldsHint') }}
     </p>
 
-    <ul class="divide-y divide-default rounded-md border border-default bg-default">
-      <li
-        v-for="field in fields"
-        :key="field.id"
-        class="space-y-2 p-2"
-        :data-testid="`field-${field.id}`"
+    <section class="space-y-2">
+      <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
+        {{ t('studio.html.builtInTitle') }}
+      </h3>
+      <ul class="space-y-2">
+        <HtmlFieldRow
+          v-for="field in builtIns"
+          :key="field.id"
+          :field="field"
+          :read-only="readOnly"
+          built-in
+          :used="isUsed(field)"
+          @update="updateField(field, $event)"
+          @copy="copyPlaceholder(field.id)"
+        />
+      </ul>
+      <div
+        v-if="!readOnly && missingBuiltIns.length"
+        class="flex flex-wrap gap-2"
       >
-        <div class="flex items-center gap-1">
-          <UInput
-            :model-value="field.label"
-            :disabled="readOnly"
-            size="sm"
-            class="min-w-0 flex-1"
-            :placeholder="t('studio.html.fieldLabel')"
-            :aria-label="t('studio.html.fieldLabel')"
-            @change="updateField(field, { label: ($event.target as HTMLInputElement).value })"
-          />
-          <UTooltip :text="placeholderOf(field.id)">
-            <UButton
-              icon="i-lucide-braces"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="t('studio.html.copyPlaceholder', { placeholder: placeholderOf(field.id) })"
-              @click="copyPlaceholder(field.id)"
-            />
-          </UTooltip>
-          <UButton
-            v-if="!readOnly"
-            icon="i-lucide-trash-2"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            :aria-label="t('studio.html.removeField')"
-            @click="remove(field)"
-          />
-        </div>
-        <div
-          v-if="field.type !== 'phone' && field.type !== 'amount'"
-          class="flex items-center gap-3"
-        >
-          <PriceKeySelect
-            v-if="field.type === 'number'"
-            :model-value="field.priceKey"
-            :weight="field.unit === 'kg'"
-            :disabled="readOnly"
-            size="sm"
-            class="min-w-0 flex-1"
-            :test-id="`price-key-${field.id}`"
-            @update:model-value="updateField(field, { priceKey: $event })"
-          />
-          <span
-            v-else
-            class="flex-1"
-          />
-          <UCheckbox
-            :model-value="requiredState(field)"
-            :disabled="readOnly"
-            :label="t('studio.html.required')"
-            size="sm"
-            class="shrink-0"
-            @update:model-value="updateField(field, { required: $event === true, printRequired: $event === true })"
-          />
-        </div>
-      </li>
-    </ul>
+        <UButton
+          v-for="type in missingBuiltIns"
+          :key="type"
+          :label="t('studio.html.addBuiltIn', { field: t(`studio.html.fieldType.${type}`) })"
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="full"
+          :data-testid="`add-built-in-${type}`"
+          @click="addBuiltIn(type)"
+        />
+      </div>
+    </section>
+
+    <section class="space-y-2">
+      <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
+        {{ t('studio.html.itemsTitle') }}
+      </h3>
+      <ul
+        v-if="items.length"
+        class="space-y-2"
+      >
+        <HtmlFieldRow
+          v-for="field in items"
+          :key="field.id"
+          :field="field"
+          :read-only="readOnly"
+          :built-in="false"
+          :used="isUsed(field)"
+          @update="updateField(field, $event)"
+          @remove="remove(field)"
+          @copy="copyPlaceholder(field.id)"
+        />
+      </ul>
+      <p
+        v-else
+        class="rounded-lg border border-dashed border-default p-3 text-center text-sm text-muted"
+      >
+        {{ t('studio.html.noItems') }}
+      </p>
+    </section>
 
     <template v-if="!readOnly">
       <form

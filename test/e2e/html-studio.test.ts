@@ -250,6 +250,9 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
 
   // The sidebar is on Presets (Use a preset opened it); the Fields icon switches it.
   await page.getByTestId('open-fields').click()
+  // Phone is built in; the by-weight HTML prints the weight, so neither can be removed here.
+  expect(await page.getByTestId('remove-phone').isDisabled()).toBe(true)
+  expect(await page.getByTestId('remove-weight_kg').isDisabled()).toBe(true)
   await page.getByTestId('new-field').click()
   await page.getByTestId('count-label').fill('Bag count')
   await page.getByTestId('add-count').click()

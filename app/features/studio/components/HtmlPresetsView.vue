@@ -67,20 +67,22 @@ const presetFields = Object.fromEntries(HTML_INTAKE_PRESETS.map(preset => [
       />
       {{ t('studio.html.presetPicker.locked') }}
     </p>
+    <!-- A list: the slip beside its title and text from 16rem of content width (container query on the sidebar), stacked below that. -->
     <ul class="space-y-3">
       <li
         v-for="preset in HTML_INTAKE_PRESETS"
         :key="preset"
+        class="min-w-0"
       >
         <button
           type="button"
-          class="group flex w-full flex-col overflow-hidden rounded-lg border border-default bg-default text-start transition-colors enabled:hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-75"
+          class="group flex w-full flex-col @3xs:flex-row overflow-hidden rounded-lg border border-default bg-default text-start transition-colors enabled:hover:border-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-75"
           :disabled="disabled"
           :data-testid="`preset-${preset}`"
           @click="emit('pick', preset)"
         >
           <!-- The slip on the same dotted canvas as the Studio's preview. -->
-          <div class="flex w-full items-center justify-center border-b border-default bg-muted bg-[radial-gradient(var(--ui-border-accented)_1px,transparent_1px)] bg-size-[14px_14px] p-4">
+          <div class="flex w-full items-center justify-center border-b border-default bg-muted bg-[radial-gradient(var(--ui-border-accented)_1px,transparent_1px)] bg-size-[14px_14px] p-4 @3xs:w-2/5 @3xs:shrink-0 @3xs:border-e @3xs:border-b-0 @3xs:p-2">
             <div
               class="w-full"
               :style="{ aspectRatio: `${size.width} / ${size.height}` }"
@@ -97,7 +99,7 @@ const presetFields = Object.fromEntries(HTML_INTAKE_PRESETS.map(preset => [
               />
             </div>
           </div>
-          <div class="flex items-start gap-2 p-3">
+          <div class="flex min-w-0 flex-1 items-start gap-2 p-3">
             <UIcon
               :name="ICONS[preset]"
               class="mt-0.5 size-4 shrink-0 text-primary"
