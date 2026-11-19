@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vitest/config'
 import { configDefaults, defineConfig } from 'vitest/config'
 import { defineVitestProject } from '@nuxt/test-utils/config'
+import { satoriOnWorkers } from './build/satori-workers'
 
 const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
 /** The project root with forward slashes, as Vitest matches file globs. */
@@ -75,9 +76,11 @@ export default defineConfig({
       {
         // Server services against SQLite built from the real migrations (server/tests/support/db.ts).
         resolve: { alias },
-        plugins: [serverAssets()],
+        plugins: [serverAssets(), satoriOnWorkers()],
         test: {
           name: 'server',
+          // Through Vite, so satoriOnWorkers patches Satori as the Worker build does.
+          server: { deps: { inline: ['satori'] } },
           include: ['server/tests/**/*.test.ts', 'server/features/*/tests/**/*.test.ts'],
           // Runs the migrations once; each test database replays the result.
           globalSetup: ['server/tests/support/global-setup.ts'],

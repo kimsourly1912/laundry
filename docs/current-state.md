@@ -22,6 +22,8 @@ Studio's Custom sample shows the live slip beside an owner-style test order form
 
 **Prices from the slips ([D43](decisions.md#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much), 2026-11-19, not committed yet):** the owner's Prices page lists each priced item on the shop's slips and the owner types only the amount (`PUT /api/shop/prices/:key`). The Studio picks price keys from the item list, and Publish refuses others. On New order a count with no price is disabled; Overview and Prices warn about it. The platform's shop page shows "Prices: 5 of 8 set". Unit and server tests pass. The Studio's intake panel moved into the new sidebar (`HtmlFieldsView.vue`, in progress at the same time) and keeps Add from list and Priced as.
 
+**Studio preview on the Worker (2026-11-19, branch `claude/tender-sagan-aysda9`):** every HTML preview answered 500 on the Worker build (Satori's bundled HarfBuzz can't start on Workers as published). Fixed by `build/satori-workers.ts` ([D39 → Correction](decisions.md#d39-the-product-notes-larger-items-lifecycle-customers-prices-html-templates-requests-paper-size)); checked with `wrangler dev` on the staging build. Run the renderer on workerd before trusting a new rendering dependency.
+
 ## Now: the product notes' larger items (D39, 2026-11-18)
 
 **Built on branch `claude/admiring-goodall-1pk03z`, waiting for the owner's review** (one commit per item). D37 (#17) and D38 (#18) are merged.
