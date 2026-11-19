@@ -3,7 +3,7 @@ import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
 import { createOrder, orderSlipSvg, previewOrderSvg } from '#server/features/orders'
-import { createPrice } from '#server/features/prices'
+import { setPrice } from '#server/features/prices'
 import { createCustomer } from '#server/features/customers'
 import type { ShopActor } from '#server/features/identity'
 import type { Db } from '#server/utils/batch'
@@ -43,7 +43,7 @@ beforeEach(async () => {
   const template = await createTestTemplate(db, ownerA.userId, { design: htmlDesign() })
   versionId = template.versionId
   await attachTestTemplate(db, { shopId: a.shopId, templateId: template.templateId })
-  await createPrice(db, a, { key: 'shirt', label: 'Shirt', unit: 'piece', price: 2000 })
+  await setPrice(db, a, 'shirt', { price: 2000, version: null })
 })
 
 describe('an order on an HTML slip', () => {

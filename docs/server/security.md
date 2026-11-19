@@ -27,7 +27,7 @@ Use these; don't rebuild them. Check each against its docs for the installed ver
 - **One user belongs to exactly one shop** (spec P2): a unique index on `member.user_id` (`member_user_id_unique`), added by our own migration `0001` ([D17](../decisions.md#d17-one-shop-per-user-in-the-database)).
 - **Owners sign in with username + password** (spec P4). Better Auth requires `user.email`, so a placeholder (`<id>@users.invalid`) is stored, never shown, never mailed. Usernames are trimmed and lowercased, also at sign-in ([D15](../decisions.md#d15-accounts-username-and-a-placeholder-email)).
 - **The super admin** has `user.role = 'superadmin'` (admin plugin), is **never a member of a shop** and never reads shop data (spec T5).
-- **The first super admin** is created by a seed task from `NUXT_PLATFORM_ADMIN_USERNAME` / `_PASSWORD`. It refuses if any super admin exists.
+- **The first super admin** of the local database comes from `pnpm seed:admin`. A deployed environment has no seed path yet (Q18 in current-state).
 
 ## Roles and statements
 
@@ -129,7 +129,7 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 | **Headers** | Production builds, every route: CSP (`default-src 'self'`, scripts and styles also `'unsafe-inline'` for the SPA shell), HSTS, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy: strict-origin`, `Permissions-Policy` denying camera, microphone, geolocation, payment. `/api/**`: `Cache-Control: no-store`. Set in `nuxt.config.ts`. |
 | **No `v-html`** | ESLint error. Vue's escaping is the XSS defense while the CSP allows inline scripts. |
 | **Case-sensitive paths** | `router.options.sensitive`: one spelling per page, so checks on paths can't be skipped by case. |
-| **Body size** | `/api/**` bodies ≤ 64 KB, counted in bytes as they arrive: by the Worker's entry before Nitro buffers the body ([D11](../decisions.md#d11-worker-body-cap)), and again by `readValidBody`. `413 PAYLOAD_TOO_LARGE`. Two exceptions, by exact path, platform only (plan S1): the studio's image upload (`POST /api/platform/images`) ≤ 1 MB, its type and size read from the file itself, never from headers; a template's design (`PATCH /api/platform/templates/:id` and `…/preview`) ≤ 256 KB (`MAX_DESIGN_BYTES`). |
+| **Body size** | `/api/**` bodies ≤ 64 KiB, counted in bytes as they arrive by the Worker's entry before Nitro buffers them ([D11](../decisions.md#d11-worker-body-cap)) and again by `readValidBody`. Oversized requests get `413 PAYLOAD_TOO_LARGE`. Uploads have their own file limits. Template save and saved-template preview paths accept 256 KiB (`MAX_DESIGN_BYTES`). `POST /api/platform/templates/preview` accepts 640 KiB (`MAX_HTML_PREVIEW_BYTES)) for the HTML draft and its editable sample. |
 | **Enumeration** | Other shops' records are `404`. Sign-in errors don't say whether the username exists. |
 
 ## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), plan §8)
@@ -147,7 +147,7 @@ Built (D38):
 | `NUXT_BETTER_AUTH_SECRET` | Per environment, ≥ 32 random characters |
 | `NUXT_TELEGRAM_BOT_TOKEN` | Per environment (dev, staging and production bots differ) |
 | `NUXT_TELEGRAM_WEBHOOK_SECRET` | Per environment, 32–256 of `A-Z a-z 0-9 _ -` |
-| `NUXT_PLATFORM_ADMIN_PASSWORD` | Seed only; change the password after the first sign-in |
+| `NUXT_PLATFORM_ADMIN_PASSWORD` | Local `pnpm seed:admin` only; never set on a Worker |
 | Cloudflare API token (CI) | GitHub Actions secret, used only by jobs whose actions are pinned to full commit ids |
 
 Never in the repo, never logged, never in error messages. `.env` is git-ignored; `.env.example` lists names only.

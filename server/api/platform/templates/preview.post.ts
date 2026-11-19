@@ -1,9 +1,8 @@
-import { MAX_DESIGN_BYTES } from '#shared/contracts/slip-design'
-import { previewHtmlTemplateSchema } from '#shared/contracts/templates'
+import { MAX_HTML_PREVIEW_BYTES, previewHtmlTemplateSchema } from '#shared/contracts/templates'
 import { previewHtmlTemplate } from '#server/features/templates'
 
 export default defineEventHandler(async (event) => {
   await requirePlatformPermission(event, { template: ['read'] })
-  const input = await readValidBody(event, previewHtmlTemplateSchema, { maxBytes: MAX_DESIGN_BYTES })
-  return svgResponse(await previewHtmlTemplate(input))
+  const input = await readValidBody(event, previewHtmlTemplateSchema, { maxBytes: MAX_HTML_PREVIEW_BYTES })
+  return svgResponse(await previewHtmlTemplate(useDb(), input))
 })

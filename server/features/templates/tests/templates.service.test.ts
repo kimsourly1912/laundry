@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
-import { createTemplate, getImage, getTemplate, imageBytes, listImages, listTemplates, previewTemplate, publishTemplate, updateTemplate, uploadImage } from '#server/features/templates'
+import { createTemplate, getImage, getTemplate, imageBytes, listImages, listTemplates, previewHtmlTemplate, previewTemplate, publishTemplate, updateTemplate, uploadImage } from '#server/features/templates'
 import { imageInfo } from '#server/features/templates/images.bytes'
 import { renderSlipPng } from '#server/features/templates/templates.render'
 import { images, templates, templateVersions } from '#server/features/templates/templates.schema'
@@ -218,5 +218,34 @@ describe('previewTemplate', () => {
     const missing = '0190f2a0-0000-7000-8000-000000000009'
     expect(await refusal(previewTemplate(db, template.id, { design: { ...template.design, background: { color: '#ffffff', imageId: missing } } }))).toBe('422 UNKNOWN_IMAGE')
     expect(await refusal(previewTemplate(db, missing, { design: template.design }))).toBe('404 NOT_FOUND')
+  })
+})
+
+describe('HTML slips with library images (D41)', () => {
+  const html = (body: string): SlipDesign => ({ ...blankDesign(600, 400), elements: [createElement('orderNo', { id: 'no' })], html: `<div class="flex flex-col">${body}</div>` })
+
+  it('draws an <img> from the library into the preview, embedded in the SVG', async () => {
+    const image = await uploadImage(db, actor, { bytes: await pngOf(400, 200), name: 'logo.png' })
+    const svg = await previewHtmlTemplate(db, { design: html(`<img src="image:${image.id}" class="w-24">`), sample: 'typical' })
+    expect(svg).toContain('<image')
+    expect(svg).toContain('data:image/png;base64,')
+  })
+
+  it('refuses an image that isn\'t in the library, on preview, save and publish', async () => {
+    const missing = '0190f2a0-0000-7000-8000-000000000009'
+    const design = html(`<img src="image:${missing}" class="w-24">`)
+    expect(await refusal(previewHtmlTemplate(db, { design, sample: 'typical' }))).toBe('422 UNKNOWN_IMAGE')
+    const template = await create({ kind: 'html', html: '<div>Slip</div>', width: 600, height: 400 })
+    expect(await refusal(updateTemplate(db, actor, template.id, { version: template.version, design }))).toBe('422 UNKNOWN_IMAGE')
+  })
+
+  it('refuses images that add up to more than 1 MB: every render embeds them all', async () => {
+    const big = { name: 'big.png', type: 'image/png' as const, width: 400, height: 400, size: 600 * 1024, data: Buffer.from(await pngOf(200, 200)).toString('base64'), createdBy: actor.userId }
+    const [one, two] = ['0190f2a0-0000-7000-8000-00000000000a', '0190f2a0-0000-7000-8000-00000000000b']
+    await db.insert(images).values([{ ...big, id: one }, { ...big, id: two }])
+    expect(await refusal(previewHtmlTemplate(db, { design: html(`<img src="image:${one}" class="w-24">`), sample: 'typical' }))).toBe('allowed')
+    expect(await refusal(previewHtmlTemplate(db, { design: html(`<img src="image:${one}" class="w-24"><img src="image:${two}" class="w-24">`), sample: 'typical' }))).toBe('422 IMAGES_TOO_LARGE')
+    // The same image twice is embedded twice by Satori but read once: it counts once.
+    expect(await refusal(previewHtmlTemplate(db, { design: html(`<img src="image:${one}" class="w-24"><img src="image:${one}" class="w-12">`), sample: 'typical' }))).toBe('allowed')
   })
 })

@@ -4,6 +4,7 @@
  * counts (received today, in progress, ready, unpaid) and the latest orders.
  */
 import { LatestOrders, OverviewCounts } from '~/features/orders'
+import { MissingPricesAlert } from '~/features/prices'
 
 definePageMeta({ layout: 'shop', area: 'shop', permission: 'shop:read', title: 'overview.title' })
 
@@ -33,6 +34,7 @@ const { me, can } = useSession()
           to="/orders/new"
           data-testid="new-order"
         />
+        <MissingPricesAlert v-if="can('price:read')" />
         <OverviewCounts v-if="can('order:read')" />
         <LatestOrders v-if="can('order:read')" />
       </div>

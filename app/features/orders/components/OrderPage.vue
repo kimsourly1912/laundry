@@ -8,9 +8,8 @@
  */
 import type { OrderDetail } from '#shared/contracts/orders'
 import { formatPhone } from '#shared/contracts/phone'
-import { useSlipText } from '~/features/slip-fill'
+import { useSlipPrint, useSlipText } from '~/features/slip-fill'
 import { ORDER_STATE_BADGE, orderState } from '../utils/order-status'
-import { printSlip } from '../utils/print-slip'
 import OrderActions from './OrderActions.vue'
 import TelegramCard from './TelegramCard.vue'
 import SlipView from './SlipView.vue'
@@ -38,12 +37,8 @@ const data = computed(() => {
 
 const badge = computed(() => order.data.value && ORDER_STATE_BADGE[orderState(order.data.value)])
 
-// D39: a version with a paper size prints at that size, so a reprint comes out like the first print.
-useHead(() => {
-  const paper = order.data.value?.design.paper
-  if (!paper) return {}
-  return { style: [{ key: 'print-paper', innerHTML: `@media print { @page { size: ${paper.widthMm}mm ${paper.heightMm}mm; margin: 0 } .print-slip { width: ${paper.widthMm}mm !important; height: ${paper.heightMm}mm !important } }` }] }
-})
+// D39: a reprint uses the paper size pinned to the order's template version.
+const printSlip = useSlipPrint(() => order.data.value?.design.paper)
 
 /** D39: the order's Telegram link, once the QR card has made it: an HTML slip draws it as its QR. */
 const qrUrl = ref<string>()

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import * as v from 'valibot'
 import { newHtmlSlip } from '../presets'
-import { sampleOrder } from '../sample'
+import { customSampleOrder, sampleOrder } from '../sample'
+import { previewHtmlTemplateSchema } from '#shared/contracts/templates'
 import { publishProblems } from '#shared/slip/checks'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
@@ -10,6 +12,37 @@ import { checkHtml, isKnownUtility } from '#shared/html-slip/catalog'
 import { placeholderText, slipTree } from '#shared/html-slip/build'
 import type { SatoriNode } from '#shared/html-slip/build'
 import { aiPrompt, readAiAnswer } from '#shared/html-slip/ai'
+
+describe('Custom sample', () => {
+  const design = newHtmlSlip('byWeight')
+  const date = '2026-11-19'
+  const custom = { customerName: 'សុខ ចាន់ដារ៉ា Sok Chandara', amount: null, values: { weight_kg: 3.5 } }
+
+  it('fills the slip with test values and calculates synthetic item lines', () => {
+    const slip = customSampleOrder(design, { custom, date })
+    expect(slip.values).toEqual({ weight_kg: 3.5 })
+    expect(slip.order).toMatchObject({
+      customerName: custom.customerName,
+      amount: 10500,
+      date,
+      number: 1024,
+      qrUrl: 'https://example.com/sample-laundry-slip',
+      lines: [{ quantity: 3500, unit: 'kg', lineTotal: 10500 }],
+    })
+    const empty = customSampleOrder(design, { custom: { ...custom, amount: 0, values: {} }, date })
+    expect(empty.values).toEqual({})
+    expect(empty.order).toMatchObject({ amount: 0, lines: [] })
+  })
+
+  it('accepts ordinary previews and validates custom values against the design', () => {
+    expect(v.parse(previewHtmlTemplateSchema, { design }).sample).toBe('typical')
+    expect(v.safeParse(previewHtmlTemplateSchema, { design, sample: 'custom', custom }).success).toBe(true)
+    for (const values of [{ other: 3 }, { weight_kg: '3' }, { weight_kg: 1001 }, { weight_kg: 3.555 }]) {
+      expect(v.safeParse(previewHtmlTemplateSchema, { design, sample: 'custom', custom: { ...custom, values } }).success).toBe(false)
+    }
+    expect(v.safeParse(previewHtmlTemplateSchema, { design, sample: 'custom', custom: { ...custom, number: 123 } }).success).toBe(false)
+  })
+})
 
 // HTML slips (D39): the markup is data, checked against one catalog; values go in as text only.
 
@@ -46,9 +79,9 @@ describe('parseHtml', () => {
   })
 
   it('names each problem with its line and column', () => {
-    const { problems } = parseHtml('<div>\n  <img src="x">\n  <span onclick="go()">hi</span>\n  <b>open\n</div>\ntext')
+    const { problems } = parseHtml('<div>\n  <input src="x">\n  <span onclick="go()">hi</span>\n  <b>open\n</div>\ntext')
     expect(problems.map(problem => `${problem.line}:${problem.column} ${problem.message.split(' ').slice(0, 3).join(' ')}`)).toEqual([
-      '2:3 <img> isn\'t allowed.',
+      '2:3 <input> isn\'t allowed.',
       '2:3 The attribute src',
       '3:3 The attribute onclick',
       '4:3 <b> is never',
@@ -86,22 +119,22 @@ describe('checkHtml (the catalog)', () => {
 describe('slipTree (values as text)', () => {
   it('fills placeholders from the order; a field shows its value, a choice its label', () => {
     const { nodes } = parseHtml('<div><span>No. {{order.number}}</span><span>{{fields.shirt}} · {{fields.svc}} · {{customer.name}} · {{order.total}} · {{order.paymentStatus}} · {{order.dueDate}}</span></div>')
-    const tree = slipTree(nodes, design, data({}, { shirt: 2, svc: 'iron' }))
+    const tree = slipTree({ nodes, design, data: data({}, { shirt: 2, svc: 'iron' }) })
     expect(texts(tree).join('')).toBe('No. 21392 · Iron only · Dara · 7,000៛ · Not paid · 20/11/2026')
   })
 
   it('a value that looks like markup stays text: it never adds an element', () => {
     const { nodes } = parseHtml('<div>{{fields.note}}</div>')
-    const tree = slipTree(nodes, design, data({}, { note: '<script>alert(1)</script>' }))
+    const tree = slipTree({ nodes, design, data: data({}, { note: '<script>alert(1)</script>' }) })
     expect(texts(tree)).toEqual(['<script>alert(1)</script>'])
     expect(JSON.stringify(tree)).not.toContain('"type":"script"')
   })
 
   it('draws the item lines and the QR (a sample before saving, the order\'s link after)', () => {
     const { nodes } = parseHtml('<div><div>{{order.itemLines}}</div><div>{{order.qrCode}}</div></div>')
-    const sample = slipTree(nodes, design, data())
+    const sample = slipTree({ nodes, design, data: data() })
     expect(texts(sample)).toEqual(['Shirt', '2', '4,000៛', 'QR'])
-    const linked = JSON.stringify(slipTree(nodes, design, data({ qrUrl: 'https://t.me/bot?start=abc' })))
+    const linked = JSON.stringify(slipTree({ nodes, design, data: data({ qrUrl: 'https://t.me/bot?start=abc' }) }))
     expect(linked).toContain('"type":"img"')
     expect(linked).toContain('data:image/svg+xml;base64,')
   })
@@ -139,6 +172,16 @@ describe('the AI import (v1)', () => {
     expect(prompt).toContain('{{fields.shirt}}: អាវ / Shirt (number; example: 2)')
     expect(prompt).toContain('80 × 52 mm')
     expect(prompt).toContain('Redesign it: bigger boxes')
+  })
+
+  it('tells the AI how to draw a logo as inline SVG, and lists only the slip\'s own images (D41)', () => {
+    const none = aiPrompt({ design, brief: '' })
+    expect(none).toContain('inline <svg> with a viewBox')
+    expect(none).toContain('No <text> inside an <svg>')
+    expect(none).toContain('Use no <img>')
+    const id = '0190f2a0-0000-7000-8000-000000000001'
+    const withImage = aiPrompt({ design: { ...design, html: `<div><img src="image:${id}" class="w-12"></div>` }, brief: '' })
+    expect(withImage).toContain(`<img src="image:${id}" class="w-24">`)
   })
 })
 
@@ -183,6 +226,10 @@ describe('HTML intake presets', () => {
     expect(publishProblems(design).errors).toEqual([])
     expect(design.fillOrder).toContain('shirt_count')
     expect(design.fillOrder).toContain('trousers_count')
-    expect(sampleOrder(design, { sample: 'typical', date: '2026-11-18' }).order.lines).toHaveLength(2)
+    // One priced line per garment on the grid.
+    const garments = design.elements.filter(element => element.type === 'number' && element.priceKey)
+    expect(garments).toHaveLength(10)
+    expect(sampleOrder(design, { sample: 'typical', date: '2026-11-18' }).order.lines).toHaveLength(10)
+    expect(checkHtml(design.html!, design).problems).toEqual([])
   })
 })

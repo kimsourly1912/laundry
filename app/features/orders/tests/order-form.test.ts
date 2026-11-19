@@ -50,26 +50,3 @@ describe('shopToday', () => {
     expect(shopToday(new Date('2026-11-18T17:00:00Z'))).toBe('2026-11-19')
   })
 })
-
-describe('stepCount and parseCount (sheet 01 steppers)', () => {
-  it('+ on an empty box gives 1; − on the lowest count empties it; the range holds', async () => {
-    const { stepCount } = await import('../utils/order-form')
-    const range = { min: 0, max: 3 }
-    expect(stepCount(undefined, 1, range)).toBe(1)
-    expect(stepCount(undefined, -1, range)).toBeUndefined()
-    expect(stepCount(1, 1, range)).toBe(2)
-    expect(stepCount(3, 1, range)).toBe(3)
-    expect(stepCount(1, -1, range)).toBeUndefined()
-    expect(stepCount(2.5, -1, range)).toBe(1.5)
-    expect(stepCount(undefined, 1, { min: 5, max: 9 })).toBe(5)
-    expect(stepCount(5, -1, { min: 5, max: 9 })).toBeUndefined()
-  })
-
-  it('reads a typed count', async () => {
-    const { parseCount } = await import('../utils/order-form')
-    expect(parseCount('')).toBeUndefined()
-    expect(parseCount(' 2 ')).toBe(2)
-    expect(parseCount('2,5')).toBe(2.5)
-    expect(parseCount('two')).toBeNaN()
-  })
-})

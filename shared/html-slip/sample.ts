@@ -1,5 +1,7 @@
-import type { ElementOf, SlipData, SlipDesign, SlipLine, SlipShop } from '#shared/contracts/slip-design'
+import type { ElementOf, SlipData, SlipDesign, SlipLine, SlipShop, SlipValues } from '#shared/contracts/slip-design'
+import type { CustomSample } from '#shared/contracts/templates'
 import { sampleData, SAMPLE_SHOP } from '#shared/slip/fields'
+import { checkFill } from '#shared/slip/values'
 
 /**
  * The Studio's sample orders (D39; product notes → "preview blank, typical and crowded sample
@@ -14,6 +16,38 @@ const SAMPLE_QR = 'https://example.com/sample-laundry-slip'
 function sampleLine(element: ElementOf<'number'>, value: number): SlipLine {
   const kg = element.unit === 'kg'
   return { label: element.label, unit: kg ? 'kg' : 'piece', quantity: kg ? Math.round(value * 1000) : value, lineTotal: Math.round(value * (kg ? 3000 : 2000)) }
+}
+
+export function customSampleFields(design: SlipDesign) {
+  return design.elements.filter(field => field.type === 'number' || field.type === 'textField' || field.type === 'checkbox')
+}
+
+/** Use the slip's field limits, and allow incomplete samples so authors can see empty fields. */
+export function customSampleFieldProblems(design: SlipDesign, values: SlipValues) {
+  const ownValues = Object.assign<SlipValues, SlipValues>(Object.create(null), values)
+  const problems = checkFill({ ...design, elements: customSampleFields(design), groups: [] }, { values: ownValues, phone: '', amount: null, paid: false })
+  return Object.fromEntries(Object.entries(problems).filter(([, problem]) => problem.code !== 'required'))
+}
+
+export function customSampleOrder(design: SlipDesign, options: { custom: CustomSample, date: string }): SlipData {
+  const { custom, date } = options
+  const typical = sampleOrder(design, { sample: 'typical', date })
+  const values: SlipValues = Object.fromEntries(design.groups.flatMap(({ id }) => {
+    const value = typical.values[id]
+    return typeof value === 'string' ? [[id, value]] : []
+  }))
+  const lines: SlipLine[] = []
+  let priced = false
+  for (const field of customSampleFields(design)) {
+    const value = Object.hasOwn(custom.values, field.id) ? custom.values[field.id] : undefined
+    if (value !== undefined) values[field.id] = value
+    if (field.type === 'number' && field.priceKey) {
+      priced = true
+      if (typeof value === 'number' && value > 0) lines.push(sampleLine(field, value))
+    }
+  }
+  const amount = custom.amount ?? (priced ? lines.reduce((total, line) => total + line.lineTotal, 0) : typical.order.amount)
+  return { ...typical, values, order: { ...typical.order, customerName: custom.customerName, amount, lines } }
 }
 
 export function sampleOrder(design: SlipDesign, options: { sample: Sample, date: string, shop?: SlipShop }): SlipData {

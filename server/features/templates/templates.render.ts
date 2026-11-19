@@ -1,5 +1,6 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import satori, { init as initSatori } from 'satori/standalone'
+import type { Font } from 'satori/standalone'
 import { checkHtml } from '#shared/html-slip/catalog'
 import { slipTree } from '#shared/html-slip/build'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
@@ -62,6 +63,7 @@ export function serverSlipSvg(input: RenderInput): string {
 }
 
 let satoriReady: Promise<void> | undefined
+let htmlSlipFonts: Font[] | undefined
 
 /** Starts Satori's layout engine once per Worker instance (D39); a failed start is retried. */
 function loadSatori(): Promise<void> {
@@ -81,19 +83,22 @@ function fontBuffer(bytes: Uint8Array): ArrayBuffer {
  * An HTML slip as SVG (D39): the markup parsed and checked against the catalog, the order's data
  * put in as text, and Satori's layout with the same Noto Sans Khmer (text as paths, shaped like
  * HarfBuzz: checked by the spike and by `templates.html.test.ts`). Markup with problems still draws
- * what could be read; publishing refuses it (`publishProblems`).
+ * what could be read; publishing refuses it (`publishProblems`). `images` are the library images its
+ * `<img>` tags draw (D41).
  */
-export async function htmlSlipSvg(input: Pick<RenderInput, 'design' | 'data'>): Promise<string> {
-  const { design, data } = input
+export async function htmlSlipSvg(input: RenderInput): Promise<string> {
+  const { design, data, images } = input
   await loadSatori()
   const { nodes } = checkHtml(design.html ?? '', design)
-  return satori(slipTree(nodes, design, data) as never, {
+  // Satori can reuse parsed fonts when given the same array across renders.
+  htmlSlipFonts ??= [
+    { name: 'Slip', data: fontBuffer(khmerRegular), weight: 400, style: 'normal' },
+    { name: 'Slip', data: fontBuffer(khmerBold), weight: 700, style: 'normal' },
+  ]
+  return satori(slipTree({ nodes, design, data, images }) as never, {
     width: design.width,
     height: design.height,
-    fonts: [
-      { name: 'Slip', data: fontBuffer(khmerRegular), weight: 400, style: 'normal' },
-      { name: 'Slip', data: fontBuffer(khmerBold), weight: 700, style: 'normal' },
-    ],
+    fonts: htmlSlipFonts,
   })
 }
 

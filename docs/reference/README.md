@@ -18,4 +18,5 @@ One page per shared helper: what it does, its API, and examples that compile. A 
 | [api-client.md](./api-client.md) | `apiFetch`, `apiBlob`, `ApiError`, `errorText`, `useApiQuery`, `useMutation`, `usePaginatedQuery`, `invalidate` | `app/utils/api*.ts`, `app/composables/use*Query.ts`, `useMutation.ts` |
 | [app-shell.md](./app-shell.md) | `useSession`, `accessRedirect`, `homePath`, layouts, navigation, language, form helpers, `BottomBar` | `app/composables/useSession.ts`, `app/utils/route-access.ts`, `app/layouts/`, `app/utils/form.ts` |
 | [slip.md](./slip.md) | `designSchema`, `slipSvg`, `createSlipText`, `fillOrderOf`, `valueText`, `sampleData`, `createElement`, `publishProblems`, `checkFill`, `renderSlipPng`, `SlipFiller` | `shared/contracts/slip-design.ts`, `shared/slip/*`, `server/features/templates/templates.render.ts`, `app/features/slip-fill` |
+| [slip-print.md](./slip-print.md) | `useSlipPrint` | `app/features/slip-fill/composables/useSlipPrint.ts` |
 | [test-harness.md](./test-harness.md) | `createTestDb` and the server test project | `server/tests/support/*` |

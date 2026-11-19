@@ -25,9 +25,19 @@
 }
 
 /*
- * Printing a slip (order page → Print, Save & print): only the slip, at the paper's width. The
- * slip is the `.print-slip` box (app/features/orders/components/SlipView.vue); everything else is
- * hidden, so the paper holds the same drawing the customer gets on Telegram.
+ * Thin scrollbars everywhere (page, panels, modals, the code editor). In the base layer, so a
+ * utility such as `scrollbar-none` still wins: unlayered CSS would beat every Tailwind layer.
+ */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ui-border-accented) transparent;
+  }
+}
+
+/*
+ * Order and Studio printing use a `.print-slip` box. The surrounding UI is hidden and
+ * useSlipPrint supplies the exact page dimensions when a paper size is available.
  */
 @media print {
   @page {

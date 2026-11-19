@@ -139,6 +139,8 @@ erDiagram
 
 `price_items` (shop-owned): `id`, `shop_id`, `key` (stable, lowercase), `label`, `unit` (`piece` \| `kg`), `price` (minor units per piece or per kg, ≥ 0), `active`, `version`, timestamps. UNIQUE `(shop_id, key)`, index `(shop_id, label)`, UNIQUE `(shop_id, id)`. **Archived, never deleted.**
 
+Since D43 (no migration): a row is made by the owner's first price for a key on the shop's slips, with `label` and `unit` from the item list (`shared/html-slip/items.ts`). Every later price sets them again and `active = true`. Nothing archives a row any more: `active = false` is only on rows from before D43, and the list shows them as unpriced. A row whose key left the slips stays, for the orders that name it.
+
 `order_items`: `id`, `shop_id`, `order_id` (composite FK → the shop's order, restrict), `field_id` (the slip field), `position`, `price_item_id` (FK restrict), `key`, `label`, `unit`, `quantity` (pieces, or grams for kg; > 0), `unit_price`, `line_total`. UNIQUE `(order_id, position)`. Written with the order; never changed.
 
 `orders.due_date` (text null, `YYYY-MM-DD`, CHECK on the format): the promised pickup day.

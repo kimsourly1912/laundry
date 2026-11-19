@@ -122,7 +122,6 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Each value is read from its NUXT_* variable (.env.example); secrets are Worker secrets.
     telegram: { botToken: '', botUsername: '', webhookSecret: '' },
-    platformAdmin: { username: '', password: '' },
     public: {
       siteUrl: '',
       // Where a shop owner asks the platform for help or a change (D26, D27): a Telegram chat

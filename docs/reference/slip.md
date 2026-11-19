@@ -54,7 +54,7 @@ const svg = slipSvg({
 - The pieces are exported for the studio, which draws each field as its own piece (D34, D35): `backgroundSvg(design, imageHref)`, `elementBodySvg(element, options)` (the drawing in the field's own box, which reads neither x nor y) and `elementPlacement(element)` (its `transform`).
 - A value is centred in its box, shrinks to fit down to half its size, then is clipped: it never spills.
 - Every value written from the design is escaped (`escapeXml`).
-- `imagesOf(design)` lists the images a slip draws (its artwork), so the server loads them in one read.
+- `imagesOf(design)` lists the images a slip draws (its artwork, and an HTML slip's `<img src="image:<id>">` tags, D41), so the server loads them in one read and `requireImages` checks they exist and add up to at most 1 MB.
 
 ## Publish checks: `publishProblems(design)` (`shared/slip/checks.ts`)
 
@@ -73,9 +73,35 @@ Every value must belong to a field of the design, with its type and range; requi
 
 `renderSlipPng({ design, data, images })` builds the SVG with `data:` image URLs and rasterises it with resvg (no fonts given to resvg). `serverSlipSvg` is the same SVG, for tests.
 
+**HTML slips** (D39, D41): `htmlSlipSvg({ design, data, images })` lays the markup out with Satori. In `shared/html-slip`, `parseHtml` reads `<img>` (only `class` and `src="image:<id>"`) and inline `<svg>` against an allowlist (`SVG_TAGS`, `SVG_ATTRIBUTES`; no `<text>`, `href`, `style` or events); `imagesIn(nodes)` lists the library images; `svgDocument(element)` writes a drawing back out from what the allowlist kept; `slipTree({ nodes, design, data, images })` draws both as images (`object-fit: contain`).
+
 ## In the browser (`app/features/slip-fill`)
 
 `useSlipText()` loads the server's own font files once; `SlipSvg` (`components/slip-svg.ts`, render functions so the unit tests mount it) draws the artwork and then each field as its own piece, parsed as SVG, never as HTML; a move changes one `transform`. `SlipFiller` is the owner's form: the slip with its boxes to tap, the field being filled, Back / Next through the fill order (`fillSteps`), labels in the owner's language; `validate()` shows `checkFill`'s problems. The studio's Try it and the owner's Create order (step 3) use it.
+
+## The laundry item list (`shared/html-slip/items.ts`)
+
+The items an HTML slip's intake fields come from ([D42](../decisions.md#d42-the-laundry-item-list-for-intake-fields)). The Studio's **Add from list** and the presets use it, so a field's price key is the same in every template and shop.
+
+```ts
+import { hasIntakeItem, intakeField, intakeItem } from '#shared/html-slip/items'
+
+const shirt = intakeItem('shirt') // { key: 'shirt', label: 'Shirt', group: 'tops', kind: 'count' }
+const field = intakeField(shirt) // a number field: id 'shirt_count', priceKey 'shirt'
+const onSlip = hasIntakeItem(design.elements, shirt) // by price key for counts and weights, by id otherwise
+```
+
+- `kind`: `count` (pieces) and `weight` (kg, two decimals) are priced by `key`. `checkbox` is a service, ticked with an X. `text` is free text (`received_by`, `other`, `note`).
+- Field id: `<key>_count` for a count, the key for everything else. A field the Studio adds with an id already in use gets `_2`, `_3`, and so on.
+- To add an item, append it to `INTAKE_ITEMS` with a new key. Never rename or reuse a key: price lists and published slips refer to it.
+- Prices (D43): `PRICED_ITEMS` and `pricedItem(key)` are the counts and weights a price key may name. `slipPrices(designs)` lists each priced key on some slips once, with the list's name and unit; the server builds a shop's Prices page from it. Publish (`publishProblems`) errors with `unknownPriceKey` for a key not on the list, and `priceUnitMismatch` for a per-kg item on a field that isn't in kg, or the reverse.
+
+```ts
+import { slipPrices } from '#shared/html-slip/items'
+import { newHtmlSlip } from '#shared/html-slip/presets'
+
+slipPrices([newHtmlSlip('byWeight')]) // [{ key: 'wash_kg', label: 'Wash & fold', unit: 'kg' }]
+```
 
 ## Tests
 

@@ -1,4 +1,5 @@
 import type { Align, ElementOf, Mark, SlipData, SlipDesign, SlipElement } from '#shared/contracts/slip-design'
+import { imagesIn, parseHtml } from '#shared/html-slip/parse'
 import { isMarked, valueText } from './fields'
 import type { SlipText, TextStyle } from './text'
 
@@ -205,7 +206,9 @@ export function slipSvg(options: SlipSvgOptions): string {
   ].join('')
 }
 
-/** The images a design draws: its artwork (D35). */
+/** The images a design draws: its artwork (D35), and an HTML slip's `<img>` tags (D41). */
 export function imagesOf(design: SlipDesign): string[] {
-  return design.background.imageId ? [design.background.imageId] : []
+  const artwork = design.background.imageId ? [design.background.imageId] : []
+  if (design.html === undefined) return artwork
+  return [...new Set([...artwork, ...imagesIn(parseHtml(design.html).nodes)])]
 }

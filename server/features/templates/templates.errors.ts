@@ -7,6 +7,7 @@ export const TemplateErrorCodes = {
   TEMPLATE_NAME_TAKEN: 'TEMPLATE_NAME_TAKEN',
   INVALID_IMAGE: 'INVALID_IMAGE',
   UNKNOWN_IMAGE: 'UNKNOWN_IMAGE',
+  IMAGES_TOO_LARGE: 'IMAGES_TOO_LARGE',
   PUBLISH_CHECKS_FAILED: 'PUBLISH_CHECKS_FAILED',
   TEMPLATE_NOT_ATTACHABLE: 'TEMPLATE_NOT_ATTACHABLE',
   TEMPLATE_CHANGED: 'TEMPLATE_CHANGED',
@@ -88,4 +89,9 @@ export function paperSlipNotFound() {
  */
 export function templateChangedForOrder() {
   return apiError(409, TemplateErrorCodes.TEMPLATE_CHANGED, 'This paper slip was updated. Check the order and save again.')
+}
+
+/** A design's images, all embedded in every render (D41), add up to more than `limit` bytes. */
+export function imagesTooLarge(limit: number) {
+  return apiError(422, TemplateErrorCodes.IMAGES_TOO_LARGE, `The design's images add up to more than ${Math.round(limit / 1024)} KB.`)
 }

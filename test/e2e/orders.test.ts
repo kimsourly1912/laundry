@@ -295,9 +295,10 @@ describe('the owner\'s counter', () => {
   })
 
   it('prices an itemized slip from the shop\'s price list, and keeps the lines (D39)', async () => {
-    // The platform makes a slip whose counts are linked to price keys.
+    // The platform makes a slip whose counts are priced as items from the list (D43).
     const itemized = lindaDesign()
-    itemized.elements = itemized.elements.map(element => (element.type === 'number' ? { ...element, priceKey: element.id } : element))
+    const pricedAs: Record<string, string> = { shirt: 'shirt', pants: 'trousers' }
+    itemized.elements = itemized.elements.map(element => (element.type === 'number' ? { ...element, priceKey: pricedAs[element.id] } : element))
     const slip = await createCounterTemplate(admin, { name: 'Linda itemized', design: itemized, shopNames: [accounts.counterOwner.shop] })
 
     const page = await phone()
@@ -305,19 +306,27 @@ describe('the owner\'s counter', () => {
     await page.goto(`${host}/sign-in`)
     await signIn(page, accounts.counterOwner.username, accounts.counterOwner.password)
     await page.waitForURL(`${host}/`)
+    const row = (field: string) => page.locator(`[data-field="${field}"]`)
+
+    // Until the owner sets a price, Overview says so and New order can't fill the count.
+    await page.getByTestId('overview-missing-prices').waitFor()
+    await page.goto(`${host}/orders/new?template=${slip.id}`)
+    await expect.poll(() => row('pants').getByRole('button', { name: /^Add one/ }).isDisabled()).toBe(true)
+
+    // The owner only types the amounts: the rows come from the slip, named by the item list.
     await page.goto(`${host}/prices`)
-    for (const [key, label, price] of [['shirt', 'Shirt, wash + iron', '2000'], ['pants', 'Pants, wash + iron', '3000']] as const) {
-      await page.getByTestId('add-price').click()
-      await page.getByTestId('price-key').fill(key)
-      await page.getByTestId('price-label').fill(label)
-      await page.getByTestId('price-amount').fill(price)
-      await page.getByTestId('price-save').click()
-      await expect.poll(() => page.getByTestId('prices-active').getByText(label).count()).toBe(1)
+    await page.getByTestId('prices-missing').waitFor()
+    for (const [key, label, price] of [['shirt', 'Shirt', '2000'], ['trousers', 'Trousers', '3000']] as const) {
+      const priceRow = page.getByTestId(`price-${key}`)
+      await expect.poll(() => priceRow.getByText(label, { exact: true }).count()).toBe(1)
+      await priceRow.getByTestId('price-amount').fill(price)
+      await priceRow.getByTestId('price-save').click()
+      await priceRow.getByTestId('price-save').waitFor({ state: 'hidden' })
     }
+    await page.getByTestId('prices-missing').waitFor({ state: 'hidden' })
     await shot(page, '12-prices')
 
     await page.goto(`${host}/orders/new?template=${slip.id}`)
-    const row = (field: string) => page.locator(`[data-field="${field}"]`)
     await row('shirt').getByRole('button', { name: /^Add one/ }).click()
     await row('shirt').getByRole('button', { name: /^Add one/ }).click()
     await row('pants').getByRole('button', { name: /^Add one/ }).click()
@@ -327,7 +336,7 @@ describe('the owner\'s counter', () => {
     await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
     await expect.poll(() => page.getByTestId('order-items').locator('tbody tr').count()).toBe(2)
     const saved = await page.evaluate(async () => (await fetch(location.pathname.replace('/orders/', '/api/shop/orders/'))).json()) as OrderDetail
-    expect(saved).toMatchObject({ amount: 7000, items: [{ key: 'shirt', quantity: 2, lineTotal: 4000 }, { key: 'pants', quantity: 1, lineTotal: 3000 }] })
+    expect(saved).toMatchObject({ amount: 7000, items: [{ key: 'shirt', quantity: 2, lineTotal: 4000 }, { key: 'trousers', quantity: 1, lineTotal: 3000 }] })
   })
 
   it('an HTML slip: started from the sample on a phone, an AI answer imported, published, and filled by the owner (D39)', async () => {
@@ -340,8 +349,8 @@ describe('the owner\'s counter', () => {
     await studio.goto(`${host}/platform/templates`)
     await studio.getByRole('link', { name: 'Create template' }).first().click()
     await studio.waitForURL('**/platform/templates/new')
-    await studio.getByRole('tab', { name: 'Fields' }).click()
-    await studio.getByRole('button', { name: 'By item' }).click()
+    await studio.getByRole('button', { name: 'Use a preset' }).click()
+    await studio.getByTestId('preset-byItem').click()
     await studio.getByLabel('Template name').fill('Linda HTML')
     await studio.getByRole('button', { name: 'Save draft' }).click()
     await studio.waitForURL(/\/platform\/templates\/[\da-f-]{36}$/)
@@ -349,7 +358,7 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => studio.getByTestId('html-ok').count()).toBe(1)
 
     // A bad answer says where; a good one replaces the markup.
-    await studio.getByTestId('import-answer').click()
+    await studio.getByTestId('open-ai').click()
     await studio.getByTestId('answer-text').fill('{ "version": 2, "name": "x", "html": "<div></div>" }')
     await studio.getByTestId('answer-import').click()
     await expect.poll(() => studio.getByTestId('answer-problems').textContent()).toContain('version must be 1')
@@ -359,8 +368,9 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => studio.getByTestId('html-source').locator('.cm-content').textContent()).toBe(html)
 
     // The By item preset already contains the count linked to the shop's "shirt" price.
-    await studio.getByRole('tab', { name: 'Fields' }).click()
-    await expect.poll(() => studio.getByText('{{fields.shirt_count}}', { exact: true }).count()).toBe(1)
+    await studio.getByTestId('open-fields').click()
+    await expect.poll(() => studio.getByTestId('field-shirt_count').count()).toBe(1)
+    await studio.getByRole('button', { name: 'Close sidebar' }).click()
     await studio.getByRole('tab', { name: 'Preview' }).click()
     await expect.poll(() => studio.getByTestId('html-preview').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
     await expect.poll(() => studio.getByTestId('save-status').textContent()).toBe('Saved')

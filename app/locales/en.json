@@ -204,7 +204,9 @@
         "attach": "Attach",
         "attached": "The template was attached.",
         "detached": "The template was detached."
-      }
+      },
+      "prices": "Prices",
+      "pricesSet": "{set} of {needed} set"
     }
   },
   "overview": {
@@ -265,7 +267,9 @@
         "htmlInvalid": "The HTML has problems: see the list under the markup.",
         "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML.",
         "htmlRenderFailed": "The slip could not be rendered with sample order data.",
-        "missingPrintBinding": "Add {name} to the HTML to show this required field."
+        "missingPrintBinding": "Add {name} to the HTML to show this required field.",
+        "unknownPriceKey": "{name}’s price key isn’t on the item list. Pick one from the list.",
+        "priceUnitMismatch": "{name} is priced per kg but isn’t a weight, or the reverse. Pick an item that matches."
       },
       "warnings": {
         "offCanvas": "{name} is partly off the slip.",
@@ -379,8 +383,9 @@
       },
       "border": "Draw a border",
       "groupLabel": "Group label",
-      "priceKey": "Price key",
-      "priceKeyHelp": "Links this count to each shop's price for that key: the slip's amount is then the total. Leave empty for a plain count."
+      "priceKey": "Priced as",
+      "priceKeyHelp": "The item on the laundry list each shop prices this count or weight by; the slip's amount is then the total. No price: a plain count.",
+      "noPrice": "No price"
     },
     "tryIt": {
       "open": "Try it",
@@ -471,48 +476,127 @@
       "shops": "Shops",
       "tabs": {
         "edit": "Edit",
-        "fields": "Fields",
         "preview": "Preview"
       },
+      "sidebar": {
+        "label": "Studio tools",
+        "close": "Close sidebar",
+        "views": {
+          "fields": "Intake fields",
+          "presets": "Presets",
+          "images": "Images",
+          "ai": "AI",
+          "paper": "Paper size"
+        }
+      },
+      "ai": {
+        "step1": "1. Copy the prompt",
+        "step2": "2. Import the answer",
+        "pastePlaceholder": "Paste the JSON your AI answered"
+      },
+      "fileName": "slip.html",
+      "paperRender": "Renders at {width} × {height} px.",
+      "images": {
+        "description": "Pick an image to put it in the HTML at the cursor, or upload one. Size it with a width class such as w-24.",
+        "upload": "Upload image",
+        "loading": "Loading images",
+        "rules": "PNG, JPEG or SVG, 200–2000 pixels a side. An SVG is turned into a PNG in your browser. A slip's images add up to at most 1 MB. For a logo with sharp edges at any size, paste it into the markup as inline SVG instead.",
+        "none": "No images in the library yet. Upload one above.",
+        "use": "Insert {name}",
+        "unnamed": "Untitled image",
+        "size": "{width} × {height} px"
+      },
       "copyPrompt": "Copy AI prompt",
-      "importAnswer": "Import AI answer",
-      "promptHint": "Give the prompt and a photo of the shop's slip to your AI, then paste its answer with Import AI answer.",
+      "importJson": "Import JSON",
+      "promptHint": "Give the prompt and a photo of the shop's slip to your AI, then paste its answer with Import JSON.",
       "brief": "Brief",
       "briefPlaceholder": "Keep the layout of the photo, or what to change",
-      "copy": "Copy",
       "promptCopied": "Prompt copied.",
+      "format": "Format",
+      "formatShortcut": "Format the HTML",
       "copyFailed": "Couldn't copy. Select the text and copy it.",
       "importHint": "Paste the JSON object your AI answered. The markup replaces the current one; fields, paper size and shops stay.",
       "answer": "The AI's answer",
-      "import": "Import",
       "reviewNotes": "The AI asks you to check",
       "markup": "The slip's HTML",
       "at": "Line {line}, column {column}:",
-      "ok": "The HTML is fine.",
+      "ok": "No HTML errors",
       "fieldsTitle": "Intake fields",
-      "fieldsHint": "Set what staff enter on an order and where each value appears on the slip. Match a field’s price key to the shop’s price list.",
+      "fieldsHint": "What staff enter on each order. Priced as links a count or weight to an item each shop sets a price for. A required field must be filled in and printed on the slip.",
       "fieldLabel": "Label",
-      "copyPlaceholder": "Copy the placeholder",
+      "copyPlaceholder": "Copy {placeholder}",
       "copied": "Placeholder copied.",
       "removeField": "Remove the field",
       "sample": "Sample order",
+      "customSample": {
+        "button": "Custom",
+        "edit": "Edit custom sample",
+        "title": "Custom sample",
+        "description": "Enter a test order to see the slip update as you type.",
+        "customerName": "Sample customer name",
+        "total": "Sample total",
+        "totalHint": "Leave blank to use the sample total.",
+        "currency": "៛",
+        "fieldWithUnit": "{label} ({unit})",
+        "live": "Live preview",
+        "updated": "Preview updated.",
+        "apply": "Use sample"
+      },
       "samples": {
         "blank": "Blank",
         "typical": "Typical",
         "crowded": "Crowded"
       },
       "previewAlt": "The slip with a sample order",
-      "intakePreset": "Intake preset",
       "presets": {
         "byWeight": "By weight",
-        "byItem": "By item"
+        "byItem": "By item",
+        "mixed": "Kilos and pieces"
       },
-      "replacePreset": "Replace this draft’s HTML and intake fields with the selected preset?",
+      "itemList": {
+        "open": "Add from list",
+        "title": "Add from the item list",
+        "description": "Pick the items staff enter on this slip. Each one keeps the item’s price key, so it matches the shop’s price list.",
+        "search": "Search items",
+        "empty": "No item matches. Use Add field for something not on the list.",
+        "perKg": "Per kg",
+        "add": "Add fields | Add {count} field | Add {count} fields",
+        "tooMany": "This slip has room for {count} more fields.",
+        "groups": {
+          "weight": "By weight",
+          "tops": "Tops",
+          "bottoms": "Bottoms",
+          "formal": "Dresses and formal wear",
+          "small": "Small items",
+          "bedding": "Bedding",
+          "home": "Bath and home",
+          "other": "Other things",
+          "services": "Services",
+          "extras": "Notes and staff"
+        }
+      },
+      "presetPicker": {
+        "description": "Pick how the shop charges. The preset fills in the HTML and intake fields, and you can change both afterwards.",
+        "locked": "A preset starts an empty slip. Clear the HTML to use one.",
+        "fields": "Staff enter: {fields}",
+        "hints": {
+          "byWeight": "Staff enter the weight in kg; the total comes from the shop’s price per kg.",
+          "byItem": "Staff count each garment on the grid; the total comes from the shop’s prices.",
+          "mixed": "Staff enter the kilos, the common pieces, the services and who received it, as most paper slips have."
+        }
+      },
+      "empty": {
+        "title": "Start your slip",
+        "description": "Write HTML here, paste code from your AI tool, or start from a preset.",
+        "readOnly": "This template has no HTML yet.",
+        "usePreset": "Use a preset",
+        "useAi": "Import from AI"
+      },
+      "emptyStatus": "No HTML yet",
+      "emptyStatusNew": "Add HTML to save",
+      "replacePreset": "Replace the intake fields you edited with the preset’s fields?",
       "saveDraft": "Save draft",
       "addField": "Add field",
-      "fieldKey": "Field key",
-      "fieldKeyError": "Use a unique key starting with a lowercase letter. Use lowercase letters, digits, or underscores.",
-      "priceKeyError": "Use up to 40 lowercase letters, digits, dots, underscores, or dashes. Start with a letter or digit.",
       "fieldType": {
         "title": "Field type",
         "count": "Whole number",
@@ -520,14 +604,21 @@
         "text": "Text",
         "checkbox": "Checkbox"
       },
-      "intakeRequired": "Required at intake",
-      "printRequired": "Required on slip",
+      "required": "Required",
       "paperRatio": "Choose a less narrow paper size so the slip can render at the right proportions.",
       "zoomIn": "Zoom in",
       "zoomOut": "Zoom out",
+      "zoomPercent": "{percent}%",
+      "previewMouseHint": "Ctrl/⌘ + wheel to zoom · Drag to pan",
+      "previewKeyboardHint": "Use the arrow keys to pan when zoomed in.",
       "downloadSvg": "Download SVG",
+      "printSample": "Print sample",
+      "printSampleFailed": "Couldn't open the sample print dialog.",
+      "previewUpdating": "Updating preview…",
       "previewStale": "Preview is out of date.",
-      "previewInvalid": "Fix the HTML errors to show a preview."
+      "previewInvalid": "Fix the HTML errors to show a preview.",
+      "previewEmpty": "Your slip preview appears here.",
+      "priceKeyError": "Use up to 40 lowercase letters, digits, dots, underscores, or dashes. Start with a letter or digit."
     }
   },
   "slipFill": {
@@ -618,9 +709,10 @@
       "more": "Add one {label}",
       "less": "Remove one {label}",
       "fromPrices": "From your price list",
-      "noPrice": "Not in your price list yet",
+      "noPrice": "No price yet. Ask the owner to set it in Prices.",
       "each": "{price} each",
-      "perKg": "{price} per kg"
+      "perKg": "{price} per kg",
+      "noPriceOwner": "No price yet. Set it in Prices to use it."
     },
     "list": {
       "nav": "Orders",
@@ -743,31 +835,27 @@
   },
   "prices": {
     "title": "Prices",
-    "add": "Add price",
-    "edit": "Edit",
-    "archive": "Archive",
-    "restore": "Bring back",
-    "archived": "Archived",
-    "actionsFor": "Actions for {label}",
-    "intro": "What each item or service costs. A paper slip's counts linked to a key are priced from here; an order keeps the price it was charged.",
-    "emptyTitle": "No prices yet",
-    "emptyDescription": "Add an item, like a shirt washed and ironed, with its price per piece or per kg.",
+    "intro": "What each item on your paper slips costs. Staff count or weigh it on a new order, and the total comes from these prices. An order keeps the price it was charged.",
+    "emptyTitle": "Nothing to price yet",
+    "emptyDescription": "Your paper slips have no items with a price. Ask the platform to add the items you charge for to your slip.",
     "unit": {
       "piece": "Per piece",
       "kg": "Per kg"
     },
+    "noPrice": "No price yet",
+    "missing": "No items need a price | 1 item needs a price | {count} items need a price",
+    "missingHint": "Staff can’t fill these on a new order until they have a price.",
+    "pricePlaceholder": "Price",
+    "priceFor": "Price of {label}, {unit}",
+    "saved": "Saved the price of {label}.",
+    "kept": "Not on your slips any more",
+    "keptHint": "Kept for the orders that used them.",
     "form": {
-      "newTitle": "New price",
-      "editTitle": "Edit price",
-      "key": "Key",
-      "keyHelp": "Short and stable, like shirt or wash.kg: the platform links slip boxes to it.",
-      "keyFixed": "The key doesn't change: slips and orders name it.",
-      "label": "Label",
-      "unit": "Charged",
-      "pricePerPiece": "Price per piece",
-      "pricePerKg": "Price per kg",
       "badPrice": "Not an amount in your currency.",
       "save": "Save"
-    }
+    },
+    "missingOwner": "Staff can’t fill {items} on a new order until you set a price.",
+    "missingStaff": "Staff can’t fill these on a new order yet. Ask the owner to set their prices.",
+    "setPrices": "Set prices"
   }
 }
