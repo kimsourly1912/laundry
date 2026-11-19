@@ -34,14 +34,14 @@ const { t } = useI18n()
 <template>
   <aside
     id="html-studio-sidebar"
-    class="flex min-w-0 flex-1 flex-col bg-elevated/25"
+    class="flex min-w-0 flex-1 flex-col bg-default"
     aria-labelledby="html-studio-sidebar-title"
     :data-testid="`sidebar-${view}`"
   >
-    <div class="flex items-center gap-2 border-b border-default py-2 ps-4 pe-2">
+    <div class="flex items-center gap-2 py-1.5 ps-4 pe-1.5">
       <h2
         id="html-studio-sidebar-title"
-        class="me-auto truncate text-sm font-semibold text-highlighted"
+        class="me-auto truncate text-xs font-semibold text-highlighted"
       >
         {{ t(`studio.html.sidebar.views.${view}`) }}
       </h2>
@@ -50,7 +50,7 @@ const { t } = useI18n()
           icon="i-lucide-panel-left-close"
           color="neutral"
           variant="ghost"
-          size="sm"
+          size="xs"
           :aria-label="t('studio.html.sidebar.close')"
           @click="emit('close')"
         />
@@ -59,7 +59,7 @@ const { t } = useI18n()
     <!-- Keyed by view, so a view opens at its top rather than at the last one's scroll. -->
     <div
       :key="view"
-      class="@container min-h-0 flex-1 overflow-y-auto p-4"
+      class="@container min-h-0 flex-1 overflow-y-auto px-4 pt-1 pb-4"
     >
       <HtmlFieldsView
         v-if="view === 'fields'"
