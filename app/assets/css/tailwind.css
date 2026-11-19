@@ -24,10 +24,15 @@
   --ui-primary: var(--ui-color-primary-400);
 }
 
-/* Thin scrollbars everywhere (page, panels, modals, the code editor). */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--ui-border-accented) transparent;
+/*
+ * Thin scrollbars everywhere (page, panels, modals, the code editor). In the base layer, so a
+ * utility such as `scrollbar-none` still wins: unlayered CSS would beat every Tailwind layer.
+ */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ui-border-accented) transparent;
+  }
 }
 
 /*

@@ -267,7 +267,7 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await itemList.getByRole('checkbox', { name: 'Express', exact: true }).click()
   await itemList.getByTestId('item-add').click()
   await itemList.waitFor({ state: 'hidden' })
-  await expect.poll(() => page.getByTestId('field-shirt_count').locator('input').nth(1).inputValue()).toBe('shirt')
+  await expect.poll(() => page.getByTestId('field-shirt_count').getByLabel('Priced as').textContent()).toBe('Shirt')
   await expect.poll(() => page.getByTestId('field-express').count()).toBe(1)
 
   await editor.fill('<div class="flex">{{fields.bag')
@@ -307,9 +307,14 @@ it('inserts a library image at the cursor, and the preview draws it (D41)', asyn
   await page.waitForURL('**/platform/templates/new')
   const editor = page.getByTestId('html-source').locator('.cm-content')
   await editor.waitFor()
+  // The server's preview SVGs, read in Node: the page reads them as blobs, which Playwright's
+  // response events hand back empty.
   const previews: string[] = []
-  page.on('response', async (response) => {
-    if (response.request().method() === 'POST' && response.url().endsWith('/api/platform/templates/preview') && response.ok()) previews.push(await response.text())
+  await page.route('**/api/platform/templates/preview', async (route) => {
+    const response = await route.fetch()
+    const body = await response.text()
+    if (response.ok()) previews.push(body)
+    await route.fulfill({ response, body })
   })
 
   await editor.fill('<div class="flex flex-col p-4">\n<span>Linda</span>\n</div>')

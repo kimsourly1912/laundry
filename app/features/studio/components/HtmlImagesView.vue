@@ -14,7 +14,7 @@ const { t, te } = useI18n()
 const library = useApiQuery('studio:images', () => apiFetch<Page<ImageSummary>>('/platform/images', { query: { pageSize: 100 } }), { immediate: false })
 onMounted(() => library.refresh())
 
-const upload = useMutation((file: File) => apiFetch<ImageSummary>('/platform/images', { method: 'POST', query: { name: file.name }, body: file, headers: { 'content-type': file.type } }), { inline: true, invalidate: ['studio:images'] })
+const upload = useMutation((file: File) => apiFetch<ImageSummary>('/platform/images', { method: 'POST', query: { name: file.name }, body: file, headers: { 'content-type': file.type } }), { inline: true, invalidate: ['studio'] })
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 const problem = ref<string>()
 const preparing = ref(false)

@@ -358,7 +358,7 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => studio.getByTestId('html-ok').count()).toBe(1)
 
     // A bad answer says where; a good one replaces the markup.
-    await studio.getByTestId('import-answer').click()
+    await studio.getByTestId('open-ai').click()
     await studio.getByTestId('answer-text').fill('{ "version": 2, "name": "x", "html": "<div></div>" }')
     await studio.getByTestId('answer-import').click()
     await expect.poll(() => studio.getByTestId('answer-problems').textContent()).toContain('version must be 1')
@@ -370,7 +370,7 @@ describe('the owner\'s counter', () => {
     // The By item preset already contains the count linked to the shop's "shirt" price.
     await studio.getByTestId('open-fields').click()
     await expect.poll(() => studio.getByTestId('field-shirt_count').count()).toBe(1)
-    await studio.keyboard.press('Escape')
+    await studio.getByRole('button', { name: 'Close sidebar' }).click()
     await studio.getByRole('tab', { name: 'Preview' }).click()
     await expect.poll(() => studio.getByTestId('html-preview').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth)).toBe(800)
     await expect.poll(() => studio.getByTestId('save-status').textContent()).toBe('Saved')
