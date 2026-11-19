@@ -1,6 +1,7 @@
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { FIXED_TYPES, isOwnerField } from './fields'
 import { checkHtml, FIELD_PREFIX, placeholdersIn } from '#shared/html-slip/catalog'
+import { pricedItem } from '#shared/html-slip/items'
 
 /**
  * What a template needs before it's published (plan §5.6). Errors stop Publish, in the studio and on
@@ -17,6 +18,8 @@ export type PublishError
     | 'duplicateFixed'
     | 'groupTooSmall'
     | 'missingLabel'
+    | 'unknownPriceKey'
+    | 'priceUnitMismatch'
 
 export type PublishWarning
   = | 'offCanvas'
@@ -82,6 +85,12 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   for (const element of elements) {
     const labelled = isOwnerField(element) || element.type === 'option' || element.type === 'paid'
     if (labelled && 'label' in element && !hasLabel(element.label)) errors.push({ code: 'missingLabel', key: element.id })
+    // D43: a price key names an item on the list, counted or weighed as the field is.
+    if (element.type === 'number' && element.priceKey) {
+      const item = pricedItem(element.priceKey)
+      if (!item) errors.push({ code: 'unknownPriceKey', key: element.id })
+      else if ((item.kind === 'weight') !== (element.unit === 'kg')) errors.push({ code: 'priceUnitMismatch', key: element.id })
+    }
     // An HTML slip doesn't draw the fields' boxes: where they sit doesn't matter.
     if (design.html === undefined && isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
   }
@@ -105,4 +114,6 @@ export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',
   missingLabel: 'A field needs a label.',
+  unknownPriceKey: 'A price key isn\'t on the item list.',
+  priceUnitMismatch: 'A per-kg item is on a field that isn\'t in kg, or the reverse.',
 }

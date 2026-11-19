@@ -150,7 +150,7 @@ const paperSideSchema = v.pipe(v.number(), v.finite(), v.minValue(PAPER_MIN_MM, 
 export const paperSchema = v.strictObject({ widthMm: paperSideSchema, heightMm: paperSideSchema })
 export type Paper = v.InferOutput<typeof paperSchema>
 
-export const HTML_INTAKE_PRESETS = ['byWeight', 'byItem'] as const
+export const HTML_INTAKE_PRESETS = ['byWeight', 'byItem', 'mixed'] as const
 export type HtmlIntakePreset = typeof HTML_INTAKE_PRESETS[number]
 
 export const designSchema = v.pipe(

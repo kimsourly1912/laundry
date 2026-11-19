@@ -1,6 +1,9 @@
 import * as v from 'valibot'
+import { customSampleFieldProblems } from '#shared/html-slip/sample'
 import { idSchema, nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
-import { canvasSideSchema, designSchema } from './slip-design'
+import { CUSTOMER_NAME_MAX } from './customers'
+import { createOrderSchema } from './orders'
+import { canvasSideSchema, designSchema, MAX_DESIGN_BYTES } from './slip-design'
 import type { SlipDesign } from './slip-design'
 
 /**
@@ -62,7 +65,24 @@ export const previewTemplateSchema = v.strictObject({
 })
 export type PreviewTemplateInput = v.InferOutput<typeof previewTemplateSchema>
 
-export const previewHtmlTemplateSchema = v.strictObject({ ...previewTemplateSchema.entries, design: htmlDraftDesignSchema })
+export const customSampleSchema = v.strictObject({
+  customerName: v.pipe(v.string(), v.trim(), v.maxLength(CUSTOMER_NAME_MAX)),
+  amount: createOrderSchema.entries.amount,
+  values: createOrderSchema.entries.values,
+})
+export type CustomSample = v.InferOutput<typeof customSampleSchema>
+
+export const previewHtmlTemplateSchema = v.union([
+  v.strictObject({ ...previewTemplateSchema.entries, design: htmlDraftDesignSchema }),
+  v.pipe(
+    v.strictObject({ design: htmlDraftDesignSchema, sample: v.literal('custom'), custom: customSampleSchema }),
+    v.check(input => !Object.keys(customSampleFieldProblems(input.design, input.custom.values)).length, 'Sample values must match the template fields'),
+  ),
+])
+export type PreviewHtmlTemplateInput = v.InferOutput<typeof previewHtmlTemplateSchema>
+
+/** Room for the draft and up to 300 sample values, including JSON-escaped text. */
+export const MAX_HTML_PREVIEW_BYTES = MAX_DESIGN_BYTES + 384 * 1024
 
 /** `GET /api/platform/templates?status=&search=&page=&pageSize=`: search is the name. */
 export const templateListQuerySchema = v.object({

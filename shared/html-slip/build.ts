@@ -4,7 +4,8 @@ import { formatMoney } from '#shared/format'
 import { formatPhone } from '#shared/contracts/phone'
 import { formatSlipDate, valueText } from '#shared/slip/fields'
 import { BLOCK_PLACEHOLDERS, FIELD_PREFIX, PLACEHOLDER } from './catalog'
-import type { HtmlNode } from './parse'
+import { svgDocument } from './parse'
+import type { HtmlElement, HtmlNode } from './parse'
 
 /**
  * An HTML slip's tree filled with an order's data, as the element tree Satori draws (D39). Values
@@ -42,7 +43,8 @@ export function placeholderText(name: string, design: SlipDesign, data: SlipData
   }
   const element = design.elements.find(item => item.id === key)
   if (!element) return ''
-  if (element.type === 'checkbox') return values[key] === true ? '✓' : ''
+  // X, not ✓: the slip font has no check-mark glyph, and an X reads as ticked on a paper form.
+  if (element.type === 'checkbox') return values[key] === true ? 'X' : ''
   const value = values[key]
   if (design.htmlPreset && element.type === 'number' && element.unit === 'kg' && typeof value === 'number') {
     return `${value.toFixed(element.decimals)} kg`
@@ -87,11 +89,40 @@ function qrCode(data: SlipData): SatoriNode {
   return { type: 'img', props: { src: `data:image/svg+xml;base64,${btoa(svg)}`, width: size, height: size } }
 }
 
-function children(nodes: readonly HtmlNode[], design: SlipDesign, data: SlipData): (SatoriNode | string)[] {
+/** A library image's bytes as the render has them (base64). */
+export interface SlipImageData {
+  type: string
+  data: string
+}
+
+interface TreeContext {
+  design: SlipDesign
+  data: SlipData
+  images: ReadonlyMap<string, SlipImageData>
+}
+
+/**
+ * `<img>` and `<svg>` (D41): each drawn as an image. Satori reads its own size: one side set keeps the
+ * proportions, both set fit it inside. A library image the render wasn't given draws nothing but its
+ * box. The inline drawing is written out again from what the parser's allowlist kept.
+ */
+function picture(node: HtmlElement, images: TreeContext['images']): SatoriNode {
+  const tw = node.classes.length ? { tw: node.classes.join(' ') } : {}
+  const image = node.image ? images.get(node.image) : undefined
+  const src = node.svg
+    ? `data:image/svg+xml;base64,${btoa(svgDocument(node.svg))}`
+    : image && `data:${image.type};base64,${image.data}`
+  if (!src) return { type: 'div', props: { ...tw, style: { display: 'flex' } } }
+  return { type: 'img', props: { ...tw, src, style: { objectFit: 'contain' } } }
+}
+
+function children(nodes: readonly HtmlNode[], context: TreeContext): (SatoriNode | string)[] {
+  const { design, data, images } = context
   const out: (SatoriNode | string)[] = []
   for (const node of nodes) {
     if ('tag' in node) {
-      out.push({ type: node.tag, props: { ...(node.classes.length ? { tw: node.classes.join(' ') } : {}), children: children(node.children, design, data) } })
+      if (node.tag === 'img' || node.tag === 'svg') out.push(picture(node, images))
+      else out.push({ type: node.tag, props: { ...(node.classes.length ? { tw: node.classes.join(' ') } : {}), children: children(node.children, context) } })
       continue
     }
     let last = 0
@@ -109,13 +140,22 @@ function children(nodes: readonly HtmlNode[], design: SlipDesign, data: SlipData
   return out.filter(child => child !== '')
 }
 
+interface SlipTreeOptions {
+  nodes: readonly HtmlNode[]
+  design: SlipDesign
+  data: SlipData
+  /** The library images the markup draws, by id (`imagesIn`). */
+  images?: ReadonlyMap<string, SlipImageData>
+}
+
 /** The whole slip: the design's canvas size, the Khmer font, white paper, the markup inside. */
-export function slipTree(nodes: readonly HtmlNode[], design: SlipDesign, data: SlipData): SatoriNode {
+export function slipTree(options: SlipTreeOptions): SatoriNode {
+  const { nodes, design, data, images = new Map() } = options
   return {
     type: 'div',
     props: {
       style: { width: design.width, height: design.height, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', color: '#111827', fontFamily: 'Slip', fontSize: 24 },
-      children: children(nodes, design, data),
+      children: children(nodes, { design, data, images }),
     },
   }
 }

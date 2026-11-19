@@ -32,8 +32,9 @@ export function listPrices(db: Db, shopId: string): Promise<PriceRow[]> {
   return db.select(priceColumns).from(priceItems).where(eq(priceItems.shopId, shopId)).orderBy(asc(priceItems.label), asc(priceItems.key))
 }
 
-export function findPrice(db: Db, shopId: string, priceId: string): Promise<PriceRow | undefined> {
-  return firstRow(db.select(priceColumns).from(priceItems).where(and(eq(priceItems.shopId, shopId), eq(priceItems.id, priceId))))
+/** The shop's item of `key` (one per key in a shop), archived or not. */
+export function findPriceByKey(db: Db, shopId: string, key: string): Promise<PriceRow | undefined> {
+  return firstRow(db.select(priceColumns).from(priceItems).where(and(eq(priceItems.shopId, shopId), eq(priceItems.key, key))))
 }
 
 /** The shop's active items for these keys. */

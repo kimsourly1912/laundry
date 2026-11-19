@@ -651,4 +651,71 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 
 ## D40. HTML-first Template Studio
 
-Create template opens a new split editor with an unsaved starter design. Existing orders retain their issued versions. Templates created from artwork stay available through their saved routes. The implementation reuses version checks and the Satori renderer. The selected intake preset and stable field bindings are part of the design JSON fixed at publish. See the [implementation plan and AI binding contract](html-template-studio-plan.md).
+Create template opens a new split editor with an unsaved, empty design; a preset picker fills the starter HTML and intake fields. Existing orders retain their issued versions. Templates created from artwork stay available through their saved routes. The implementation reuses version checks and the Satori renderer. The selected intake preset and stable field bindings are part of the design JSON fixed at publish. See the [implementation plan and AI binding contract](html-template-studio-plan.md).
+
+## D41. Images and inline SVG in HTML slips
+
+**Owner, 2026-11-19.** An HTML slip (D39, D40) had no way to show a picture: the parser took text tags only. The owner wants fixed images on a slip, and inline SVG because an AI can draw the shop's logo as SVG. **This reverses D35's "no images" for HTML slips only**; artwork slips stay as they are.
+
+**Decision.**
+- **Fixed images only.** `<img src="image:<id>" class="…">` draws an image from the platform's library (`images`, D28): PNG or JPEG, ≤ 1 MB, uploaded as before (an SVG file is drawn to a PNG in the browser at upload, D35). `src` must be `image:` and an image id; anything else (`http:`, `data:`, another attribute) is a markup problem with its line and column. No per-shop logo placeholder: the same image is on every shop's slip.
+- **An image is never edited or deleted,** so a published version that names one always draws the same. Save, Preview and Publish refuse an id that isn't in the library (422 `UNKNOWN_IMAGE`, as artwork does), and a design whose images add up to more than 1 MB (422 `IMAGES_TOO_LARGE`): each one is embedded whole in every render.
+- **Size:** Satori reads the image's own size. One side set (`w-24`) keeps its proportions; neither side set takes its natural size; both set fits it inside (`object-fit: contain`), never stretched.
+- **Inline `<svg>`** is read as data by the same parser against an allowlist: `svg`, `g`, `defs`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `linearGradient`, `radialGradient`, `stop`, `clipPath`, with geometry and paint attributes only. Paint is a colour, `none`, `currentColor` or a local `url(#id)`. **No `<text>`** (resvg would draw Khmer wrong, D32), no `href`, `<use>`, `<image>`, `style`, events or scripts. The root needs a `viewBox` (or `width` and `height`); its `class` sizes it like an `<img>`. Placeholders don't work inside it.
+- **Both are drawn as images.** The builder writes each inline SVG back out from the parsed tree (only what the allowlist kept) as its own `data:image/svg+xml` image, the same path the QR takes, so its ids stay local and nothing from the markup reaches the SVG as raw text.
+- **The Studio:** the sidebar's Images view lists the library (upload or pick) and puts the tag at the cursor. The AI prompt lists the slip's images by id and describes the inline SVG rules, so the AI can draw a logo.
+- **Catalog stays v1:** the change only adds tags; every earlier answer still reads the same.
+
+**Alternatives.**
+- **A `{{shop.logo}}` placeholder** (each shop's logo, copied to the order as D33 does): the owner chose fixed images only.
+- **`<img>` with any URL or a `data:` URL:** the render would fetch, or take bytes nobody checked.
+- **Inline SVG passed to Satori as elements:** its SVG serializer writes attributes we'd have to trust; our own writer emits only the allowlist.
+- **Uploaded SVG files kept as SVG:** D35's reasons hold (Khmer `<text>`, cleaning).
+
+**Consequences.**
+- No migration: images reuse `images`; `imagesOf` now also reads an HTML design's `<img>` ids, so rendering, the 422 checks and the shop's image routes cover them.
+- The HTML preview route reads the database for the images (still platform-only).
+
+## D42. The laundry item list for intake fields
+
+**Owner, 2026-11-19.** Real paper slips (Linda Laundry, City Laundry) list nearly the same things: kilos, the same garments (shirt, trousers, coat, silk, dress, blanket, towel…), the services (wash & iron, dry clean, iron, express) and who received the order. In the Studio each field's price key was typed by hand, and a typo leaves the item unpriced because it must match a key in the shop's price list.
+
+**Decision.**
+- **One item list in code,** `shared/html-slip/items.ts` (`INTAKE_ITEMS`): a fixed key, an English label (D36), a group and a kind: `count` (pieces, priced by the key), `weight` (kg, priced by the key), `checkbox` (a service) or `text`. About 40 items in ten groups. Real slips change rarely, so a new item is a code change, not a platform table.
+- **A count's field id is `<key>_count`; every other kind's is the key.** A count or weight field keeps the item's key as its price key, so templates and price lists use the same keys.
+- **Curtains and bedding are both counted and weighed:** `curtain` and `blanket` count pieces, `curtain_kg` and `bedding_kg` weigh them. The platform chooses per slip.
+- **The Studio's Intake fields panel gets Add from list:** search, groups, several items at once. Items the slip already has (a priced field by its price key, others by id) are ticked and can't be added twice. Add field stays for anything not on the list.
+- **A third preset, Kilos and pieces (`mixed`),** follows the layout most paper slips have: kilos plus Shirt, Trousers, Dress, Coat, Blanket, Towel; Other (text); Wash & iron, Dry clean, Iron only, Express; Received by. By item and the services of every preset now come from the list; their fields are unchanged.
+
+**Alternatives.**
+- **A platform-managed item table:** more screens and an admin route for something that changes once in a long while.
+- **Khmer labels in the list:** the app is English only (D36). A shop's Khmer goes on its slip artwork (D35).
+
+**Consequences.**
+- `HTML_INTAKE_PRESETS` adds `mixed`. This only adds a value, so saved designs still validate.
+- Followed by [D43](#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much): the shop's prices come from its slips.
+
+## D43. The slips decide what is priced, the owner sets how much
+
+**Owner, 2026-11-19.** Under D39 the owner made each price item by hand: key, label, per piece or per kg, price. The key had to match the slip's price key exactly, and nothing told the owner which keys their slips need. A typo, or a key the owner never added, left staff stuck at the counter with a 422. **This replaces D39's "the owner manages price items" (Prices: add, edit, archive).** Statements are unchanged: `price:read` for owner and staff, `price:write` for the owner.
+
+**Decision.**
+- **One fact, one role.** The item list (code, D42) says what items exist and whether each is per piece or per kg. The platform's template says which items a slip has. The owner says how much each costs at their shop. The server prices each order and keeps a copy of what was charged.
+- **Price keys come only from the list.** The Studio's Priced as picks an item: per kg items for a weight, per piece items for a count. Publish errors on a key that isn't on the list (`unknownPriceKey`) or is in the other unit (`priceUnitMismatch`).
+- **The owner's Prices page is built from the shop's slips:** one row per priced key on the latest version of each published template attached to the shop, once even when two slips share it. The name and unit come from the list; a key from before D43 takes its field's label and unit. The owner types only the amount. There is no Add price, no key, label or unit to type, and no archive.
+- **`PUT /api/shop/prices/:key`** with `{ price, version }`, `version` null for a first price. The server checks the key is on the shop's slips (404 like a missing item otherwise, including a malformed key), writes the list's name and unit, and makes the row active. A stale version, or a second "first" price, is 409 `VERSION_CONFLICT`. Audited as `price.set` with the old and new amounts.
+- **Missing prices show before the counter.** Prices and Overview say how many items have no price. On New order a count with no price is disabled and says "Ask the owner" (staff) or "Set it in Prices" (owner), instead of failing at save. The server still refuses one (422).
+- **The platform sees progress, never amounts:** `GET /api/platform/shops/:shopId/prices` answers `{ needed, set }` for the shop page (`shop: ['read']`).
+- **A price whose key left the slips stays,** under "Not on your slips any more", for the orders that name it. If the key comes back, its price is still there.
+
+**Alternatives.**
+- **Owner-made items with a key picker** (I4 as first proposed): the owner still chooses what to price, and can forget an item.
+- **A zero price for an unpriced item:** a mistake would give work away. Disabled is safer.
+- **The slip's label as the price's name:** two slips can rename the same item differently. The list's name is the same everywhere and names what is charged.
+- **The owner's own extra prices, not on any slip:** nothing would use them. A new item goes on the slip through a request.
+
+**Consequences.**
+- No migration: `price_items` keeps its columns. A row is created by the first price, and `active` is set again by every price.
+- `GET /api/shop/prices` now answers `{ currency, items }` (`PriceList`); New order reads the same answer.
+- Attaching a template with new items to a shop adds "no price yet" rows for its owner, and the platform's shop page shows how many are set.
+- Published templates with keys that aren't on the list still work, and their rows use the field's label. Publishing them again needs list keys.

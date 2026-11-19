@@ -10,7 +10,7 @@
  * version; the order page then shows the saved slip, and prints it for Save & print.
  */
 import type { OrderDetail, OrderTemplate } from '#shared/contracts/orders'
-import type { PriceItem } from '#shared/contracts/prices'
+import type { PriceList } from '#shared/contracts/prices'
 import { priceLines } from '#shared/pricing'
 import { formatPhone } from '#shared/contracts/phone'
 import type { SlipShop } from '#shared/contracts/slip-design'
@@ -65,8 +65,9 @@ const today = shopToday()
 
 // D39: a slip whose counts are linked to price keys is itemized: its amount is the price list's total.
 const itemized = computed(() => template.value?.design.elements.some(element => element.type === 'number' && Boolean(element.priceKey)) ?? false)
-const priceList = useApiQuery('orders:prices', () => (itemized.value ? apiFetch<PriceItem[]>('/shop/prices') : Promise.resolve([] as PriceItem[])), { watch: [itemized] })
-const prices = computed(() => new Map((priceList.data.value ?? []).filter(item => item.active).map(item => [item.key, item])))
+const priceList = useApiQuery('orders:prices', () => (itemized.value ? apiFetch<PriceList>('/shop/prices') : Promise.resolve(undefined)), { watch: [itemized] })
+// D43: only items with a price; the server prices the order again. The key stands in for the item's id in this running total.
+const prices = computed(() => new Map((priceList.data.value?.items ?? []).flatMap(item => (item.price === null ? [] : [[item.key, { id: item.key, label: item.label, unit: item.unit, price: item.price }] as const]))))
 const quote = computed(() => {
   const design = template.value?.design
   if (!design || !itemized.value) return undefined
@@ -337,7 +338,7 @@ function retryLoad() {
               :currency="shop.currency"
               :problems="problems"
               :server-errors="serverErrors"
-              :prices="itemized ? prices : undefined"
+              :prices="itemized && priceList.data.value ? prices : undefined"
               :total="itemized && hasAmountField ? (quote?.total ?? 0) : undefined"
             />
 

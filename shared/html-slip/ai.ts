@@ -2,7 +2,7 @@ import * as v from 'valibot'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { isOwnerField } from '#shared/slip/fields'
 import { BLOCK_PLACEHOLDERS, CATALOG_VERSION, FIELD_PREFIX, TEXT_PLACEHOLDERS } from './catalog'
-import { HTML_TAGS } from './parse'
+import { HTML_TAGS, SVG_TAGS, imagesIn, parseHtml } from './parse'
 
 /**
  * The AI import contract, version 1 (D39; product notes → Proposed v1 import): the platform copies a
@@ -128,7 +128,7 @@ export function readAiAnswer(pasted: string): { answer: AiAnswer } | { problems:
 }
 
 interface PromptOptions {
-  design: Pick<SlipDesign, 'width' | 'height' | 'elements' | 'groups' | 'paper' | 'htmlPreset'>
+  design: Pick<SlipDesign, 'width' | 'height' | 'elements' | 'groups' | 'paper' | 'htmlPreset' | 'html'>
   /** The design brief: what the shop wants (Keep the layout / Redesign it, and notes). */
   brief: string
 }
@@ -139,12 +139,14 @@ export function aiPrompt(options: PromptOptions): string {
   const fields = [
     ...design.elements.filter(isOwnerField).map((element) => {
       const required = 'printRequired' in element && element.printRequired ? '; required on the slip' : ''
-      const example = element.type === 'number' ? (element.unit === 'kg' ? '2.50 kg' : '2') : element.type === 'checkbox' ? '✓' : 'Sample text'
+      const example = element.type === 'number' ? (element.unit === 'kg' ? '2.50 kg' : '2') : element.type === 'checkbox' ? 'X' : 'Sample text'
       return `- {{${FIELD_PREFIX}${element.id}}}: ${element.label} (${element.type}; example: ${example}${required})`
     }),
     ...design.groups.map(group => `- {{${FIELD_PREFIX}${group.id}}}: ${group.label} (the chosen option's label)`),
   ]
   const paper = design.paper ? `${design.paper.widthMm} × ${design.paper.heightMm} mm` : 'not set yet'
+  const images = imagesIn(parseHtml(design.html ?? '').nodes)
+  const textTags = HTML_TAGS.filter(tag => tag !== 'img' && tag !== 'svg')
   return [
     'You are designing a laundry shop\'s paper slip as HTML. The attached photo is the shop\'s current slip.',
     '',
@@ -152,8 +154,12 @@ export function aiPrompt(options: PromptOptions): string {
     `Canvas: ${design.width} × ${design.height} px (paper ${paper}). Fill it; nothing may fall outside.`,
     'Language: keep the slip\'s own labels as on the photo (Khmer and English as written there).',
     '',
-    `Use only these tags: ${HTML_TAGS.map(tag => `<${tag}>`).join(', ')}. Only the class attribute: Tailwind utilities for layout (flex, grid, gap, padding, margin, width, height), text (size, weight, alignment), colours and borders. No images, links, scripts, styles or other attributes.`,
+    `Use only these tags: ${textTags.map(tag => `<${tag}>`).join(', ')}, plus <img> and <svg> as below. Only the class attribute: Tailwind utilities for layout (flex, grid, gap, padding, margin, width, height), text (size, weight, alignment), colours and borders. No links, scripts, styles or other attributes.`,
     'Draw count boxes and rows with bordered divs and flex layouts. Write & as &amp; and < as &lt;.',
+    `A logo or picture: draw it as an inline <svg> with a viewBox and a width class (w-24), using only ${SVG_TAGS.filter(tag => tag !== 'svg').map(tag => `<${tag}>`).join(', ')} with geometry and colour attributes (fill, stroke, d, points, x, y, width, height, r, cx, cy, transform, stop-color, offset). Colours as #hex. No <text> inside an <svg>: put the shop's name beside it in HTML. No style, href, <use> or <image>.`,
+    images.length
+      ? `Images already on this slip (keep each where it belongs, write it exactly): ${images.map(id => `<img src="image:${id}" class="w-24">`).join(', ')}. Use no other <img>.`
+      : 'Use no <img>: this slip has no uploaded images.',
     '',
     'Put values only through these placeholders (written exactly, with double braces, in text content only):',
     'Use {{order.number}} and {{order.qrCode}}. Keep prices, calculations, conditionals, and loops in Laundry.',

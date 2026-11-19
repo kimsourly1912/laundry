@@ -216,6 +216,7 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | **B. Studio** | S1–S5, 2 | Everything the platform uses: the studio, the templates list, attaching templates to shops |
 | **B2. Simplify the studio** | R1, K1 | AI-made artwork + fields only (D35): the drawing tools removed, the artwork upload, the canvas for fields |
 | **C. Owner + Telegram** | 3, 4 | Everything the shop owner and the customer use |
+| **D. Item list and prices** | I1–I8 | The laundry item list for intake fields ([D42](decisions.md#d42-the-laundry-item-list-for-intake-fields)); the slips decide what is priced, the owner sets how much ([D43](decisions.md#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much)) |
 
 | # | Step | PR | Size | Status |
 |---|---|---|---|---|
@@ -230,6 +231,14 @@ There's no pilot shop, only test data, so **the migrations restart from `0000`**
 | K1 | **Simplify (D35):** the drawing element types, tools and rotation removed; New template = artwork upload (PNG, JPEG, SVG drawn to PNG in the browser) or a copy; Replace artwork; the side panel is Fields only. The spec's "To build" rules follow | B2 | Large | Done (the spec's rules built 2026-11-18, but R5b) |
 | 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | Done: [D37](decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint) (Overview, New order, save once, Print again) and [D38](decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram) (Orders with search, Mark paid, Picked up, Cancel and copy, Paper slips with the default) |
 | 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | Done ([D38](decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram)); to try on staging once the bot is set up |
+| I1 | **Item list:** `shared/html-slip/items.ts`, about 40 items in ten groups, with fixed keys and kinds, plus tests | D | Small | Done, not committed |
+| I2 | **Add from list** in the Intake fields panel: search, groups, several at once, items already on the slip ticked | D | Small | Done, not committed |
+| I3 | **Kilos and pieces preset** (`mixed`); By item and the services read from the list | D | Small | Done, not committed |
+| I4 | **Prices from the slips (server):** `GET /api/shop/prices` lists each priced key on the shop's attached slips (name and unit from the item list) plus the prices kept for old orders; `PUT /api/shop/prices/:key` sets one at the version read, 404 for a key not on the slips; the create, edit, archive and restore routes are gone | D | Medium | Done, not committed |
+| I5 | **Owner's Prices page:** a row per item with an amount box and Save, a warning for items with no price, and "Not on your slips any more" for the rest; Add price and the key field are gone | D | Small | Done, not committed |
+| I6 | **Studio:** Priced as picks an item from the list (per kg items for weights, per piece items for counts); Publish errors on a key not on the list or in the wrong unit | D | Small | Done, not committed |
+| I7 | **Counter:** a count with no price yet is disabled on New order and says who sets it; Overview warns the owner and staff | D | Small | Done, not committed |
+| I8 | **Platform shop page:** "Prices: 5 of 8 set" (`GET /api/platform/shops/:shopId/prices`, counts only) | D | Small | Done, not committed |
 
 **🤖 Claude Code:** PR B is large. Keep each step's commit self-contained (tests and docs pass at every commit), so the owner can review it commit by commit. Photo + fields stays the main use (D33): if PR B runs long, S1–S3 and step 2 are what PR C needs; S4–S5 can move to their own PR with the owner's agreement.
 

@@ -14,6 +14,37 @@ afterAll(async () => {
   await browser?.close()
 })
 
+it('edits markup with VS Code keys: Tab indents, Shift-Tab outdents, Escape then Tab leaves', async () => {
+  const page = await newDevice(browser, { width: 1440, height: 900 })
+  onTestFailed(screenshotOnFailure('html-studio-keys', [page]))
+  await page.goto(`${host}/platform/templates`)
+  await page.waitForURL(/\/sign-in/)
+  await signIn(page, accounts.admin.username, accounts.admin.password)
+  await page.waitForURL(`${host}/platform/templates`)
+  await page.getByRole('link', { name: 'Create template' }).first().click()
+  await page.waitForURL('**/platform/templates/new')
+  const editor = page.getByTestId('html-source').locator('.cm-content')
+  await editor.waitFor()
+
+  await editor.fill('<span>a</span>\n<span>b</span>')
+  await editor.press('Control+Home')
+  await editor.press('Tab')
+  await expect.poll(() => editor.textContent()).toBe('  <span>a</span><span>b</span>')
+  await editor.press('Control+a')
+  await editor.press('Tab')
+  await expect.poll(() => editor.textContent()).toBe('    <span>a</span>  <span>b</span>')
+  await editor.press('Shift+Tab')
+  await editor.press('Shift+Tab')
+  await expect.poll(() => editor.textContent()).toBe('<span>a</span><span>b</span>')
+  await editor.press('Control+Home')
+  await editor.press('Alt+ArrowDown')
+  await expect.poll(() => editor.textContent()).toBe('<span>b</span><span>a</span>')
+
+  await editor.press('Escape')
+  await editor.press('Tab')
+  expect(await editor.evaluate(element => element.contains(document.activeElement))).toBe(false)
+})
+
 it('creates an HTML draft from the split editor, previews bindings and publishes', async () => {
   const page = await newDevice(browser, { width: 1440, height: 900 })
   onTestFailed(screenshotOnFailure('html-studio', [page]))
@@ -30,16 +61,214 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await page.waitForURL('**/platform/templates/new')
   const editor = page.getByTestId('html-source').locator('.cm-content')
   const preview = page.getByTestId('html-preview')
+  const printSample = page.getByRole('button', { name: 'Print sample' })
+  // A new template starts empty: no markup, no preview, nothing to save yet.
+  await page.getByTestId('html-empty').waitFor()
+  expect(await editor.textContent()).toBe('')
+  await page.getByTestId('html-preview-placeholder').waitFor()
+  expect(await printSample.count()).toBe(0)
+  await page.getByLabel('Template name').fill('CodeMirror by-weight slip')
+  expect(await page.getByRole('button', { name: 'Save draft' }).isDisabled()).toBe(true)
+
+  await page.getByRole('button', { name: 'Use a preset' }).click()
+  await page.getByTestId('preset-byWeight').locator('img').waitFor()
+  await page.getByTestId('preset-byWeight').click()
   await expect.poll(() => editor.textContent()).toContain('{{fields.weight_kg}}')
+  expect(await page.getByTestId('html-empty').count()).toBe(0)
   await expect.poll(() => preview.getAttribute('src')).toMatch(/^blob:/)
+  expect(await page.getByRole('button', { name: 'Save draft' }).isDisabled()).toBe(false)
   expect(createRequests).toBe(0)
 
-  await page.getByTestId('open-fields').click()
-  await page.getByTestId('count-label').fill('Bag count')
-  await page.getByTestId('field-key').fill('bag_count')
-  await page.getByTestId('add-count').click()
-  await expect.poll(() => page.getByText('{{fields.bag_count}}', { exact: true }).count()).toBe(1)
+  const previewWidth = () => preview.evaluate(image => image.getBoundingClientRect().width)
+  const zoomIn = page.getByRole('button', { name: 'Zoom in' })
+  const fit = page.getByRole('button', { name: 'Fit', exact: true })
+  const fitWidth = await previewWidth()
+  for (const zoom of [1.25, 1.5, 1.75, 2]) {
+    await zoomIn.click()
+    await expect.poll(async () => Math.abs(await previewWidth() - fitWidth * zoom)).toBeLessThan(1)
+  }
+  expect(await zoomIn.isDisabled()).toBe(true)
+  await page.getByRole('button', { name: 'Zoom out' }).press('Enter')
+  await expect.poll(async () => Math.abs(await previewWidth() - fitWidth * 1.75)).toBeLessThan(1)
+  await fit.click()
+  await expect.poll(async () => Math.abs(await previewWidth() - fitWidth)).toBeLessThan(1)
+
+  const previewViewport = page.getByTestId('html-preview-viewport')
+  const fitted = (await preview.boundingBox())!
+  const pointer = { x: Math.round(fitted.x + fitted.width * 0.6), y: Math.round(fitted.y + fitted.height * 0.5) }
+  await page.mouse.move(pointer.x, pointer.y)
+  await page.keyboard.down('Control')
+  await page.mouse.wheel(0, -200)
+  await page.keyboard.up('Control')
+  await expect.poll(async () => Math.abs(await previewWidth() - fitWidth * 1.5625)).toBeLessThan(1)
+  const zoomed = (await preview.boundingBox())!
+  expect(Math.abs(zoomed.x + (pointer.x - fitted.x) * 1.5625 - pointer.x)).toBeLessThan(2)
+  expect(await previewViewport.evaluate(area => getComputedStyle(area).scrollbarWidth)).toBe('none')
+
+  const horizontalPan = () => previewViewport.evaluate(area => area.scrollLeft)
+  const beforeDrag = await horizontalPan()
+  await page.mouse.down()
+  await page.mouse.move(pointer.x - 60, pointer.y, { steps: 4 })
+  await page.mouse.up()
+  await expect.poll(horizontalPan).toBeGreaterThan(beforeDrag + 50)
+  await previewViewport.press('ArrowLeft')
+  await expect.poll(horizontalPan).toBeLessThan(beforeDrag + 50)
+
+  await page.keyboard.down('Control')
+  await page.mouse.wheel(0, 100)
+  await page.keyboard.up('Control')
+  await expect.poll(async () => Math.abs(await previewWidth() - fitWidth * 1.25)).toBeLessThan(1)
+  await fit.click()
+  await expect.poll(async () => Math.abs(await previewWidth() - fitWidth)).toBeLessThan(1)
+  await expect.poll(horizontalPan).toBe(0)
+
+  await page.setViewportSize({ width: 1440, height: 500 })
+  await expect.poll(() => previewViewport.evaluate(area => area.scrollHeight - area.clientHeight)).toBe(0)
+  await expect.poll(previewWidth).toBeLessThan(fitWidth)
+
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('tab', { name: 'Preview' }).click()
+  const viewportBeforeUpdate = await previewViewport.boundingBox()
+  const previewEndpoint = '**/api/platform/templates/preview'
+  const lastUrl = await preview.getAttribute('src')
+  const releasePreview = Promise.withResolvers<undefined>()
+  await page.route(previewEndpoint, async (route) => {
+    await releasePreview.promise
+    await route.continue()
+  }, { times: 1 })
+  try {
+    await page.getByRole('radio', { name: 'Crowded' }).press('Space')
+    await page.getByText('Updating preview…', { exact: true }).waitFor()
+    expect(await preview.getAttribute('src')).toBe(lastUrl)
+    expect(await previewViewport.boundingBox()).toEqual(viewportBeforeUpdate)
+    expect(await page.getByRole('button', { name: 'Download SVG' }).isDisabled()).toBe(true)
+    expect(await printSample.isDisabled()).toBe(true)
+    expect(await page.getByText('Preview is out of date.').count()).toBe(0)
+  }
+  finally {
+    releasePreview.resolve(undefined)
+  }
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(lastUrl)
+  await page.getByRole('link', { name: 'Download SVG' }).waitFor()
+  await page.evaluate(() => {
+    window.print = () => {
+      document.body.dataset.samplePrintOpened = 'true'
+    }
+  })
+  await printSample.press('Enter')
+  await expect.poll(() => page.locator('body').getAttribute('data-sample-print-opened')).toBe('true')
+  const printedSlip = page.getByTestId('html-print-sample')
+  const renderedImage = async (image: HTMLImageElement) => {
+    await image.decode()
+    const canvas = document.createElement('canvas')
+    canvas.width = image.naturalWidth
+    canvas.height = image.naturalHeight
+    canvas.getContext('2d')!.drawImage(image, 0, 0)
+    return canvas.toDataURL()
+  }
+  expect(await printedSlip.locator('img').evaluate(renderedImage)).toBe(await preview.evaluate(renderedImage))
+  try {
+    await page.emulateMedia({ media: 'print' })
+    const pageSize = (await printedSlip.boundingBox())!
+    expect(pageSize.width * 25.4 / 96).toBeCloseTo(100, 1)
+    expect(pageSize.height * 25.4 / 96).toBeCloseTo(70, 1)
+    expect(await previewViewport.isVisible()).toBe(false)
+  }
+  finally {
+    await page.emulateMedia({ media: 'screen' })
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')))
+  }
+  await expect.poll(() => printedSlip.count()).toBe(0)
+  expect(createRequests).toBe(0)
+
+  const crowdedUrl = await preview.getAttribute('src')
+  await page.route(previewEndpoint, route => route.fulfill({
+    contentType: 'image/svg+xml',
+    body: 'An invalid image response',
+  }), { times: 1 })
+  await page.getByRole('radio', { name: 'Typical' }).press('Space')
+  const retryPreview = page.getByRole('button', { name: 'Try again', exact: true })
+  await retryPreview.waitFor()
+  expect(await preview.getAttribute('src')).toBe(crowdedUrl)
+  await retryPreview.click()
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(crowdedUrl)
+
+  const sampleName = 'សុខ ចាន់ដារ៉ា Sok Chandara'
+  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  const custom = page.getByRole('dialog', { name: 'Custom sample' })
+  const livePreview = custom.getByTestId('html-custom-preview').getByRole('img')
+  const customerName = custom.getByRole('textbox', { name: 'Sample customer name' })
+  const weight = custom.getByRole('textbox', { name: 'Weight (kg)' })
+  const useSample = custom.getByRole('button', { name: 'Use sample' })
+  await livePreview.waitFor()
+  expect((await livePreview.boundingBox())!.y).toBeLessThan((await customerName.boundingBox())!.y)
+  const initialCustom = await livePreview.getAttribute('src')
+  const previousSample = await preview.getAttribute('src')
+  await customerName.fill(sampleName)
+  await weight.fill('-5')
+  await expect.poll(() => useSample.isDisabled()).toBe(true)
+  expect(await livePreview.getAttribute('src')).toBe(initialCustom)
+
+  const customResponse = page.waitForResponse(response =>
+    response.url().endsWith('/api/platform/templates/preview')
+    && response.request().postDataJSON().custom?.values.weight_kg === 3.5)
+  await weight.fill('3.5')
+  const renderedCustom = await customResponse
+  expect(renderedCustom.ok()).toBe(true)
+  const customInput = renderedCustom.request().postDataJSON()
+  expect(customInput.custom).toMatchObject({ customerName: sampleName, values: { weight_kg: 3.5 } })
+  await expect.poll(() => livePreview.getAttribute('src')).not.toBe(initialCustom)
+  expect(await weight.evaluate(element => document.activeElement === element)).toBe(true)
+  expect(await preview.getAttribute('src')).toBe(previousSample)
+  await useSample.click()
+  await expect.poll(() => preview.getAttribute('src')).not.toBe(previousSample)
+  expect(await printSample.isEnabled()).toBe(true)
+  expect(createRequests).toBe(0)
+  expect(await page.evaluate(async (input) => {
+    const response = await fetch('/api/platform/templates/preview', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ...input, custom: { ...input.custom, values: { missing_field: 3 } } }),
+    })
+    return response.status
+  }, customInput)).toBe(400)
+  await page.getByRole('radio', { name: 'Typical' }).press('Space')
+  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  expect(await customerName.inputValue()).toBe(sampleName)
+  await customerName.fill('Discard this edit')
+  await custom.getByRole('button', { name: 'Cancel', exact: true }).click()
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  await livePreview.waitFor()
+  expect(await customerName.inputValue()).toBe(sampleName)
+  expect((await livePreview.boundingBox())!.x).toBeGreaterThan((await customerName.boundingBox())!.x)
+  await page.setViewportSize({ width: 844, height: 390 })
+  expect((await livePreview.boundingBox())!.height).toBeGreaterThan(50)
   await page.keyboard.press('Escape')
+  await custom.waitFor({ state: 'hidden' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  // The sidebar is on Presets (Use a preset opened it); the Fields icon switches it.
+  await page.getByTestId('open-fields').click()
+  await page.getByTestId('new-field').click()
+  await page.getByTestId('count-label').fill('Bag count')
+  await page.getByTestId('add-count').click()
+  // The key comes from the label.
+  await expect.poll(() => page.getByTestId('field-bag_count').count()).toBe(1)
+  await expect.poll(() => page.getByRole('button', { name: 'Copy {{fields.bag_count}}' }).count()).toBe(1)
+
+  // Add from list: the by-weight kilos are already there; picked items keep their price keys.
+  await page.getByTestId('add-from-list').click()
+  const itemList = page.getByRole('dialog', { name: 'Add from the item list' })
+  expect(await itemList.getByRole('checkbox', { name: 'Wash & fold', exact: true }).isDisabled()).toBe(true)
+  await itemList.getByTestId('item-search').fill('shi')
+  await itemList.getByRole('checkbox', { name: 'Shirt', exact: true }).click()
+  await itemList.getByTestId('item-search').fill('')
+  await itemList.getByRole('checkbox', { name: 'Express', exact: true }).click()
+  await itemList.getByTestId('item-add').click()
+  await itemList.waitFor({ state: 'hidden' })
+  await expect.poll(() => page.getByTestId('field-shirt_count').locator('input').nth(1).inputValue()).toBe('shirt')
+  await expect.poll(() => page.getByTestId('field-express').count()).toBe(1)
 
   await editor.fill('<div class="flex">{{fields.bag')
   await editor.press('Control+Space')
@@ -50,10 +279,11 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await editor.fill(invalid)
   await expect.poll(() => page.getByTestId('html-problems').textContent()).toContain('fields.unknown')
   await expect.poll(() => page.getByText('Preview is out of date.').count()).toBe(1)
+  expect(await printSample.isDisabled()).toBe(true)
 
   const html = '<div class="flex flex-col"><span>{{order.number}}</span><span>{{fields.weight_kg}}</span><div class="flex">{{order.qrCode}}</div></div>'
-  await page.getByRole('button', { name: 'Import JSON' }).click()
-  await page.getByRole('dialog').locator('textarea').fill(JSON.stringify({ version: 1, name: 'CodeMirror by-weight slip', html }))
+  await page.getByTestId('open-ai').click()
+  await page.getByTestId('answer-text').fill(JSON.stringify({ version: 1, name: 'CodeMirror by-weight slip', html }))
   await page.getByTestId('answer-import').click()
   await expect.poll(() => editor.textContent()).toContain('{{fields.weight_kg}}')
   await expect.poll(() => page.getByRole('link', { name: 'Download SVG' }).count()).toBe(1)
@@ -64,4 +294,36 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await page.getByTestId('html-publish').click()
   await page.getByTestId('html-publish-confirm').click()
   await expect.poll(() => page.getByText('Version 1 is published.').count()).toBeGreaterThan(0)
+})
+
+it('inserts a library image at the cursor, and the preview draws it (D41)', async () => {
+  const page = await newDevice(browser, { width: 1440, height: 900 })
+  onTestFailed(screenshotOnFailure('html-studio-image', [page]))
+  await page.goto(`${host}/platform/templates`)
+  await page.waitForURL(/\/sign-in/)
+  await signIn(page, accounts.admin.username, accounts.admin.password)
+  await page.waitForURL(`${host}/platform/templates`)
+  await page.getByRole('link', { name: 'Create template' }).first().click()
+  await page.waitForURL('**/platform/templates/new')
+  const editor = page.getByTestId('html-source').locator('.cm-content')
+  await editor.waitFor()
+  const previews: string[] = []
+  page.on('response', async (response) => {
+    if (response.request().method() === 'POST' && response.url().endsWith('/api/platform/templates/preview') && response.ok()) previews.push(await response.text())
+  })
+
+  await editor.fill('<div class="flex flex-col p-4">\n<span>Linda</span>\n</div>')
+  await editor.press('Control+Home')
+  await editor.press('ArrowDown')
+  await editor.press('End')
+  await page.getByTestId('open-images').click()
+  // An SVG file goes through the browser's PNG step, as artwork does.
+  const logo = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200"><rect width="400" height="200" fill="#ff0000"/></svg>'
+  await page.getByTestId('html-image-input').setInputFiles({ name: 'logo.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(logo) })
+
+  await expect.poll(() => editor.textContent()).toMatch(/<span>Linda<\/span><img src="image:[\da-f-]{36}" class="w-24"><\/div>/)
+  await expect.poll(() => previews.some(svg => svg.includes('data:image/png;base64,'))).toBe(true)
+
+  // The Images view stays open and lists it for the next one.
+  await page.getByTestId('html-image-library').getByRole('button', { name: 'Insert logo.svg' }).waitFor()
 })

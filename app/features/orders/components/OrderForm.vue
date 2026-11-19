@@ -7,9 +7,8 @@
  */
 import type { SlipDesign, SlipElement, SlipShop } from '#shared/contracts/slip-design'
 import type { FillProblems, SlipFill } from '#shared/slip/values'
-import { fillSteps, problemKey, problemMessage } from '~/features/slip-fill'
+import { fillSteps, problemKey, problemMessage, SlipCountInput } from '~/features/slip-fill'
 import type { FillStep } from '~/features/slip-fill'
-import { parseCount, stepCount } from '../utils/order-form'
 
 const props = defineProps<{
   design: SlipDesign
@@ -26,6 +25,7 @@ const props = defineProps<{
 const fill = defineModel<SlipFill>({ required: true })
 
 const { t } = useI18n()
+const { can } = useSession()
 const steps = computed(() => fillSteps(props.design))
 
 function labelOf(step: FillStep): string {
@@ -58,25 +58,11 @@ function setValue(key: string, value: number | string | boolean | undefined) {
   fill.value = { ...fill.value, values: empty ? rest : { ...rest, [key]: value } }
 }
 
-// Counts as typed, so `2.` stays while the owner types; the fill holds the number (`NaN`: not one).
-const countTexts = ref<Record<string, string>>({})
-function countText(key: string): string {
+function countOf(key: string): number | undefined {
   const value = fill.value.values[key]
-  const typed = countTexts.value[key]
-  if (typed !== undefined && Object.is(parseCount(typed), typeof value === 'number' ? value : undefined)) return typed
-  return typeof value === 'number' && Number.isFinite(value) ? String(value) : typed ?? ''
+  return typeof value === 'number' ? value : undefined
 }
-function typeCount(key: string, text: string) {
-  countTexts.value = { ...countTexts.value, [key]: text }
-  setValue(key, parseCount(text))
-}
-function stepNumber(step: FillStep, direction: 1 | -1) {
-  if (step.kind !== 'number' || step.element.type !== 'number') return
-  const value = fill.value.values[step.key]
-  const next = stepCount(typeof value === 'number' ? value : undefined, direction, step.element)
-  countTexts.value = { ...countTexts.value, [step.key]: next === undefined ? '' : String(next) }
-  setValue(step.key, next)
-}
+
 const textOf = (key: string) => {
   const value = fill.value.values[key]
   return typeof value === 'string' ? value : ''
@@ -93,11 +79,17 @@ function setAmount(text: string) {
   fill.value = { ...fill.value, amount: text.trim() ? parseMoney(text, props.currency) ?? -1 : null }
 }
 
-/** "2,000៛ each" or "3,000៛ per kg" under a count linked to a price (D39); a missing price says so. */
+/** A count or weight linked to a key the shop hasn't priced yet (D43): it can't be filled, since the server would refuse it. */
+function unpriced(step: FillStep): boolean {
+  if (step.kind !== 'number' || step.element.type !== 'number' || !step.element.priceKey || !props.prices) return false
+  return !props.prices.has(step.element.priceKey)
+}
+
+/** "2,000៛ each" or "3,000៛ per kg" under a count linked to a price (D39); a missing price says who sets it (D43). */
 function priceHint(step: FillStep): string | undefined {
   if (step.kind !== 'number' || step.element.type !== 'number' || !step.element.priceKey || !props.prices) return undefined
   const item = props.prices.get(step.element.priceKey)
-  if (!item) return t('orders.form.noPrice')
+  if (!item) return t(can('price:write') ? 'orders.form.noPriceOwner' : 'orders.form.noPrice')
   return t(item.unit === 'kg' ? 'orders.form.perKg' : 'orders.form.each', { price: formatMoney(item.price, props.currency) })
 }
 
@@ -125,7 +117,7 @@ defineExpose({ focusFirstProblem })
       :data-field="step.key"
     >
       <UFormField
-        v-if="step.kind === 'number'"
+        v-if="step.kind === 'number' && step.element.type === 'number'"
         :label="labelOf(step)"
         :description="priceHint(step)"
         :required="isRequired(step)"
@@ -134,32 +126,14 @@ defineExpose({ focusFirstProblem })
         :ui="{ container: 'shrink-0', label: 'text-base' }"
         class="items-center justify-between gap-3"
       >
-        <UFieldGroup size="xl">
-          <UButton
-            icon="i-lucide-minus"
-            color="neutral"
-            variant="outline"
-            :aria-label="t('orders.form.less', { label: labelOf(step) })"
-            @click="stepNumber(step, -1)"
-          />
-          <UInput
-            :model-value="countText(step.key)"
-            :inputmode="'decimals' in step.element && step.element.decimals ? 'decimal' : 'numeric'"
-            autocomplete="off"
-            class="w-16"
-            :ui="{ base: 'text-center tabular-nums' }"
-            :aria-label="labelOf(step)"
-            :data-testid="`field-${step.key}`"
-            @update:model-value="typeCount(step.key, String($event))"
-          />
-          <UButton
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="outline"
-            :aria-label="t('orders.form.more', { label: labelOf(step) })"
-            @click="stepNumber(step, 1)"
-          />
-        </UFieldGroup>
+        <SlipCountInput
+          :model-value="countOf(step.key)"
+          :range="step.element"
+          :label="labelOf(step)"
+          :test-id="`field-${step.key}`"
+          :disabled="unpriced(step)"
+          @update:model-value="setValue(step.key, $event)"
+        />
       </UFormField>
 
       <UFormField

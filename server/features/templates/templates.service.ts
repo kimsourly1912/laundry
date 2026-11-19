@@ -2,8 +2,8 @@ import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
-import type { CreateTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListItem, TemplateListQuery, TemplateStatusChangeInput, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
-import { sampleOrder } from '#shared/html-slip/sample'
+import type { CreateTemplateInput, PreviewHtmlTemplateInput, PreviewTemplateInput, PublishTemplateInput, TemplateDetail, TemplateListItem, TemplateListQuery, TemplateStatusChangeInput, TemplateSummary, UpdateTemplateInput } from '#shared/contracts/templates'
+import { customSampleOrder, sampleOrder } from '#shared/html-slip/sample'
 import { createElement } from '#shared/slip/elements'
 import { imagesOf } from '#shared/slip/svg'
 import { publishProblems } from '#shared/slip/checks'
@@ -97,6 +97,9 @@ export async function restoreTemplate(db: Db, actor: PlatformActor, templateId: 
 function imageReferences(design: SlipDesign, path: string): Map<string, string> {
   const references = new Map<string, string>()
   if (design.background.imageId) references.set(design.background.imageId, `${path}.background.imageId`)
+  for (const id of imagesOf(design)) {
+    if (!references.has(id)) references.set(id, `${path}.html`)
+  }
   return references
 }
 
@@ -187,7 +190,7 @@ export async function publishTemplate(db: Db, actor: PlatformActor, templateId: 
   await requireImages(db, imageReferences(row.design, 'design'))
   if (row.design.html !== undefined) {
     try {
-      await previewHtmlTemplate({ design: row.design, sample: 'crowded' }, now)
+      await previewHtmlTemplate(db, { design: row.design, sample: 'crowded' }, now)
     }
     catch {
       throw publishChecksFailed([{ code: 'htmlRenderFailed' }])
@@ -215,9 +218,14 @@ export async function previewTemplate(db: Db, templateId: string, input: Omit<Pr
   return renderSlipPng({ design, data, images: await slipImages(db, imagesOf(design)) })
 }
 
-/** Sample artwork for the HTML editor, including before its first save. */
-export function previewHtmlTemplate(input: PreviewTemplateInput, now = new Date()): Promise<string> {
+/**
+ * Sample artwork for the HTML editor, including before its first save. Its `<img>` tags must name
+ * library images (422 `UNKNOWN_IMAGE`, `IMAGES_TOO_LARGE`, D41).
+ */
+export async function previewHtmlTemplate(db: Db, input: PreviewHtmlTemplateInput, now = new Date()): Promise<string> {
   const { design, sample } = input
-  const data = sampleOrder(design, { sample, date: shopDate(now) })
-  return htmlSlipSvg({ design, data })
+  await requireImages(db, imageReferences(design, 'design'))
+  const date = shopDate(now)
+  const data = sample === 'custom' ? customSampleOrder(design, { custom: input.custom, date }) : sampleOrder(design, { sample, date })
+  return htmlSlipSvg({ design, data, images: await slipImages(db, imagesOf(design)) })
 }

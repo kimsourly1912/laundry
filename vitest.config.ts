@@ -29,8 +29,9 @@ const alias = {
  */
 function serverAssets(): Plugin {
   const RAW = '?laundry-raw'
-  // Outside node_modules, or Vitest would hand the file to Node's own loader.
-  const WASM = '/@laundry-wasm-module/'
+  // A virtual id (Vite's `\0` prefix), or Vitest would hand the file to Node's own loader, which
+  // can't read an encoded Windows path (`C:/…`) as a file URL.
+  const WASM = '\0laundry-wasm-module:'
   return {
     name: 'laundry:server-assets',
     enforce: 'pre',

@@ -59,14 +59,6 @@ const UTILITY = new RegExp(`^-?(?:${[
   'relative', 'absolute', '(?:inset|top|right|bottom|left)(?:-[xy])?-[\\w./[\\]%-]+', 'z-[\\w-]+',
 ].join('|')})$`)
 
-/** Representative classes for completion, from the same families the validator accepts. */
-export const UTILITY_SUGGESTIONS = [
-  'flex', 'flex-row', 'flex-col', 'flex-wrap', 'items-center', 'items-end', 'justify-between',
-  'gap-2', 'gap-4', 'p-2', 'p-4', 'px-4', 'py-2', 'w-full', 'h-full', 'w-[50%]',
-  'text-sm', 'text-xl', 'text-[24px]', 'text-center', 'font-bold', 'leading-tight',
-  'border', 'border-b', 'border-2', 'border-gray-400', 'rounded', 'bg-white', 'text-black',
-] as const
-
 export function isKnownUtility(name: string): boolean {
   return UTILITY.test(name)
 }

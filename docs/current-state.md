@@ -4,7 +4,23 @@ Keep this page short: where we are, what's next, what's blocked. History goes in
 
 ## HTML-first Template Studio
 
-[Implementation and contract](html-template-studio-plan.md): direct Create template route, CodeMirror, SVG preview before saving, and By weight / By item bindings. Physical print size and QR scanning remain pilot checks.
+[Implementation and contract](html-template-studio-plan.md): direct Create template route, CodeMirror, SVG preview before saving, and By weight / By item bindings. A new template opens with an empty editor that offers a preset picker (By weight / By item) instead of starter code; the Intake fields panel shows one line per field (label, price key, Required), takes each new key from its label, and opens its add form on demand. Physical print size and QR scanning remain pilot checks.
+
+The HTML preview fits both dimensions, supports Ctrl/⌘ + wheel zoom around the pointer, and pans by drag, scroll, touch, or arrow keys with both scrollbars hidden.
+
+The server preview starts immediately on entry and sample changes and waits 120 ms after a valid draft edit. The last good slip stays visible during the update.
+
+Print sample opens the browser print dialog with the current preview at the draft's paper size, including before the first save.
+
+Studio's Custom sample shows the live slip beside an owner-style test order form. The preview sits above the fields on narrow screens. Use sample carries the edited quantities, text, checkboxes, and total back to Studio for download and printing.
+
+**VS Code layout (2026-11-19, not committed yet):** an activity bar on the left edge picks the sidebar's view: Intake fields, Presets, Images, AI (copy prompt, import JSON) and Paper size. The views replace the fields slideover, the paper popover and the preset, image, prompt and import modals. From `lg` the sidebar is a resizable, collapsible splitter panel (300 px by default); on a phone it is a slideover from the left. Typecheck and unit tests pass; the e2e file is updated for the new flow.
+
+**Images and inline SVG ([D41](decisions.md#d41-images-and-inline-svg-in-html-slips), 2026-11-19, not committed yet):** `<img src="image:<id>">` from the library through Insert image, and inline `<svg>` against an allowlist, both drawn as images; at most 1 MB of images a slip; the AI prompt explains how to draw a logo as SVG. Unit and server tests pass. The new e2e test (`html-studio.test.ts`) hasn't run here: every test in that file times out at sign-in on this Windows machine (the seeded admin isn't found). Not yet: a printed slip with a logo, and autocomplete for `src="image:`.
+
+**Laundry item list ([D42](decisions.md#d42-the-laundry-item-list-for-intake-fields), 2026-11-19, not committed yet):** `shared/html-slip/items.ts` lists about 40 items from real Cambodian slips, with fixed price keys. The Intake fields panel has **Add from list**, and a third preset, **Kilos and pieces**, follows the layout of most paper slips. Unit tests and the new e2e step pass. The rest of `html-studio.test.ts` fails on two older checks: the preview's scrollbar is `thin`, not `none` (the uncommitted `tailwind.css` edit), and the image-insert preview (D41).
+
+**Prices from the slips ([D43](decisions.md#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much), 2026-11-19, not committed yet):** the owner's Prices page lists each priced item on the shop's slips and the owner types only the amount (`PUT /api/shop/prices/:key`). The Studio picks price keys from the item list, and Publish refuses others. On New order a count with no price is disabled; Overview and Prices warn about it. The platform's shop page shows "Prices: 5 of 8 set". Unit and server tests pass. The Studio's intake panel moved into the new sidebar (`HtmlFieldsView.vue`, in progress at the same time) and keeps Add from list and Priced as.
 
 ## Now: the product notes' larger items (D39, 2026-11-18)
 
@@ -92,6 +108,7 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 | Q15 | The guide sets the owner's content width to 768 px; `--container-page` is 640 px (D25). Change it for every shop screen? Kept at 640 px in D37 | Owner | The next owner screens |
 | Q16 | The mockups write the number as `#002139`; the app and the slip write `1`, `2`, … A zero-padded number changes every slip's Order No. drawing. Pad it, and to how many digits? | Owner | Before a pilot shop |
 | Q18 | `pnpm seed:admin` is local only. How does a deployed environment (staging, production) get its first super admin? | Owner | Before production |
+| Q19 | The HTML utility catalog accepts `gap-4`, but the installed Satori renderer warns that it does not recognize it. How should spacing be supported without changing the appearance of issued slips? | Owner and engineering | Changing the published renderer's spacing behavior |
 | Q17 | Answered by plan §4 itself: New order remembers the chosen slip as the default. Built in D38 | — | — |
 
 ## Owner notes

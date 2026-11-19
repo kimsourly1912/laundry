@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_DESIGN_BYTES } from '#shared/contracts/slip-design'
-import { IMAGE_MAX_BYTES } from '#shared/contracts/templates'
+import { IMAGE_MAX_BYTES, MAX_HTML_PREVIEW_BYTES } from '#shared/contracts/templates'
 import { MAX_JSON_BYTES } from '#server/utils/validation'
 import { boundedWorkerRequest, workerBodyLimit } from '#server/utils/worker-body'
 
@@ -34,6 +34,7 @@ describe('workerBodyLimit', () => {
     expect(workerBodyLimit('/api/platform/images/x')).toBe(MAX_JSON_BYTES)
     expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001')).toBe(MAX_DESIGN_BYTES)
     expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001/preview')).toBe(MAX_DESIGN_BYTES)
+    expect(workerBodyLimit('/api/platform/templates/preview')).toBe(MAX_HTML_PREVIEW_BYTES)
     expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001/publish')).toBe(MAX_JSON_BYTES)
     expect(workerBodyLimit('/api/platform/templates')).toBe(MAX_JSON_BYTES)
   })

@@ -9,7 +9,7 @@ import type { PlatformActor } from '#server/features/identity'
 import { fromBase64, imageInfo, toBase64 } from './images.bytes'
 import * as repo from './images.repository'
 import type { ImageRow } from './images.repository'
-import { imageNotFound, imageSizeOutOfRange, invalidImage, unknownImage } from './templates.errors'
+import { imageNotFound, imageSizeOutOfRange, imagesTooLarge, invalidImage, unknownImage } from './templates.errors'
 import { renderSlipPng, renderSlipSvg } from './templates.render'
 import type { SlipImage } from './templates.render'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
@@ -70,14 +70,19 @@ export async function imageBytes(db: Db, imageId: string): Promise<{ bytes: Uint
 
 /**
  * 422 `UNKNOWN_IMAGE` unless every image exists. `paths` names where each id came from, so the
- * error points at it (`design.background.imageId`).
+ * error points at it (`design.background.imageId`, `design.html`). 422 `IMAGES_TOO_LARGE` when they
+ * add up to more than one image may be: every render embeds them all (D41).
  */
 export async function requireImages(db: Db, references: ReadonlyMap<string, string>): Promise<void> {
   if (!references.size) return
-  const existing = await repo.existingImageIds(db, [...references.keys()])
+  const sizes = await repo.imageSizes(db, [...references.keys()])
+  let total = 0
   for (const [id, path] of references) {
-    if (!existing.has(id)) throw unknownImage(path)
+    const size = sizes.get(id)
+    if (size === undefined) throw unknownImage(path)
+    total += size
   }
+  if (total > IMAGE_MAX_BYTES) throw imagesTooLarge(IMAGE_MAX_BYTES)
 }
 
 /** The images a slip draws, by id, to render it. */

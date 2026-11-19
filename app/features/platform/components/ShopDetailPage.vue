@@ -6,6 +6,7 @@
  */
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { PlatformShopDetail } from '#shared/contracts/platform-shops'
+import type { PriceStatus } from '#shared/contracts/prices'
 import { MIN_PASSWORD_LENGTH } from '#shared/contracts/identity'
 import * as v from 'valibot'
 import { shopNameFormSchema, temporaryPasswordFormSchema } from '../schemas/shop-form'
@@ -17,6 +18,8 @@ const { can } = useSession()
 const shop = useApiQuery(() => `platform:shop:${props.id}`, () => apiFetch<PlatformShopDetail>(`/platform/shops/${props.id}`))
 const current = computed(() => shop.data.value)
 const missing = computed(() => shop.error.value?.kind === 'not_found')
+// D43: how far the owner is with the slips' prices, as counts only (the amounts are the shop's).
+const prices = useApiQuery(() => `platform:shop:${props.id}:prices`, () => apiFetch<PriceStatus>(`/platform/shops/${props.id}/prices`))
 
 // --- Rename ---
 const renameSchema = computed(() => v.object({ name: shopNameFormSchema(t) }))
@@ -145,6 +148,18 @@ const conflict = computed(() => [rename.error.value, setStatus.error.value].some
                   variant="subtle"
                 />
               </dd>
+              <template v-if="prices.data.value?.needed">
+                <dt class="text-muted">
+                  {{ t('platform.shop.prices') }}
+                </dt>
+                <dd data-testid="shop-prices">
+                  <UBadge
+                    :label="t('platform.shop.pricesSet', { set: prices.data.value.set, needed: prices.data.value.needed })"
+                    :color="prices.data.value.set === prices.data.value.needed ? 'success' : 'warning'"
+                    variant="subtle"
+                  />
+                </dd>
+              </template>
             </dl>
             <UForm
               v-if="can('shop:update')"

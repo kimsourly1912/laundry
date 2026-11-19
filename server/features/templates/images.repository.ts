@@ -53,10 +53,10 @@ export async function listImages(db: Db, query: ImageListQuery): Promise<{ rows:
   return { rows, total: counted?.total ?? 0 }
 }
 
-/** Which of these images exist. */
-export async function existingImageIds(db: Db, imageIds: readonly string[]): Promise<Set<string>> {
-  const rows = await readInChunks(imageIds, ids => db.select({ id: images.id }).from(images).where(inArray(images.id, ids)))
-  return new Set(rows.map(row => row.id))
+/** The size in bytes of each of these images that exists, by id. */
+export async function imageSizes(db: Db, imageIds: readonly string[]): Promise<Map<string, number>> {
+  const rows = await readInChunks(imageIds, ids => db.select({ id: images.id, size: images.size }).from(images).where(inArray(images.id, ids)))
+  return new Map(rows.map(row => [row.id, row.size]))
 }
 
 /** The images' bytes (base64), to draw them. */

@@ -6,26 +6,26 @@
  */
 import { parseHtml } from './parse'
 
-const VOID_TAGS = new Set(['br', 'hr'])
+const VOID_TAGS = new Set(['br', 'hr', 'img'])
 const INDENT = '  '
 
-interface Element { tag: string, open: string, children: Node[] }
+interface Element { tag: string, open: string, children: Node[], selfClosing?: boolean }
 type Node = Element | { text: string }
 
-/** The opening tag with its attributes, spacing tidied: `<div class="flex gap-2">`. */
-function openingTag(tag: string, attributes: string): string {
+/** The opening tag with its attributes, spacing tidied: `<div class="flex gap-2">`. Names keep their case (SVG's `viewBox`). */
+function openingTag(tag: string, attributes: string, selfClosing: boolean): string {
   const parts = [...attributes.matchAll(/([^\s=/>]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g)].map(([, name, value]) => {
-    if (value === undefined) return ` ${name!.toLowerCase()}`
+    if (value === undefined) return ` ${name}`
     const inner = value.replace(/^["']|["']$/g, '').trim().replace(/\s+/g, ' ')
-    return ` ${name!.toLowerCase()}="${inner}"`
+    return ` ${name}="${inner}"`
   })
-  return `<${tag}${parts.join('')}>`
+  return `<${tag}${parts.join('')}${selfClosing ? '/' : ''}>`
 }
 
 function print(node: Node, depth: number): string[] {
   const indent = INDENT.repeat(depth)
   if ('text' in node) return [indent + node.text]
-  if (VOID_TAGS.has(node.tag)) return [indent + node.open]
+  if (VOID_TAGS.has(node.tag.toLowerCase()) || node.selfClosing) return [indent + node.open]
   if (!node.children.length) return [`${indent}${node.open}</${node.tag}>`]
   return [indent + node.open, ...node.children.flatMap(child => print(child, depth + 1)), `${indent}</${node.tag}>`]
 }
@@ -51,10 +51,11 @@ export function formatHtml(source: string): string | null {
     }
     const open = /^<\s*([a-z][a-z\d]*)((?:\s+[^\s=/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'>]+))?)*)\s*(\/?)>/i.exec(rest)
     if (open) {
-      const tag = open[1]!.toLowerCase()
-      const element: Element = { tag, open: openingTag(tag, open[2]!), children: [] }
+      const tag = open[1]!
+      const selfClosing = Boolean(open[3]) && !VOID_TAGS.has(tag.toLowerCase())
+      const element: Element = { tag, open: openingTag(tag, open[2]!, selfClosing), children: [], selfClosing }
       stack.at(-1)!.children.push(element)
-      if (!VOID_TAGS.has(tag) && !open[3]) stack.push(element)
+      if (!VOID_TAGS.has(tag.toLowerCase()) && !open[3]) stack.push(element)
       rest = rest.slice(open[0].length)
       continue
     }
