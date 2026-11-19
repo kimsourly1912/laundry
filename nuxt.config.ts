@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 // Scheduled jobs, cron in UTC (spec §13). Each job is added in the step that builds it.
 import { SCHEDULED_TASKS } from './shared/scheduled-tasks'
+import { satoriOnWorkers } from './build/satori-workers'
 
 /**
  * Response headers for every route in production builds (spec §12 → Request protection).
@@ -143,6 +144,8 @@ export default defineNuxtConfig({
   nitro: {
     // `wasm`: resvg's WebAssembly, for the slip renderer (server/features/templates/templates.assets.mjs, D32).
     experimental: { tasks: true, wasm: true },
+    // Satori's bundled HarfBuzz, started from a compiled module on the first render (D39).
+    rollupConfig: { plugins: [satoriOnWorkers()] },
     // Cron in UTC. On Cloudflare they become Worker cron triggers; in dev Nitro runs them itself.
     scheduledTasks: SCHEDULED_TASKS,
   },
