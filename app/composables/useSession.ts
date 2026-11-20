@@ -34,7 +34,7 @@ export function useSession() {
     clearNuxtData()
   }
 
-  /** Whether the session grants the statement (`order:cancel`). For showing actions; the server checks again. */
+  /** Whether the session grants the statement (`order:create`). For showing actions; the server checks again. */
   function can(statement: string): boolean {
     return me.value?.statements.includes(statement) ?? false
   }

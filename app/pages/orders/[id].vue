@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { OrderPage } from '~/features/orders'
+import { SavedSlipPage } from '~/features/orders'
 
 definePageMeta({ layout: 'shop', area: 'shop', permission: 'order:read', title: 'orders.order.loadingTitle' })
 
@@ -8,7 +8,7 @@ const orderId = computed(() => String(route.params.id))
 </script>
 
 <template>
-  <OrderPage
+  <SavedSlipPage
     :key="orderId"
     :order-id="orderId"
   />

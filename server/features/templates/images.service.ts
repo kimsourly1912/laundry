@@ -10,7 +10,7 @@ import { fromBase64, imageInfo, toBase64 } from './images.bytes'
 import * as repo from './images.repository'
 import type { ImageRow } from './images.repository'
 import { imageNotFound, imageSizeOutOfRange, imagesTooLarge, invalidImage, unknownImage } from './templates.errors'
-import { renderSlipPng, renderSlipSvg } from './templates.render'
+import { renderPaperDraft, renderSlipPng, renderSlipSvg } from './templates.render'
 import type { SlipImage } from './templates.render'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import { imagesOf } from '#shared/slip/svg'
@@ -95,6 +95,11 @@ export async function slipImages(db: Db, imageIds: readonly string[]): Promise<M
 export async function renderFilledSlipSvg(db: Db, slip: { design: SlipDesign, data: SlipData }): Promise<string> {
   const { design, data } = slip
   return renderSlipSvg({ design, data, images: await slipImages(db, imagesOf(design)) })
+}
+
+/** The SVG and editable field positions for the live HTML slip. */
+export async function renderFilledPaperDraft(db: Db, { design, data }: { design: SlipDesign, data: SlipData }) {
+  return renderPaperDraft({ design, data, images: await slipImages(db, imagesOf(design)) })
 }
 
 /** A filled slip as the customer's PNG, with the images its design draws (Telegram, plan step 4). */

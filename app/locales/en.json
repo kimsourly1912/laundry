@@ -658,144 +658,59 @@
     }
   },
   "orders": {
-    "paid": "Paid",
-    "unpaid": "Unpaid",
     "new": {
-      "title": "New order",
+      "title": "Fill slip",
       "slip": "Paper slip",
       "chooseSlip": "Choose a paper slip",
-      "slipUpdated": "This paper slip was just updated. Check the order, then save it again.",
+      "slipUpdated": "The template changed. Review the slip and save again.",
       "noSlipTitle": "No paper slip yet",
-      "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
-      "preview": "Preview",
-      "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number.",
-      "dueDate": "Pickup day",
-      "save": "Save order",
-      "sections": {
-        "contact": "Contact",
-        "laundry": "Laundry details",
-        "payment": "Payment"
-      },
+      "noSlipDescription": "Your shop’s paper slip is being set up. Contact support for help.",
+      "save": "Save slip",
       "quantityWithUnit": "{label} ({unit})",
       "phoneExample": "012 345 678",
       "amountExampleKhr": "e.g. 7,000",
       "amountExampleUsd": "e.g. 12.50",
       "paymentStatus": "Payment status",
-      "moreDetails": "More details",
-      "detailsHint": "Customer and pickup day · Optional",
-      "pickupHint": "Pickup day · Optional"
-    },
-    "preview": {
-      "title": "Preview",
-      "hint": "Check the slip. The order number is given when you save.",
-      "edit": "Edit",
-      "savePrint": "Save & print",
-      "saveOnly": "Save only",
-      "retryHint": "Nothing was lost. Try again: the order is saved only once."
+      "tapField": "Tap a box on the slip to fill it in.",
+      "otherFields": "Other slip fields"
     },
     "slip": {
-      "label": "The order's slip",
-      "numberPlaceholder": "– – –",
-      "zoom": "Zoom in",
-      "fit": "Fit to screen",
-      "numberPlaceholderLabel": "The order number is given on save"
+      "label": "Paper slip"
     },
     "order": {
-      "title": "Order No. {number}",
-      "loadingTitle": "Order",
-      "saved": "Order saved",
-      "savedHint": "Write this number on the bag.",
-      "number": "Order number",
-      "date": "Date",
-      "amount": "Amount",
-      "phone": "Phone",
-      "slip": "Paper slip",
-      "slipVersion": "{name} · version {version}",
-      "print": "Print slip",
-      "printAgain": "Print again",
-      "nextOrder": "Next order",
-      "notFound": "This order doesn't exist",
-      "toOverview": "Back to Overview",
-      "paidAt": "Paid",
-      "pickedUpAt": "Picked up",
-      "cancelledAt": "Cancelled",
-      "readyAt": "Ready",
-      "dueDate": "Pickup day",
-      "customer": "Customer"
+      "title": "Slip No. {number}",
+      "loadingTitle": "Saved slip",
+      "notFound": "This slip couldn’t be found",
+      "nextSlip": "New slip"
     },
     "latest": {
-      "title": "Latest orders",
       "number": "No. {number}",
-      "emptyTitle": "No orders yet",
-      "emptyDescription": "Orders you save appear here.",
-      "viewAll": "View all orders"
+      "emptyTitle": "No saved slips yet",
+      "emptyDescription": "Slips you save appear here."
     },
     "list": {
-      "nav": "Orders",
-      "title": "Orders",
-      "search": "Order No. or phone",
-      "payment": "Payment",
-      "anyPayment": "All",
-      "noMatch": "No orders match",
-      "tabs": {
-        "all": "All"
-      }
-    },
-    "actions": {
-      "markPaid": "Mark paid",
-      "paidDone": "Marked paid.",
-      "pickUp": "Picked up",
-      "pickedUpDone": "Marked picked up.",
-      "pickUpUnpaidTitle": "Hand over without payment?",
-      "pickUpUnpaidDescription": "This order isn't paid yet. It is marked picked up and stays unpaid; you can still mark it paid later.",
-      "pickUpUnpaid": "Hand over unpaid",
-      "cancel": "Cancel order",
-      "cancelTitle": "Cancel order No. {number}?",
-      "cancelDescription": "The order stays in the list as cancelled. Its number is not used again.",
-      "cancelPaidDescription": "The order stays in the list as cancelled and still shows it was paid. Its number is not used again.",
-      "copy": "Cancel and copy",
-      "copyTitle": "Cancel order No. {number} and copy it?",
-      "copyDescription": "Order No. {number} is cancelled. A new order opens with the same details for you to fix; it gets a new number.",
-      "copyPaidDescription": "Order No. {number} is cancelled and still shows it was paid. A new order opens with the same details, marked paid; check it before saving. It gets a new number.",
-      "start": "Start work",
-      "markReady": "Mark ready",
-      "rework": "Back to work"
+      "nav": "Saved slips",
+      "title": "Saved slips",
+      "search": "Slip No. or phone",
+      "noMatch": "No slips match"
     },
     "slips": {
       "title": "Paper slips",
-      "intro": "The slips the platform made for your shop. New order starts on the default one. To change a slip's design, contact support.",
+      "intro": "The templates the platform made for your shop. Fill slip opens your default.",
       "default": "Default",
       "makeDefault": "Make default",
-      "defaultSaved": "New orders now start on this slip.",
-      "use": "Use for a new order",
+      "defaultSaved": "New slips now use this template.",
+      "use": "Use for a new slip",
       "sample": "{name} with sample values",
-      "sampleNote": "Sample values. Your orders show their own.",
+      "sampleNote": "Example with sample values.",
       "changeTitle": "Need a change?",
       "changeDescription": "To change a price, add an item or move a box on your slip, message us on Telegram. We update the slip for you."
     },
     "telegram": {
-      "title": "Slip on Telegram",
-      "hint": "The customer scans this with the phone's camera and taps Start: the bot sends them this slip.",
+      "title": "Send this slip to Telegram",
+      "hint": "Scan this QR with your phone and tap Start in Telegram to get a copy of this slip.",
       "qrLabel": "QR code for the customer's Telegram",
-      "refresh": "New QR code",
-      "pending": "Sending",
-      "sent": "Sent",
-      "skipped": "Not sent: bot blocked",
-      "failed": "Not sent"
-    },
-    "state": {
-      "received": "Received",
-      "in_progress": "In progress",
-      "ready": "Ready",
-      "picked_up": "Collected",
-      "cancelled": "Cancelled"
-    },
-    "overview": {
-      "receivedToday": "Received today",
-      "inProgress": "In progress",
-      "ready": "Ready for pickup",
-      "unpaid": "Unpaid",
-      "counts": "Today's work"
+      "refresh": "New QR code"
     }
   },
   "customers": {

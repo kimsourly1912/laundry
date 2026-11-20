@@ -35,18 +35,14 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 
 ### Shop statements
 
-| Resource | Actions | owner | staff (Phase 2) |
-|---|---|:-:|:-:|
-| shop | read: the shop's details its slips print (the platform changes them, D46) | ✓ | ✓ |
-| template | read: the attached, published templates and their artwork (New order, Paper slips) | ✓ | ✓ |
-| template | set-default: the shop's default slip (plan §4) | ✓ | |
-| order | create, read | ✓ | ✓ |
-| order | work: start, mark ready, rework (D39) | ✓ | ✓ |
-| customer | read, write: find or add one in New order's picker (D39, D46) | ✓ | ✓ |
-| order | pay, pick-up | ✓ | ✓ |
-| order | cancel (and Cancel and copy) | ✓ | |
+| Resource | Actions | Owner | Staff |
+| --- | --- | :-: | :-: |
+| shop | read shop details for the slip | ✓ | ✓ |
+| template | read attached, published templates | ✓ | ✓ |
+| template | set-default | ✓ | |
+| order | create, read and share saved slips | ✓ | ✓ |
 
-The counter milestone ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) added `template:read` and `order:create`, `order:read`; D38 `order:pay`, `order:pick-up`, `order:cancel` and `template:set-default` ([D38](../decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram)). Staff run the counter but don't cancel. The `staff` role exists in the map but is not assignable until Phase 2 (spec P3).
+Shop records are always scoped to the active session. Staff remains a reserved role.
 
 ### Platform statements (super admin only)
 
@@ -128,13 +124,13 @@ Accepted tradeoff: a stolen session cookie works until revoked or unused for 30 
 | **Body size** | `/api/**` bodies ≤ 64 KiB, counted in bytes as they arrive by the Worker's entry before Nitro buffers them ([D11](../decisions.md#d11-worker-body-cap)) and again by `readValidBody`. Oversized requests get `413 PAYLOAD_TOO_LARGE`. Uploads have their own file limits. Template save and saved-template preview paths accept 256 KiB (`MAX_DESIGN_BYTES`). `POST /api/platform/templates/preview` accepts 640 KiB (`MAX_HTML_PREVIEW_BYTES)) for the HTML draft and its editable sample. |
 | **Enumeration** | Other shops' records are `404`. Sign-in errors don't say whether the username exists. |
 
-## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), plan §8)
+## Telegram links ([D28](../decisions.md#d28-the-receipt-on-telegram), current plan)
 
 Built (D38):
-- **The QR** carries a 256-bit random token (base64url, 43 characters), new for each request, valid a day. Only its SHA-256 is stored. Whoever scans it gets **that one order's slip**, nothing more: links are per order (plan §8), so a photo of a QR never gives anyone another order.
+- **The QR** carries a 256-bit random token (base64url, 43 characters), new for each request, valid a day. Only its SHA-256 is stored. Whoever scans it gets **that one order's slip**, nothing more: links are per order (current plan), so a photo of a QR never gives anyone another order.
 - Links are per shop and per order: a row can't pair one shop with another shop's order (composite foreign keys, two-shop tests).
 - A blocked bot revokes every link to that chat.
-- Messages carry the slip (shop name, order number, amount, paid or not); never the phone in text. Logs never carry chat ids (an outbox row's id ends with one, so it isn't logged either).
+- Messages carry the slip (shop name, order number, amount, amount if present); never the phone in text. Logs never carry chat ids (an outbox row's id ends with one, so it isn't logged either).
 
 ## Secrets
 
@@ -162,7 +158,7 @@ Every route:
 - [ ] Calls **exactly one access helper first**, or is listed as public / webhook / health.
 - [ ] Validates params, query and body with a strict shared contract.
 - [ ] Never reads `shopId`, `userId`, role, ownership, order numbers, dates or template versions from the client.
-- [ ] Edits send `version`; order create and mark paid take an `Idempotency-Key`.
+- [ ] Edits send `version`; saving a slip takes an `Idempotency-Key`.
 - [ ] Another shop's record answers `404`.
 - [ ] Privileged writes add an audit row in the same batch.
 - [ ] Errors come from `*.errors.ts` or shared codes; no stack traces or SQL in responses.

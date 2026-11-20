@@ -2,22 +2,22 @@
 
 Shared rules for Claude Code, Codex and other coding agents.
 
-Laundry is a platform for small laundry shops in Cambodia: the shop's own paper slip on a phone, filled per order and sent to the customer as an image on Telegram. The platform designs slip templates in a Canva-like studio, creates each shop and its owner, and attaches templates to the shop; one user belongs to exactly one shop. One Nuxt 4 + Nitro app deployed as one Cloudflare Worker: NuxtHub (D1 in deployed environments, SQLite locally), Drizzle, Better Auth, Valibot, Nuxt UI 4 + Tailwind 4, `@nuxtjs/i18n`, resvg, pnpm, Vitest.
+Laundry is a platform for small laundry shops in Cambodia: the shop's own paper slip on a phone, filled at the counter and sent to the customer as an image on Telegram. The platform designs slip templates in a Canva-like studio, creates each shop and its owner, and attaches templates to the shop; one user belongs to exactly one shop. One Nuxt 4 + Nitro app deployed as one Cloudflare Worker: NuxtHub (D1 in deployed environments, SQLite locally), Drizzle, Better Auth, Valibot, Nuxt UI 4 + Tailwind 4, `@nuxtjs/i18n`, resvg, pnpm, Vitest.
 
 ## Authority
 
-The product spec (`laundry-portal-spec.md`, kept in the claude.ai project, not in this repo) > [`docs/decisions.md`](docs/decisions.md) > the standards in `docs/`. **D31 replaced the spec's flow and its step plan (§18): the work plan is [`docs/plan.md`](docs/plan.md).** A conflict found while working is recorded in `docs/current-state.md` → Open questions, never guessed.
+[`docs/plan.md`](docs/plan.md) defines the current product flow (D47). [`docs/decisions.md`](docs/decisions.md) records decisions, followed by the standards in `docs/`. Record conflicts in `docs/current-state.md` → Open questions.
 
 ## Core rules
 
 - **Tenant isolation.** A Better Auth organization is a shop. Every shop-owned table has `shop_id`, and every query filters by it. The shop comes **from the session**, never from the client: shop APIs are `/api/shop/**` with no shop id or slug in the path or body. Another shop's record answers the same `404` as a missing one. Every new table or query gets a two-shop isolation test.
-- **Permissions on the server, by statement.** Routes call exactly one access helper (`requireShopPermission`, `requirePlatformPermission`, `requireSignedIn`) with statements like `{ order: ['transition'] }`, never role names. Default deny. The UI hides actions from the statements in `/api/me`; the server always checks again.
+- **Permissions on the server, by statement.** Routes call exactly one access helper (`requireShopPermission`, `requirePlatformPermission`, `requireSignedIn`) with statements like `{ order: ['share'] }`, never role names. Default deny. The UI hides actions from the statements in `/api/me`; the server always checks again.
 - **The platform admin never reads shop data.** A super admin is never a shop member; `/api/shop/**` answers `403` to them.
-- **Never trust the client** for user id, shop id, role, ownership, order numbers, dates or template versions. The server sets them and checks every slip value against the order's template version.
+- **Never trust the client** for user id, shop id, role, ownership, order numbers, dates or template versions. The server sets them and checks every slip value against the saved slip's template version.
 - **`version` on every edit.** An edit sends the version it read; stale → `409 VERSION_CONFLICT`.
 - **One atomic batch per write.** D1 has no interactive transactions. Repositories return statements; the service runs them in one `db.batch` with guards, audit and idempotency rows.
-- **Idempotency** (`Idempotency-Key` header) on order create and mark paid.
-- **Never delete** orders (cancel instead), templates (archive instead), shops (suspend instead).
+- **Idempotency** (`Idempotency-Key` header) on slip creation.
+- **Never delete** saved slips, templates (archive instead), shops (suspend instead).
 - **Thin routes:** access helper → validate (Valibot contract from `shared/contracts`) → one service call.
 - **Feature boundaries.** Code lives in `app/features/<f>/` and `server/features/<f>/`. Other code reaches a feature only through its `index.ts`. Server imports use `#server/` and `#shared/`, never `../` across directories. ESLint enforces this.
 - **English only** (D36). No hard-coded UI strings: every string is in `app/locales/en.json` (`@nuxtjs/i18n`, one locale). A shop that wants Khmer gets it on its slip artwork (D35).
@@ -40,7 +40,7 @@ Classify the change **before editing**, then read only the sections below that a
 | Background jobs, Telegram, deploys, secrets | [operations](docs/server/operations.md) |
 | Tests and checks | [development](docs/guides/development.md) |
 | A shared helper's API | `docs/reference/` (one page per helper, added with the helper) |
-| Resume work | [current-state](docs/current-state.md), then [plan → Steps](docs/plan.md#9-steps) |
+| Resume work | [current-state](docs/current-state.md), then [plan → Verification](docs/plan.md#5-implementation-and-verification) |
 | Documentation only | [docs index](docs/README.md) |
 
 ## Verification and completion
@@ -54,4 +54,4 @@ Definition of done for every step:
 - Contracts are in `shared/contracts`; strings in `en.json`.
 - Docs updated: the owning standard or `reference/` page (examples must compile), `data-model.md` for schema changes, `decisions.md` for an architecture choice, `current-state.md` for status.
 
-PRs follow the groups in [plan → Steps](docs/plan.md#9-steps): **one PR per area, one commit per step** (owner's choice). Stop for review after each PR. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.
+PRs follow the groups in [plan → Verification](docs/plan.md#5-implementation-and-verification): **one PR per area, one commit per step** (owner's choice). Stop for review after each PR. Never merge, force-push or deploy without the owner asking. Keep this file under 8 KB: universal rules and routing only.

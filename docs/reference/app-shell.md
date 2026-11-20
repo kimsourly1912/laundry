@@ -30,7 +30,7 @@ Sign-out: `useSignOut()` from `~/features/account` (ends the session in the app 
 | `area: 'shop'` | An active shop's member, never the super admin |
 | `permission: 'shop:create'` | A granted statement |
 
-`homePath(me)`: `/platform/shops`, `/` (an active shop's orders board, D27), or `/unavailable` (suspended, or no shop). Pages also set `title` (an i18n key) and `layout`.
+`homePath(me)`: `/platform/shops`, `/` (an active shop's Fill slip page, D47), or `/unavailable` (suspended, or no shop). Pages also set `title` (an i18n key) and `layout`.
 
 ```ts
 definePageMeta({ layout: 'platform', area: 'platform', permission: 'shop:create', title: 'platform.newShop.title' })
@@ -40,14 +40,14 @@ The server refuses on its own; these rules only keep people on pages that work f
 
 ## Layouts and navigation
 
-`auth` (one card, the language), `platform` (`AppShell`: sidebar, drawer below `lg`, account menu) and `shop` (`ShopShell`: a 768px column, bottom tabs on Overview, Orders and More, no sidebar). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
+`auth` (one card, the language), `platform` (`AppShell`: sidebar, drawer below `lg`, account menu) and `shop` (`ShopShell`: a 768px column, bottom tabs on Fill slip, Saved slips and More, no sidebar). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
 
 **Bottom bar** ([responsive-layout → Page anatomy](../standards/responsive-layout.md#5-page-anatomy)): a page's primary actions in thumb reach. Below `lg` it's fixed to the bottom with the safe-area inset; from `lg` it's a row at the end of the content. One per page; put `<BottomBarSpacer />` last in the body so nothing hides behind it.
 
 ```vue
 <BottomBar>
   <UButton :label="t('common.actions.back')" color="neutral" variant="ghost" @click="back" />
-  <UButton type="submit" :label="t('orders.flow.next')" />
+  <UButton type="submit" :label="t('orders.order.nextSlip')" />
 </BottomBar>
 <BottomBarSpacer />
 ```

@@ -1,17 +1,13 @@
 <script setup lang="ts">
-/**
- * An HTML slip as the server draws it (D39): Satori's SVG, shown as an image, never as markup. The
- * same drawing goes to Telegram (as a PNG) and to print. Loaded again when what it shows changes.
- */
+/** Server-drawn slip artwork, loaded as an image. */
 const props = defineProps<{
-  /** The API path: `/shop/orders/:id/slip?…`, or `/shop/orders/preview` with a body. */
+  /** The API path: `/shop/orders/:id/slip` or an attached template sample. */
   path: string
-  body?: unknown
   width: number
   height: number
 }>()
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 const objectUrl = ref<string>()
 const failed = shallowRef<unknown>()
 let latest = 0
@@ -19,7 +15,7 @@ let latest = 0
 async function load() {
   const ticket = ++latest
   try {
-    const blob = await apiFetch<Blob>(props.path, { method: props.body === undefined ? 'GET' : 'POST', body: props.body as Record<string, unknown> | undefined, responseType: 'blob' })
+    const blob = await apiFetch<Blob>(props.path, { responseType: 'blob' })
     if (ticket !== latest) return
     if (objectUrl.value) URL.revokeObjectURL(objectUrl.value)
     objectUrl.value = URL.createObjectURL(blob)
@@ -29,8 +25,9 @@ async function load() {
     if (ticket === latest) failed.value = error
   }
 }
-watch(() => [props.path, JSON.stringify(props.body ?? null)], load, { immediate: true })
+watch(() => props.path, load, { immediate: true })
 onBeforeUnmount(() => {
+  latest++
   if (objectUrl.value) URL.revokeObjectURL(objectUrl.value)
 })
 </script>
@@ -47,13 +44,11 @@ onBeforeUnmount(() => {
       class="h-full w-full"
       data-testid="server-slip"
     >
-    <p
+    <PageLoadError
       v-else-if="failed"
-      class="flex h-full items-center justify-center p-4 text-sm text-error"
-      role="alert"
-    >
-      {{ errorText(failed, t, te) }}
-    </p>
+      :error="failed"
+      @retry="load"
+    />
     <USkeleton
       v-else
       class="h-full w-full"

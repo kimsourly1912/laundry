@@ -15,6 +15,7 @@ import type { HtmlElement, HtmlNode } from './parse'
 
 /** Satori's element: `type`, and `props` with `children`, Tailwind classes (`tw`) or a style. */
 export interface SatoriNode {
+  key?: string
   type: string
   props: { children?: (SatoriNode | string)[] | SatoriNode | string, tw?: string, style?: Record<string, string | number>, src?: string, width?: number, height?: number }
 }
@@ -56,6 +57,7 @@ export function placeholderText(name: string, design: SlipDesign, data: SlipData
 function qrCode(data: SlipData): SatoriNode {
   const size = 120
   const url = data.order.qrUrl
+  if (url === null) return { type: 'div', props: { style: { width: size, height: size } } }
   if (!url) {
     return { type: 'div', props: { style: { width: size, height: size, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #9ca3af', color: '#6b7280', fontSize: 18 }, children: 'QR' } }
   }
@@ -73,6 +75,7 @@ interface TreeContext {
   design: SlipDesign
   data: SlipData
   images: ReadonlyMap<string, SlipImageData>
+  editable: boolean
 }
 
 /**
@@ -90,13 +93,31 @@ function picture(node: HtmlElement, images: TreeContext['images']): SatoriNode {
   return { type: 'img', props: { ...tw, src, style: { objectFit: 'contain' } } }
 }
 
-function children(nodes: readonly HtmlNode[], context: TreeContext): (SatoriNode | string)[] {
-  const { design, data, images } = context
+/** The field key used by the owner controls, for each editable binding. */
+function editableKey(name: string): string | undefined {
+  if (name.startsWith(FIELD_PREFIX)) return name.slice(FIELD_PREFIX.length)
+  if (name === 'order.phone') return 'phone'
+  if (name === 'order.total') return 'amount'
+  if (name === 'order.paymentStatus') return 'paid'
+}
+
+function wholeField(nodes: readonly HtmlNode[]): string | undefined {
+  const [node] = nodes
+  if (nodes.length !== 1 || !node || !('text' in node)) return
+  const match = [...node.text.trim().matchAll(PLACEHOLDER)][0]
+  if (match?.[0] === node.text.trim()) return editableKey(match[1]!)
+}
+
+function children(nodes: readonly HtmlNode[], context: TreeContext, parentKey?: string): (SatoriNode | string)[] {
+  const { design, data, images, editable } = context
   const out: (SatoriNode | string)[] = []
   for (const node of nodes) {
     if ('tag' in node) {
       if (node.tag === 'img' || node.tag === 'svg') out.push(picture(node, images))
-      else out.push({ type: node.tag, props: { ...(node.classes.length ? { tw: node.classes.join(' ') } : {}), children: children(node.children, context) } })
+      else {
+        const key = editable ? wholeField(node.children) : undefined
+        out.push({ key, type: node.tag, props: { ...(node.classes.length ? { tw: node.classes.join(' ') } : {}), children: children(node.children, context, key) } })
+      }
       continue
     }
     let last = 0
@@ -104,12 +125,17 @@ function children(nodes: readonly HtmlNode[], context: TreeContext): (SatoriNode
       if (match.index > last) out.push(node.text.slice(last, match.index))
       const name = match[1]!
       if (name === 'order.qrCode') out.push(qrCode(data))
-      else out.push(placeholderText(name, design, data))
+      else {
+        const key = editable ? editableKey(name) : undefined
+        const value = placeholderText(name, design, data)
+        // Keep empty fields present in the draft layout so their boxes can be tapped.
+        if (key && !parentKey) out.push({ key, type: 'span', props: { children: value || '\u00a0' } })
+        else out.push(key ? value || '\u00a0' : value)
+      }
       last = match.index + match[0].length
     }
     if (last < node.text.length) out.push(node.text.slice(last))
   }
-  // Satori takes no empty strings as children.
   return out.filter(child => child !== '')
 }
 
@@ -119,16 +145,17 @@ interface SlipTreeOptions {
   data: SlipData
   /** The library images the markup draws, by id (`imagesIn`). */
   images?: ReadonlyMap<string, SlipImageData>
+  editable?: boolean
 }
 
 /** The whole slip: the design's canvas size, the Khmer font, white paper, the markup inside. */
 export function slipTree(options: SlipTreeOptions): SatoriNode {
-  const { nodes, design, data, images = new Map() } = options
+  const { nodes, design, data, images = new Map(), editable = false } = options
   return {
     type: 'div',
     props: {
       style: { width: design.width, height: design.height, display: 'flex', flexDirection: 'column', backgroundColor: '#ffffff', color: '#111827', fontFamily: 'Slip', fontSize: 24 },
-      children: children(nodes, { design, data, images }),
+      children: children(nodes, { design, data, images, editable }),
     },
   }
 }

@@ -30,7 +30,7 @@ Every `UForm` sets `:validate-on="['input', 'change']"`.
 - **An edit form's Save is disabled while nothing changed** (`:disabled="!isDirty"`). An unchanged save would only bump the version.
 - **A create, confirm or task-flow button stays enabled.** The schema stops an empty submit and shows why; a disabled button hides the reason and does nothing on touch.
 - **Every submit button has `:loading="saving"`** and its `UForm` `:disabled="saving"`. That, not the pristine check, stops a double submit.
-- **Money and create actions also send an `Idempotency-Key`** (one per user action, reused on retry), so a double tap that gets through still makes one order or one payment ([architecture → Idempotency](../server/architecture.md#idempotency)).
+- **Saving a slip sends an `Idempotency-Key`** (one per submission, reused on retry), so a double tap still makes one slip ([architecture → Idempotency](../server/architecture.md#idempotency)).
 
 ## 4. Errors
 
@@ -38,7 +38,7 @@ Every `UForm` sets `:validate-on="['input', 'change']"`.
 - **An error leaves as soon as it's fixed**, also a rule across fields (fixing either field clears it). The form re-checks fields that show an error from its own rules (its `schema`, or its `validate` function) after each change (`useFormErrorRecheck(form)`: the form's ref).
 - **A server's field error** (`fieldErrors` in the response, e.g. a username already taken) is set on its field and stays until that field is edited or the form is sent again.
 - **A failed submit goes to the first error:** the first invalid field in page order scrolls into view and takes focus (`@error="focusFirstError"` on every `UForm`).
-- **Rows with their own errors** (order lines) name errors by position (`lines.2.quantity`). Removing or moving a row must move its errors with it, so the next row doesn't inherit an error (a shared composable when the first row list is built, M2.3).
+- **Slip field errors** use stable field keys so focus and messages follow the correct field.
 - **A control inside a group's field gets its own `UFormField`**, or it borrows the group's id and error color.
 - **A whole-form error** (not tied to a field: `409`, network failure) shows at the top of the form, inside the surface, with the action that helps (Reload, Try again).
 
@@ -61,7 +61,7 @@ Warn before input the user hasn't saved is lost. A form is **unsaved** when its 
 | Loses the session (revoked, `401`) | No dialog: the app clears its data and goes to sign-in (spec §10) |
 
 - However many forms are open, the user sees **one** dialog.
-- **Where:** a modal form, a page form, a settings page, and **a whole task flow** (one guard over all of Create order, not one per field).
+- **Where:** a modal form, a page form, a settings page, and **a whole task flow** (one guard over all of Fill slip, not one per field).
 - **Not guarded:** search and filters (they're in the URL), the sign-in form, instant toggles.
 - **Never keep secrets** (passwords) in any stored draft.
 - **Built (M2.1):** `useUnsavedChanges(() => dirty && !saving)` guards a page form: a route change (link, Back) asks with the browser's own confirm dialog (`common.unsaved.leave`), reload or closing the tab with "Leave site?". Every edit form so far is a page, so the modal row doesn't apply yet; the sign-out row and a "Keep editing / Discard" dialog of our own come with the overlay wrappers.

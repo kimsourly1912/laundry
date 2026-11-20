@@ -36,24 +36,12 @@ export function queueChatMessageStatement(db: Db, message: { shopId: string, ord
   return repo.queueChatMessageStatement(db, { ...message, now })
 }
 
-/** Queues "ready for pickup" to the order's live chats, and takes it back on a rework (D39): for the orders feature's batch. */
-export function readyMessagesStatement(db: Db, order: { shopId: string, orderId: string, readyAt: Date }): Statement {
-  return repo.queueReadyStatement(db, order)
-}
-
-export function withdrawReadyMessagesStatement(db: Db, order: { shopId: string, orderId: string }): Statement {
-  return repo.withdrawReadyStatement(db, order)
-}
-
-// --- Delivery ---
-
 export interface OutboxMessage {
   id: string
   shopId: string
   orderId: string
   chatId: string
   kind: NotificationKind
-  /** This attempt's number, from 1. */
   attempt: number
 }
 

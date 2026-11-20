@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { idSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
+import { idSchema, optionalParam, pageQuerySchema } from './common'
 import { keySchema, MAX_ELEMENTS, MAX_GROUPS, TEXT_FIELD_MAX } from './slip-design'
 import type { SlipDesign, SlipShop } from './slip-design'
 import { AMOUNT_MAX } from '#shared/slip/values'
@@ -20,14 +20,6 @@ export type OrderStatus = typeof ORDER_STATUSES[number]
  */
 export const ORDER_STAGES = ['received', 'in_progress', 'ready'] as const
 export type OrderStage = typeof ORDER_STAGES[number]
-
-/** What the app shows and filters by: the stage while open, else the status. */
-export const ORDER_STATES = ['received', 'in_progress', 'ready', 'picked_up', 'cancelled'] as const
-export type OrderState = typeof ORDER_STATES[number]
-
-export function orderState(order: { status: OrderStatus, stage: OrderStage }): OrderState {
-  return order.status === 'open' ? order.stage : order.status
-}
 
 /** One value of a slip (`SlipValues`): a number, a text, a ticked box, a chosen option's id. */
 const slipValueSchema = v.union([
@@ -72,41 +64,25 @@ export const orderPreviewSchema = v.strictObject({
 })
 export type OrderPreviewInput = v.InferOutput<typeof orderPreviewSchema>
 
-/** `GET /api/shop/orders/:id/slip?qr=` (D39): the saved slip as SVG; `qr` is the order's Telegram link, or none for a sample. */
-export const orderSlipQuerySchema = v.object({
-  qr: v.optional(v.pipe(v.string(), v.maxLength(200), v.regex(/^https:\/\/t\.me\/[\w]+\?start=[\w-]+$/, 'A Telegram link'))),
-})
+export interface PaperFieldBox {
+  key: string
+  left: number
+  top: number
+  width: number
+  height: number
+}
 
-/**
- * `GET /api/shop/orders?search=&status=&paid=&page=&pageSize=`: newest first. `search` is an order
- * number (`12`, `#12`) or a phone (`012 345 678`), matched exactly (plan §3: "searchable by order
- * number or phone").
- */
+export interface PaperDraft {
+  svg: string
+  fields: PaperFieldBox[]
+}
+
+/** The shop’s saved slips, newest first. Search matches a slip number or the entered phone. */
 export const orderListQuerySchema = v.object({
   ...pageQuerySchema,
   search: optionalParam(v.pipe(v.string(), v.trim(), v.maxLength(30))),
-  /** An open order's stage, or `picked_up`, `cancelled`; `open` is every open order. */
-  status: optionalParam(v.picklist([...ORDER_STATES, 'open'])),
-  paid: optionalParam(v.pipe(v.picklist(['true', 'false']), v.transform(value => value === 'true'))),
 })
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
-
-/**
- * `POST …/orders/:id/payment` (with an `Idempotency-Key`), `…/pick-up`, `…/cancel`: the version the
- * owner saw (409 `VERSION_CONFLICT` when the order changed meanwhile).
- */
-export const orderActionSchema = v.strictObject({ version: versionSchema })
-export type OrderActionInput = v.InferOutput<typeof orderActionSchema>
-
-/** `GET /api/shop/orders/overview`: Overview's counts; they may overlap (ready and unpaid). */
-export interface OrderOverview {
-  /** The shop's day the counts are for, `YYYY-MM-DD`. */
-  today: string
-  receivedToday: number
-  inProgress: number
-  ready: number
-  unpaid: number
-}
 
 /** An order in a list (Overview's latest orders). */
 export interface OrderListItem {

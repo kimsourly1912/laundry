@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
-import { createOrder, orderSlipSvg, previewOrderSvg } from '#server/features/orders'
+import { createOrder, orderSlipSvg, previewOrderDraft } from '#server/features/orders'
 import { createCustomer } from '#server/features/customers'
 import type { ShopActor } from '#server/features/identity'
 import type { Db } from '#server/utils/batch'
@@ -45,7 +45,7 @@ beforeEach(async () => {
 })
 
 describe('an order on an HTML slip', () => {
-  it('saves like any other, and its slip is the server\'s SVG with the QR when the page has its link', async () => {
+  it('saves like any other, and draws the saved artwork without the sharing QR', async () => {
     const dara = await createCustomer(db, a, { name: 'Dara', phone: null })
     const { order } = await createOrder(db, a, { input: { templateVersionId: versionId, customerId: dara.id, values: { shirt: 2 }, phone: '', amount: 4000, paid: false }, key: newId() })
     // D44: the total is what the owner typed.
@@ -53,13 +53,12 @@ describe('an order on an HTML slip', () => {
     const sample = await orderSlipSvg(db, a, { orderId: order.id })
     expect(sample.startsWith('<svg')).toBe(true)
     expect(sample).not.toContain('<image')
-    const linked = await orderSlipSvg(db, a, { orderId: order.id, qrUrl: 'https://t.me/laundry_bot?start=abc' })
-    expect(linked).toContain('<image')
   })
 
   it('previews a draft with no number and nothing saved', async () => {
-    const svg = await previewOrderSvg(db, a, { templateVersionId: versionId, customerId: null, dueDate: null, values: { shirt: 3 }, phone: '', amount: null, paid: false })
+    const { svg, fields } = await previewOrderDraft(db, a, { templateVersionId: versionId, customerId: null, dueDate: null, values: { shirt: 3 }, phone: '', amount: null, paid: false })
     expect(svg.startsWith('<svg')).toBe(true)
+    expect(fields).toContainEqual(expect.objectContaining({ key: 'shirt', width: expect.any(Number) }))
     expect(await db.$count((await import('#server/features/orders/orders.schema')).orders)).toBe(0)
   })
 
@@ -67,6 +66,6 @@ describe('an order on an HTML slip', () => {
     const { order } = await createOrder(db, a, { input: { templateVersionId: versionId, values: { shirt: 1 }, phone: '', amount: 2000, paid: false }, key: newId() })
     const refusal = (promise: Promise<unknown>) => promise.then(() => 'allowed', (error: { statusCode?: number }) => error.statusCode)
     expect(await refusal(orderSlipSvg(db, b, { orderId: order.id }))).toBe(404)
-    expect(await refusal(previewOrderSvg(db, b, { templateVersionId: versionId, customerId: null, dueDate: null, values: {}, phone: '', amount: null, paid: false }))).toBe(404)
+    expect(await refusal(previewOrderDraft(db, b, { templateVersionId: versionId, customerId: null, dueDate: null, values: {}, phone: '', amount: null, paid: false }))).toBe(404)
   })
 })

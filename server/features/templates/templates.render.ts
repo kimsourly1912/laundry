@@ -1,6 +1,7 @@
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import satori, { init as initSatori } from 'satori/standalone'
-import type { Font } from 'satori/standalone'
+import type { Font, SatoriOptions } from 'satori/standalone'
+import type { PaperDraft, PaperFieldBox } from '#shared/contracts/orders'
 import { checkHtml } from '#shared/html-slip/catalog'
 import { slipTree } from '#shared/html-slip/build'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
@@ -86,7 +87,7 @@ function fontBuffer(bytes: Uint8Array): ArrayBuffer {
  * what could be read; publishing refuses it (`publishProblems`). `images` are the library images its
  * `<img>` tags draw (D41).
  */
-export async function htmlSlipSvg(input: RenderInput): Promise<string> {
+export async function htmlSlipSvg(input: RenderInput, onNodeDetected?: SatoriOptions['onNodeDetected']): Promise<string> {
   const { design, data, images } = input
   await loadSatori()
   const { nodes } = checkHtml(design.html ?? '', design)
@@ -95,11 +96,21 @@ export async function htmlSlipSvg(input: RenderInput): Promise<string> {
     { name: 'Slip', data: fontBuffer(khmerRegular), weight: 400, style: 'normal' },
     { name: 'Slip', data: fontBuffer(khmerBold), weight: 700, style: 'normal' },
   ]
-  return satori(slipTree({ nodes, design, data, images }) as never, {
+  return satori(slipTree({ nodes, design, data, images, editable: !!onNodeDetected }) as never, {
     width: design.width,
     height: design.height,
     fonts: htmlSlipFonts,
+    onNodeDetected,
   })
+}
+
+/** HTML artwork and its editable boxes from the same layout pass. */
+export async function renderPaperDraft(input: RenderInput): Promise<PaperDraft> {
+  const fields: PaperFieldBox[] = []
+  const svg = await htmlSlipSvg(input, ({ key, left, top, width, height }) => {
+    if (typeof key === 'string' && width > 0 && height > 0) fields.push({ key, left, top, width, height })
+  })
+  return { svg, fields }
 }
 
 /** The slip's SVG, whichever kind it is: the artwork with its fields (D35), or HTML (D39). */

@@ -20,40 +20,9 @@ Blueprints for the five kinds of page, and the states every page handles. Every 
 
 ## 2. Task flow
 
-**Purpose:** one focused job, done quickly and correctly: sign in, fill a customer's slip (Create order).
+Put the work above the primary action. **Fill slip** is the owner home. It shows the assigned slip with editable fields. It keeps input after a save failure and focuses the first invalid field. It sends one idempotency key for the save and any retry of the same draft.
 
-```
-Compact (phone): New order (plan §3)       Expanded
-[←] New order                             The same, centred (max-w-page)
-Paper slip    Linda Laundry
-
-Contact
-Phone         [ 012 345 678 ]
-Laundry details
-Weight (kg)   [ − ]  2.55  [ + ]
-[✓] Wash & iron
-Payment
-Amount        [ 12,000 ៛ ]               Amount and payment status can share a row
-Payment status   (•) Not paid  ( ) Paid
-More details                     [⌄]
-Customer and pickup day · Optional
-
-[ Preview ]       [ Save order ]          Bottom bar
-```
-
-- **One primary action per step**, in thumb reach at the bottom on a phone, above the keyboard and the safe area. Back / Cancel is secondary.
-- **Show the current step.** In a required sequence, show the position ("Step 2 of 4") and summarize earlier answers with a Change action. In New order, label the optional Preview and keep all inputs when staff go back to edit.
-- **Use the configured fill order** for each paper slip. Section headings group consecutive related fields. Only show the sections the slip uses. A sole slip shows its name. Several slips use a selector.
-- **One unsaved-changes guard over the whole flow**, not one per step ([forms](./forms.md#6-unsaved-changes)).
-- **The server decides.** It sets the order number, the date and the template version, and checks every value against the version; its answer is what the done step shows.
-- **The final submit is idempotent:** it sends one `Idempotency-Key` per flow; a double tap or a retry after a network error creates one order.
-- **Errors** appear beside the field or at the top of the step, and focus moves to them. A server refusal that belongs to a field takes the user back to that field with the message.
-- **Done step:** the order number in big digits (to write on the bag), the Telegram QR, the next useful action ("Next order", "View order"), and nothing that undoes it by accident.
-- **Expanded:** the same steps in a centered card. Never a different flow on a wide screen.
-
-**New order** follows D44. Save order submits from the form. Preview shows the filled slip before a number is assigned, with Edit, Save & print, and Save only. More details reveals optional customer and pickup fields and summarizes the values when closed.
-
-**Mark paid, Picked up and Cancel** are single actions on the order page (plan §3), not flows.
+After saving, show the read-only slip and its Telegram QR. **New slip** starts a blank copy. The saved-slip list is the resource index. See the [counter flow](../plan.md#3-counter-and-customer-flow).
 
 ## 3. Resource index
 
@@ -130,7 +99,7 @@ History: received 09:12 · ready 15:40 …
 
 - **Save models:** **Draft + Save** for fields that belong together (one request, `version` sent, unsaved-changes guard). **Action buttons** for state changes (one `POST` each, no draft). Don't mix the two on the same fields.
 - **A conflict (`409`)** shows inside the surface with **Reload**; input is kept where possible.
-- **Read-only state** (order picked up or cancelled, template archived): a short note saying why, fields not editable, only the actions that still apply.
+- **Read-only state** (saved slip, archived template): a short note saying why, fields not editable, only the actions that still apply.
 
 ## 5. Settings
 

@@ -69,7 +69,7 @@ erDiagram
 
 ## `templates`, `template_versions`, `template_shops`, `images` (owner: `templates`)
 
-**Status:** tables built in step 1. S1 built the templates' and images' code: create (from an artwork or a copy; blank and photo before D35), the draft's autosave at its version, publish, preview, image upload ([reference/slip.md](../reference/slip.md) for the design). Step 2 built attachments (attach a published template to a shop, detach) and archive / restore: archiving detaches the template from every shop in the same batch.
+The platform stores drafts, immutable published versions, shop assignments, and images used in templates. See [the slip reference](../reference/slip.md) for the design.
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
 - The design may carry `paper` (mm, D39) and `html` (an HTML slip's markup, ≤ 64 KB, D39); both are fixed in each published version with the rest. No column changes.
@@ -97,7 +97,7 @@ Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointe
 
 ## `order_counters`, `orders` (owner: `orders`)
 
-**Status:** tables built in step 1. The counter ([D37](../decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint)) built create (`Idempotency-Key`), read and the newest-first list; D38 the search, Mark paid (`Idempotency-Key`), Picked up and Cancel, each at its `version` and guarded in SQL by the state it starts from (`orders.rules.ts → canDo`).
+These tables store saved slips. The owner creates, reads and shares them. Retired workflow fields remain in the database for historical records (D47).
 
 `order_counters`: `shop_id` PK, `last_number` (≥ 0). Raised (an upsert: the first order makes the row) in the same batch as the order insert, which reads it back for `number`. Two shops count on their own: the same number in two shops is two orders.
 
@@ -108,21 +108,21 @@ Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointe
 | `id`, `shop_id` | | |
 | `number` | integer | Per shop, set by the server. UNIQUE `(shop_id, number)` |
 | `date` | text | The shop's day the order was made (`YYYY-MM-DD`), set by the server. CHECK on the format |
-| `template_version_id` | text | FK → `template_versions.id`, restrict. The version the owner filled, accepted only while it is the latest of a template attached to the shop (guarded in the order's batch); the order keeps it forever, so a reprint draws the same slip |
+| `template_version_id` | text | FK → `template_versions.id`, restrict. The version the owner filled, accepted only while it is the latest of a template attached to the shop (guarded in the order's batch); the order keeps it forever, so preview and Telegram use the original artwork |
 | `values` | JSON | The owner's values by element id, checked by the server against the template version |
 | `shop` | JSON | **A copy of the shop's details when the order was saved**: name, phone, address, logo image id, currency, language ([D33](../decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order)). The slip is drawn from it, so it never changes |
-| `phone` | text null | E.164, from the slip's Phone field |
+| `phone` | text null | Text as entered in the slip’s Phone field |
 | `amount` | integer null | Minor units of the copy's currency, as the owner typed it; `null` when the slip has no Amount |
 | `paid` | bool | Default false |
 | `status` | text | `open` \| `picked_up` \| `cancelled` |
-| `stage` | text | `received` \| `in_progress` \| `ready` (D39): the work while open; kept as it ended once picked up or cancelled. Default `received` |
-| `ready_at` | timestamp null | The last time it was marked ready (D39) |
+| `stage` | text | `received` \| `in_progress` \| `ready` (D39): legacy work stage, retained for historical rows. Default `received` |
+| `ready_at` | timestamp null | Legacy timestamp |
 | `paid_at`, `picked_up_at`, `cancelled_at` | timestamp null | CHECKs: each is set exactly when its state is (`paid`, `picked_up`, `cancelled`) |
 | `version`, `created_by`, `created_at`, `updated_at` | | `created_by` → `user.id` |
 
-- Indexes: `(shop_id, status, stage)` Overview's counts and the Orders tabs (migration `0003`); `(shop_id, date, created_at)` Overview's today; `(shop_id, created_at)` the list; `(shop_id, phone)` the Orders search by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
+- Indexes: `(shop_id, status, stage)` legacy workflow index (migration `0003`); `(shop_id, date, created_at)` legacy date index; `(shop_id, created_at)` the list; `(shop_id, phone)` saved-slip lookup by phone (migration `0002`). The search by number uses UNIQUE `(shop_id, number)`. UNIQUE `(shop_id, id)`: the target of the Telegram tables' composite FKs.
 - CHECKs on `status`, `number >= 1`, `amount >= 0`, the date's format, `json_valid` of `values` and `shop`.
-- **Never deleted.** Cancelled (plan §4).
+- **Saved slips are retained.**
 
 ## `customers` (owner: `customers`)
 
@@ -144,11 +144,11 @@ Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointe
 **Status:** built. A scan links the chat and queues `slip:<order>:<chat>` in one batch (D38); the webhook delivers it at once and `notifications:deliver` sends what's left.
 
 `telegram_links`: `id`, `shop_id`, `order_id` (composite FK `(shop_id, order_id)` → the shop's order, **cascade**), `telegram_user_id`, `chat_id` (Telegram's ids as text: up to 52 bits, only compared), `linked_at`, `revoked_at`.
-- **One order per link** (plan §8). Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
+- **One saved slip per link**. Partial UNIQUE `(shop_id, order_id, telegram_user_id)` where live: a second scan keeps the one link (insert or nothing). Index `(chat_id)`.
 - **Revoked, never deleted,** when Telegram says the person blocked the bot (every link to that chat, in every shop).
 
-`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip`, `ready`: D39), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
-- Queued in the batch of the change it tells about.
+`notifications` (the outbox, spec §8.3): `id` (**the dedupe key**: `slip:<order>:<chat>`), `shop_id`, `order_id` (composite FK, **cascade**), `chat_id`, `kind` (`slip` is active, `ready` is historical), `status` (`pending` \| `sent` \| `skipped` \| `failed`), `attempts`, `last_error`, `next_attempt_at`, `created_at`, `sent_at`.
+- The Telegram webhook queues the slip in the same batch as the chat link.
 - A sender **claims** a row before sending (`attempts` + 1, hidden for a 5-minute lease), so overlapping runs never send the same row at once. At least once: a sender that dies mid-send leaves it to be sent again. Backoff 1, 5, 15, 60 minutes, or the channel's own wait; failed after 5 attempts.
 - Index `(status, next_attempt_at)` for the delivery job's scan across shops; `(shop_id, order_id)` for an order's messages.
 - Sent, skipped and failed rows purged after 90 days.
@@ -161,7 +161,7 @@ Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointe
 
 `telegram_invites`: `token_hash` (SHA-256 of the QR's token) PK, `shop_id`, `order_id` (composite FK, **cascade**), `expires_at`, `created_at`. Only the hash is stored: a database read can't make a working QR. Purged daily once expired (`notifications:purge`).
 
-No phone check (plan Q11): no `telegram_pending`.
+The QR identifies the saved slip to share.
 
 ## `audit_events`, `idempotency_keys` (owner: `platform`)
 
@@ -182,7 +182,7 @@ No phone check (plan Q11): no `telegram_pending`.
 
 Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_type, target_id, created_at)` one record's history.
 
-`idempotency_keys`: `shop_id` (FK → `organization.id`, restrict), `actor_user_id`, `action`, `key`, `request_hash` (SHA-256 of the validated request), `response` (json: `{ id }` of the record made or changed), `created_at`. PK `(shop_id, actor_user_id, action, key)`; index `(created_at)` for the purge. Purged after 24 h (`platform:expire-idempotency-keys`). Used by order create and mark paid (step 3). API: [reference/idempotency.md](../reference/idempotency.md).
+`idempotency_keys`: `shop_id` (FK → `organization.id`, restrict), `actor_user_id`, `action`, `key`, `request_hash` (SHA-256 of the validated request), `response` (json: `{ id }` of the record made or changed), `created_at`. PK `(shop_id, actor_user_id, action, key)`; index `(created_at)` for the purge. Purged after 24 h (`platform:expire-idempotency-keys`). Used when saving a slip. API: [reference/idempotency.md](../reference/idempotency.md).
 
 ## Lifecycle summary
 
@@ -194,7 +194,7 @@ Indexes: `(shop_id, created_at)` a shop's or the platform's history; `(target_ty
 | Template version | Never changes, never deleted |
 | Template attachment | Deleted when detached (the default goes with it) |
 | Image | Never deleted while a template version, a shop or a draft uses it |
-| Order | Never deleted. Cancelled |
+| Saved slip | Retained with its original version |
 | Telegram link | Revoked (bot blocked); never deleted |
 | Notifications | Sent, skipped and failed rows purged after 90 days |
 | Telegram invites | Purged once expired |
