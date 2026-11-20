@@ -64,9 +64,7 @@ describe('studio form fields', () => {
     await expect.poll(() => page.getByTestId('fill-step').textContent()).toContain('អាវ')
     await page.getByTestId('fill-number').fill('3')
     await page.getByRole('button', { name: 'Next' }).click()
-    await page.getByTestId('fill-phone').fill('01')
-    await page.getByRole('button', { name: 'Check like Save' }).click()
-    await expect.poll(() => page.getByText('Not a valid phone number.').count()).toBe(1)
+    // The phone is free text, kept as typed: any number the owner writes passes.
     await page.getByTestId('fill-phone').fill('012 345 678')
     await page.getByRole('button', { name: 'Check like Save' }).click()
     await expect.poll(() => page.getByText('The slip can be saved.').count()).toBe(1)

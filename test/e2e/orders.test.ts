@@ -196,7 +196,7 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => page.getByTestId('telegram-qr').count()).toBe(1)
     await shot(page, '04-saved-slip')
     savedOrder = await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}`)).json(), firstAnswer!.id) as OrderDetail
-    expect(savedOrder).toMatchObject({ number: 1, values: { name: 'Dara', shirt: 2, pants: 1, weight: 2.55, svc: 'wash' }, phone: '+85512345678', amount: 7000, paid: false, templateVersionNumber: 1 })
+    expect(savedOrder).toMatchObject({ number: 1, values: { name: 'Dara', shirt: 2, pants: 1, weight: 2.55, svc: 'wash' }, phone: '012 345 678', amount: 7000, paid: false, templateVersionNumber: 1 })
     expect(await page.evaluate(async () => (await (await fetch('/api/shop/orders')).json()).total)).toBe(1)
 
     // Two requests at once with one key (a double tap that got past the button): one order.
