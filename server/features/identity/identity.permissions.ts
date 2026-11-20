@@ -19,7 +19,8 @@ export const shopStatements = {
   // Better Auth's own organization endpoints (members, invitations, teams, access control): never
   // used, and closed over HTTP (auth-endpoints.ts). Listed so no role gets them by accident.
   ...organizationPluginStatements,
-  shop: ['read', 'update'],
+  // The shop's details: read only. The platform keeps them (D44).
+  shop: ['read'],
   // The owner portal (plan step 3): the attached templates an order is filled on, and the orders.
   template: ['read', 'set-default'],
   order: ['create', 'read', 'work', 'pay', 'pick-up', 'cancel', 'share'],
@@ -31,7 +32,7 @@ export const shopAc = createAccessControl(shopStatements)
 
 export const shopRoles = {
   owner: shopAc.newRole({
-    shop: ['read', 'update'],
+    shop: ['read'],
     template: ['read', 'set-default'],
     order: ['create', 'read', 'work', 'pay', 'pick-up', 'cancel', 'share'],
     customer: ['read', 'write'],

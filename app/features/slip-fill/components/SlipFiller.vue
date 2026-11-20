@@ -178,7 +178,6 @@ defineExpose({ validate })
         :step="1"
         :step-snapping="false"
         :format-options="{ maximumFractionDigits: 'decimals' in step.element ? step.element.decimals : 0, useGrouping: false }"
-        size="xl"
         class="w-full"
         :aria-label="stepLabel"
         data-testid="fill-number"
@@ -188,7 +187,6 @@ defineExpose({ validate })
         v-else-if="step.kind === 'textField'"
         :model-value="textValue"
         :maxlength="'maxLength' in step.element ? step.element.maxLength : 200"
-        size="xl"
         class="w-full"
         :aria-label="stepLabel"
         data-testid="fill-text"
@@ -198,7 +196,6 @@ defineExpose({ validate })
         v-else-if="step.kind === 'checkbox'"
         :model-value="fill.values[step.key] === true"
         :label="t('slipFill.ticked')"
-        size="xl"
         @update:model-value="setValue(step.key, Boolean($event))"
       />
       <div
@@ -209,7 +206,6 @@ defineExpose({ validate })
           v-for="option in step.options"
           :key="option.id"
           :label="'label' in option ? labelOf(option.label) : option.type"
-          size="lg"
           :variant="fill.values[step.key] === option.id ? 'solid' : 'outline'"
           :aria-pressed="fill.values[step.key] === option.id"
           @click="setValue(step.key, fill.values[step.key] === option.id ? undefined : option.id)"
@@ -221,7 +217,6 @@ defineExpose({ validate })
         type="tel"
         inputmode="tel"
         autocomplete="off"
-        size="xl"
         class="w-full"
         placeholder="012 345 678"
         :aria-label="stepLabel"
@@ -232,7 +227,6 @@ defineExpose({ validate })
         v-else-if="step.kind === 'amount'"
         :model-value="amountText"
         inputmode="decimal"
-        size="xl"
         class="w-full"
         :aria-label="stepLabel"
         data-testid="fill-amount"
@@ -248,14 +242,12 @@ defineExpose({ validate })
       >
         <UButton
           :label="t('slipFill.paid')"
-          size="lg"
           :variant="fill.paid ? 'solid' : 'outline'"
           :aria-pressed="fill.paid"
           @click="fill = { ...fill, paid: true }"
         />
         <UButton
           :label="t('slipFill.notPaid')"
-          size="lg"
           color="neutral"
           :variant="fill.paid ? 'outline' : 'solid'"
           :aria-pressed="!fill.paid"

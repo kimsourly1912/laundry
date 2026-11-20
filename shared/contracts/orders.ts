@@ -88,8 +88,6 @@ export const orderListQuerySchema = v.object({
   /** An open order's stage, or `picked_up`, `cancelled`; `open` is every open order. */
   status: optionalParam(v.picklist([...ORDER_STATES, 'open'])),
   paid: optionalParam(v.pipe(v.picklist(['true', 'false']), v.transform(value => value === 'true'))),
-  /** One customer's orders (their history, D39). */
-  customerId: optionalParam(idSchema),
 })
 export type OrderListQuery = v.InferOutput<typeof orderListQuerySchema>
 

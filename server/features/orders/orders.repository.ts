@@ -72,12 +72,11 @@ export interface OrderFilter {
   status?: OrderStatus
   stage?: OrderStage
   paid?: boolean
-  customerId?: string
 }
 
 /** The shop's orders, newest first (`orders_shop_created_idx`), filtered, a page at a time, with how many match. */
 export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pick<OrderListQuery, 'page' | 'pageSize'>): Promise<{ rows: OrderRow[], total: number }> {
-  const { page, pageSize, number, phone, status, stage, paid, customerId } = query
+  const { page, pageSize, number, phone, status, stage, paid } = query
   const where = and(
     eq(orders.shopId, shopId),
     number === undefined ? undefined : eq(orders.number, number),
@@ -85,7 +84,6 @@ export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pi
     status === undefined ? undefined : eq(orders.status, status),
     stage === undefined ? undefined : eq(orders.stage, stage),
     paid === undefined ? undefined : eq(orders.paid, paid),
-    customerId === undefined ? undefined : eq(orders.customerId, customerId),
   )
   const [rows, [counted]] = await db.batch([
     db.select(orderColumns).from(orders).where(where).orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),

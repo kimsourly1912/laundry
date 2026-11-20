@@ -1,5 +1,7 @@
 import * as v from 'valibot'
-import type { CreateShopInput } from '#shared/contracts/platform-shops'
+import type { CreateShopInput, PlatformShop, updateShopSchema } from '#shared/contracts/platform-shops'
+import { CURRENCIES } from '#shared/contracts/shop-settings'
+import type { Currency } from '#shared/contracts/shop-settings'
 import { OWNER_NAME_MAX, SHOP_NAME_MAX, SLUG_MAX, SLUG_MIN } from '#shared/contracts/platform-shops'
 import { MAX_PASSWORD_LENGTH, MAX_USERNAME_LENGTH, MIN_PASSWORD_LENGTH, MIN_USERNAME_LENGTH } from '#shared/contracts/identity'
 
@@ -50,4 +52,30 @@ export function slugFromName(name: string): string {
 /** The form's (already validated) values as the request body. */
 export function toCreateShopRequest(form: NewShopForm): CreateShopInput {
   return { name: form.name, slug: form.slug, owner: { name: form.owner.name, username: form.owner.username, password: form.owner.password } }
+}
+
+/** The shop's details (D44: what its slips print, kept by the platform). Blank optional text is sent as blank and stored as none. */
+export interface ShopDetailsForm {
+  name: string
+  phone: string
+  address: string
+  currency: Currency
+}
+
+export function shopDetailsFormSchema(t: Translate) {
+  return v.object({
+    name: shopNameFormSchema(t),
+    phone: v.pipe(v.string(), v.maxLength(30, t('validation.maxLength', { max: 30 })), v.regex(/^[\d\s+\-()]*$/, t('validation.phone'))),
+    address: v.pipe(v.string(), v.maxLength(200, t('validation.maxLength', { max: 200 }))),
+    currency: v.picklist(CURRENCIES),
+  })
+}
+
+export function toShopDetailsForm(shop: Pick<PlatformShop, 'name' | 'phone' | 'address' | 'currency'>): ShopDetailsForm {
+  return { name: shop.name, phone: shop.phone ?? '', address: shop.address ?? '', currency: shop.currency }
+}
+
+/** The request body, at the version the form opened with; the server trims and stores blank as none. */
+export function toShopDetailsRequest(form: ShopDetailsForm, version: number): v.InferInput<typeof updateShopSchema> {
+  return { version, ...form }
 }

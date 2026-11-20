@@ -205,20 +205,40 @@ function presetFields(preset: HtmlIntakePreset): { counts: OwnerField[], rest: O
   }
 }
 
-export function newHtmlSlip(preset: HtmlIntakePreset = 'byWeight'): SlipDesign {
-  const { counts, rest } = presetFields(preset)
-  const fixed = [
+/** Phone, amount and the Paid / Not paid spots: the order's own details, on every slip. */
+function builtInFields() {
+  return [
     createElement('phone', { id: 'phone' }),
     createElement('amount', { id: 'total' }),
     createElement('paid', { id: 'paid-yes' }, { value: 'paid' }),
     createElement('paid', { id: 'paid-no' }, { value: 'unpaid', label: 'Not paid' }),
   ]
+}
+
+export function newHtmlSlip(preset: HtmlIntakePreset = 'byWeight'): SlipDesign {
+  const { counts, rest } = presetFields(preset)
   return {
     ...blankDesign(800, 560),
     html: HTML[preset](),
     htmlPreset: preset,
     paper: { widthMm: 100, heightMm: 70 },
-    elements: [...counts, ...rest, ...fixed],
+    elements: [...counts, ...rest, ...builtInFields()],
     fillOrder: ['phone', ...counts.map(field => field.id), ...rest.map(field => field.id), 'total', 'paid'],
+  }
+}
+
+/**
+ * A new template before any preset: no markup and no intake fields beyond the built-ins, so the
+ * platform adds exactly the fields its slip has (a preset, Add from list, Add field). `htmlPreset`
+ * stays set because it marks a Studio design, which the catalog checks strictly (`checkHtml`).
+ */
+export function blankHtmlSlip(): SlipDesign {
+  return {
+    ...blankDesign(800, 560),
+    html: '',
+    htmlPreset: 'byWeight',
+    paper: { widthMm: 100, heightMm: 70 },
+    elements: builtInFields(),
+    fillOrder: ['phone', 'total', 'paid'],
   }
 }

@@ -37,13 +37,12 @@ Defined **once** in `server/features/identity/identity.permissions.ts` with `cre
 
 | Resource | Actions | owner | staff (Phase 2) |
 |---|---|:-:|:-:|
-| shop | read | ✓ | ✓ |
-| shop | update | ✓ | |
+| shop | read: the shop's details its slips print (the platform changes them, D46) | ✓ | ✓ |
 | template | read: the attached, published templates and their artwork (New order, Paper slips) | ✓ | ✓ |
 | template | set-default: the shop's default slip (plan §4) | ✓ | |
 | order | create, read | ✓ | ✓ |
 | order | work: start, mark ready, rework (D39) | ✓ | ✓ |
-| customer | read, write (D39) | ✓ | ✓ |
+| customer | read, write: find or add one in New order's picker (D39, D46) | ✓ | ✓ |
 | order | pay, pick-up | ✓ | ✓ |
 | order | cancel (and Cancel and copy) | ✓ | |
 
@@ -53,7 +52,7 @@ The counter milestone ([D37](../decisions.md#d37-the-owners-counter-new-order-pr
 
 | Resource | Actions |
 |---|---|
-| shop | create, read, update, suspend |
+| shop | create, read, update (its details: name, phone, address, currency, D46; attaching templates), suspend |
 | owner | create, reset-password, revoke-sessions |
 | template | read, write: the studio, images, attaching templates to shops ([D31](../decisions.md#d31-the-slip-studio-a-template-is-the-paper-slip); routes come with S1 and step 2) |
 

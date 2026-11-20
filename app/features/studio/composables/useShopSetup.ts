@@ -1,5 +1,5 @@
 import type { PlatformShopDetail } from '#shared/contracts/platform-shops'
-import type { TemplateShop } from '#shared/contracts/templates'
+import type { ShopTemplate, TemplateShop } from '#shared/contracts/templates'
 import { publishAndAssign } from '../utils/publish-assign'
 import type { PublishAssignResult } from '../utils/publish-assign'
 
@@ -28,9 +28,10 @@ export function useShopSetup(templateId: () => string | undefined) {
     () => `studio:setup-attached:${templateId() ?? 'new'}:${shopId.value ?? 'none'}`,
     async () => {
       const id = templateId()
-      if (!id || !shopId.value) return false
-      const shops = await apiFetch<TemplateShop[]>(`/platform/templates/${id}/shops`)
-      return shops.some(item => item.shopId === shopId.value)
+      const currentShop = shopId.value
+      if (!id || !currentShop) return false
+      const templates = await apiFetch<ShopTemplate[]>(`/platform/shops/${currentShop}/templates`)
+      return templates.some(item => item.templateId === id)
     },
     { watch: [shopId] },
   )

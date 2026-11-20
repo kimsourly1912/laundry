@@ -14,7 +14,7 @@ export const E2E_ACCOUNTS = {
   newOwner: { username: 'e2e_new_owner', password: 'e2e temporary pass 1', shop: 'Fresh Start Laundry' },
   /** Has their own password: signed in, then signed out by the platform. */
   owner: { username: 'e2e_owner', password: 'e2e owner password 1', shop: 'Kampot Clean' },
-  /** Changes the shop's settings (settings.test.ts). */
+  /** Their shop's details are changed by the platform (settings.test.ts, D44). */
   settingsOwner: { username: 'e2e_settings_owner', password: 'e2e settings password 1', shop: 'Siem Reap Wash' },
   /** Takes orders at the counter (orders.test.ts). */
   counterOwner: { username: 'e2e_counter_owner', password: 'e2e counter password 1', shop: 'Linda Laundry' },

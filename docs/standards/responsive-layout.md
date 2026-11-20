@@ -42,11 +42,12 @@ Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboard
 
 | | Compact | Medium | Expanded |
 |---|---|---|---|
-| Sidebar | Drawer, opened from the navbar's menu button | Drawer | Persistent, collapsible |
+| Navigation (shop) | Bottom tabs on the top-level pages | Same | Same, in the centred column |
+| Sidebar (platform) | Drawer, opened from the navbar's menu button | Drawer | Persistent, collapsible |
 | Page | Full width | Full width | Beside the sidebar |
-| Shop content | Full width | Up to 640px, centred (`max-w-page`) | Up to 640px, centred |
+| Shop content | Full width | Up to 768px, centred (`max-w-page`) | Up to 768px, centred |
 
-**Shop screens are mobile first and 640px wide at most** ([D25](../decisions.md#d25-the-paper-slip-flow-and-slip-templates)): the body's content column is `mx-auto w-full max-w-page` (a theme token, `--container-page: 40rem`), and so is the bottom bar. The platform's editors (the studio, desktop only, plan §5) use the full width.
+**Shop screens are mobile first and 768px wide at most** (owner's layout revision, 2026-11-20; D25 had 640px): the shop is a phone-sized app at every width, `components/ShopShell.vue`, with no sidebar. The shell and the body's content column are `max-w-page` (a theme token, `--container-page: 48rem`), and so is the bottom bar. The shop's destinations are a **bottom tab bar** shown only on the top-level pages (Overview, Orders, More); a page one level down hides it, shows Back, and may use `<BottomBar>` (one bottom bar at a time). The platform's editors (the studio, desktop only, plan §5) use the full width.
 
 ## 4. Navigation
 

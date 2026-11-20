@@ -45,6 +45,7 @@ watch(() => templates.data.value, (list) => {
 
 // Plan §4: with no default, the owner's choice here becomes the default (remembered for next time).
 const { can } = useSession()
+const canPickCustomer = computed(() => can('customer:read'))
 const rememberChoice = useMutation((templateId: string) => apiFetch<OrderTemplate[]>(`/shop/templates/${templateId}/default`, { method: 'POST' }), { inline: true })
 async function chooseTemplate(templateId: string) {
   selectedId.value = templateId
@@ -72,6 +73,7 @@ watch(customer, (picked) => {
 })
 /** Customer and pickup day, outside a paper slip's routine: behind More details, open once they hold something. */
 const detailsOpen = ref(false)
+const detailsSummary = computed(() => [customer.value?.name, dueDate.value.length === 10 ? formatDate(dueDate.value) : null].filter(Boolean).join(' · '))
 watch(() => customer.value !== null || dueDate.value !== '', (filled) => {
   if (filled) detailsOpen.value = true
 }, { immediate: true })
@@ -128,10 +130,18 @@ const imageHref = (imageId: string) => `/api/shop/templates/${selectedId.value}/
 const step = computed(() => (route.query.step === 'preview' && template.value ? 'preview' : 'form'))
 onMounted(() => {
   // A reload on the preview starts again at the form: the fill lives in this page only.
-  if (route.query.step) router.replace({ query: {} })
+  if (route.query.step) router.replace({ query: { ...route.query, step: undefined } })
 })
 
 const form = useTemplateRef('form')
+const previewButton = useTemplateRef('previewButton')
+const previewIntro = useTemplateRef('previewIntro')
+watch(step, (next) => {
+  if (next === 'preview') previewIntro.value?.focus()
+  else if (Object.keys(serverErrors.value).length) form.value?.focusFirstProblem()
+  else previewButton.value?.$el.focus({ preventScroll: true })
+}, { flush: 'post' })
+
 /** The same checks before Preview and before Save order: problems show, and the first one gets focus. */
 async function checkForm(): Promise<boolean> {
   showProblems.value = true
@@ -146,8 +156,7 @@ async function checkForm(): Promise<boolean> {
 
 async function preview() {
   if (!await checkForm()) return
-  await router.push({ query: { step: 'preview' } })
-  window.scrollTo({ top: 0 })
+  await router.push({ query: { ...route.query, step: 'preview' } })
 }
 
 /** Save order from the form (pilot plan §3): the same checks, the same save and key as from the preview. */
@@ -160,7 +169,7 @@ async function saveFromForm() {
 function edit() {
   if (step.value !== 'preview') return
   if (window.history.state?.back) router.back()
-  else router.replace({ query: {} })
+  else router.replace({ query: { ...route.query, step: undefined } })
 }
 
 // --- Saving ---
@@ -168,13 +177,14 @@ function edit() {
 /** One key for this order, kept for every retry (a refused save stores nothing, so it stays usable). */
 const submissionKey = crypto.randomUUID()
 const saved = ref(false)
+const savingToPrint = ref(false)
 const save = useMutation((body: ReturnType<typeof toCreateRequest>) => apiFetch<OrderDetail>('/shop/orders', {
   method: 'POST',
   body,
   headers: { 'Idempotency-Key': submissionKey },
 }), { inline: true, invalidate: ['orders'] })
 
-const dirty = computed(() => !saved.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid || customer.value !== null))
+const dirty = computed(() => !saved.value && !save.pending.value && (Object.keys(fill.value.values).length > 0 || fill.value.phone.trim() !== '' || fill.value.amount !== null || fill.value.paid || customer.value !== null || dueDate.value !== ''))
 useUnsavedChanges(() => dirty.value)
 
 const failure = computed(() => {
@@ -182,10 +192,15 @@ const failure = computed(() => {
   if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID') return undefined
   return errorText(error, t, te)
 })
+const saveError = useTemplateRef('saveError')
+watch(failure, (message) => {
+  if (message) saveError.value?.$el.focus()
+}, { flush: 'post' })
 
 async function submit(print: boolean) {
   const current = template.value
   if (!current || save.pending.value) return
+  savingToPrint.value = print
   const result = await save.execute(toCreateRequest(fill.value, current, { customerId: customer.value?.id ?? null, dueDate: dueDate.value || null }))
   if (result.ok) {
     saved.value = true
@@ -201,7 +216,11 @@ async function submit(print: boolean) {
   else if (result.error.code === 'SLIP_VALUES_INVALID') {
     serverErrors.value = serverProblems(result.error.fieldErrors)
     showProblems.value = true
-    edit()
+    if (step.value === 'preview') edit()
+    else {
+      await nextTick()
+      form.value?.focusFirstProblem()
+    }
   }
 }
 
@@ -217,7 +236,10 @@ function retryLoad() {
 <template>
   <UDashboardPanel id="new-order">
     <template #header>
-      <UDashboardNavbar :title="step === 'preview' ? t('orders.preview.title') : t('orders.new.title')">
+      <UDashboardNavbar
+        :toggle="false"
+        :title="step === 'preview' ? t('orders.preview.title') : t('orders.new.title')"
+      >
         <template #leading>
           <UButton
             v-if="step === 'preview'"
@@ -225,6 +247,7 @@ function retryLoad() {
             color="neutral"
             variant="ghost"
             :aria-label="t('orders.preview.edit')"
+            :disabled="save.pending.value"
             @click="edit"
           />
           <UButton
@@ -234,6 +257,7 @@ function retryLoad() {
             variant="ghost"
             to="/"
             :aria-label="t('common.actions.back')"
+            :disabled="save.pending.value"
           />
         </template>
       </UDashboardNavbar>
@@ -269,28 +293,25 @@ function retryLoad() {
         />
 
         <template v-else>
+          <UAlert
+            v-if="failure"
+            ref="saveError"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-circle-alert"
+            :title="failure"
+            :description="save.error.value?.retryable ? t('orders.preview.retryHint') : undefined"
+            role="alert"
+            tabindex="-1"
+            data-testid="save-error"
+          />
+
           <!-- Kept mounted (hidden) during the preview, so Edit brings back every field exactly as typed. -->
           <div
             v-show="step === 'form'"
-            class="space-y-4"
+            class="space-y-5"
+            :inert="save.pending.value"
           >
-            <UFormField
-              v-if="templateItems.length > 1"
-              :label="t('orders.new.slip')"
-              :help="template ? undefined : t('orders.new.chooseSlip')"
-              :ui="{ label: 'text-base' }"
-            >
-              <USelect
-                :model-value="selectedId"
-                :items="templateItems"
-                :placeholder="t('orders.new.chooseSlip')"
-                size="xl"
-                class="w-full"
-                data-testid="slip-select"
-                @update:model-value="chooseTemplate(String($event))"
-              />
-            </UFormField>
-
             <UAlert
               v-if="copiedFrom !== undefined"
               color="info"
@@ -308,6 +329,45 @@ function retryLoad() {
               role="alert"
             />
 
+            <div class="rounded-lg border border-default bg-elevated/50 p-3">
+              <UFormField
+                v-if="templateItems.length > 1"
+                :label="t('orders.new.slip')"
+                orientation="horizontal"
+                class="flex-wrap items-center justify-between gap-2"
+              >
+                <USelect
+                  :model-value="selectedId"
+                  :items="templateItems"
+                  :placeholder="t('orders.new.chooseSlip')"
+                  icon="i-lucide-file-text"
+                  class="w-full sm:w-64"
+                  data-testid="slip-select"
+                  @update:model-value="chooseTemplate(String($event))"
+                />
+              </UFormField>
+              <div
+                v-else-if="template"
+                class="flex items-center gap-3"
+              >
+                <UIcon
+                  name="i-lucide-file-text"
+                  class="size-5 shrink-0 text-muted"
+                />
+                <div class="min-w-0 wrap-break-word text-sm">
+                  <p class="text-muted">
+                    {{ t('orders.new.slip') }}
+                  </p>
+                  <p
+                    class="font-medium text-highlighted"
+                    data-testid="paper-slip-name"
+                  >
+                    {{ template.name }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <OrderForm
               v-if="template && shop"
               ref="form"
@@ -318,73 +378,72 @@ function retryLoad() {
               :server-errors="serverErrors"
             />
 
-            <!-- A paper slip's routine is its own fields: the customer and the pickup day wait here (pilot plan §3). -->
             <UCollapsible
+              v-if="template"
               v-model:open="detailsOpen"
-              :ui="{ content: 'space-y-4 pt-3' }"
+              class="rounded-lg border border-default"
             >
               <UButton
-                :label="t('orders.new.moreDetails')"
+                icon="i-lucide-list-plus"
                 :trailing-icon="detailsOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
                 color="neutral"
-                variant="outline"
-                size="lg"
+                variant="ghost"
                 block
-                class="justify-between"
+                class="justify-start whitespace-normal text-start"
                 data-testid="more-details"
-              />
+              >
+                <span class="min-w-0 flex-1 wrap-break-word">
+                  <span class="block">{{ t('orders.new.moreDetails') }}</span>
+                  <span
+                    v-if="!detailsOpen"
+                    class="block font-normal text-muted"
+                  >
+                    {{ detailsSummary || t(canPickCustomer ? 'orders.new.detailsHint' : 'orders.new.pickupHint') }}
+                  </span>
+                </span>
+              </UButton>
               <template #content>
-                <UFormField
-                  v-if="can('customer:read')"
-                  :label="t('customers.pick.label')"
-                  :hint="t('common.optional')"
-                  :ui="{ label: 'text-base' }"
+                <div
+                  class="grid gap-4 border-t border-default p-3"
+                  :class="{ 'sm:grid-cols-2': canPickCustomer }"
                 >
-                  <CustomerPicker v-model="customer" />
-                </UFormField>
-                <UFormField
-                  :label="t('orders.new.dueDate')"
-                  :hint="t('common.optional')"
-                  :ui="{ label: 'text-base' }"
-                >
-                  <UInput
-                    v-model="dueDate"
-                    type="date"
-                    :min="today"
-                    size="xl"
-                    class="w-full"
-                    data-testid="due-date"
-                  />
-                </UFormField>
+                  <UFormField
+                    v-if="canPickCustomer"
+                    :label="t('customers.pick.label')"
+                    :hint="t('common.optional')"
+                    class="min-w-0"
+                  >
+                    <CustomerPicker v-model="customer" />
+                  </UFormField>
+                  <UFormField
+                    :label="t('orders.new.dueDate')"
+                    :hint="t('common.optional')"
+                    class="min-w-0"
+                  >
+                    <UInput
+                      v-model="dueDate"
+                      type="date"
+                      :min="today"
+                      class="w-full"
+                      data-testid="due-date"
+                    />
+                  </UFormField>
+                </div>
               </template>
             </UCollapsible>
-
-            <UAlert
-              v-if="failure && step === 'form'"
-              color="error"
-              variant="subtle"
-              icon="i-lucide-circle-alert"
-              :title="failure"
-              :description="save.error.value?.retryable ? t('orders.preview.retryHint') : undefined"
-              role="alert"
-              data-testid="save-error"
-            />
           </div>
 
-          <template v-if="step === 'preview' && template && draft && slipText.text.value">
-            <p class="text-sm text-muted">
+          <div
+            v-if="step === 'preview' && template && draft && slipText.text.value"
+            class="mx-auto max-w-lg space-y-4"
+          >
+            <p
+              ref="previewIntro"
+              tabindex="-1"
+              class="text-sm text-muted"
+            >
               {{ t('orders.preview.hint') }}
             </p>
-            <UAlert
-              v-if="failure && step === 'preview'"
-              color="error"
-              variant="subtle"
-              icon="i-lucide-circle-alert"
-              :title="failure"
-              :description="save.error.value?.retryable ? t('orders.preview.retryHint') : undefined"
-              role="alert"
-              data-testid="save-error"
-            />
             <SlipView
               :design="template.design"
               :data="draft"
@@ -392,22 +451,23 @@ function retryLoad() {
               :image-href="imageHref"
               :server="{ path: '/shop/orders/preview', body: previewBody }"
             />
-          </template>
+          </div>
         </template>
 
         <BottomBarSpacer />
         <BottomBar v-if="ready && template">
           <div
             v-if="step === 'form'"
-            class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"
+            class="flex w-full gap-2 sm:w-auto"
           >
             <UButton
+              ref="previewButton"
               :label="t('orders.new.preview')"
               icon="i-lucide-eye"
               color="neutral"
               variant="outline"
-              size="xl"
               block
+              class="basis-2/5 sm:w-auto sm:basis-auto"
               :disabled="save.pending.value"
               data-testid="preview"
               @click="preview"
@@ -415,8 +475,8 @@ function retryLoad() {
             <UButton
               :label="t('orders.new.save')"
               icon="i-lucide-save"
-              size="xl"
               block
+              class="flex-1 sm:w-auto sm:flex-none"
               :loading="save.pending.value"
               data-testid="save-order"
               @click="saveFromForm"
@@ -429,7 +489,6 @@ function retryLoad() {
                 icon="i-lucide-pencil"
                 color="neutral"
                 variant="outline"
-                size="xl"
                 block
                 :disabled="save.pending.value"
                 data-testid="edit"
@@ -438,9 +497,9 @@ function retryLoad() {
               <UButton
                 :label="t('orders.preview.savePrint')"
                 icon="i-lucide-printer"
-                size="xl"
                 block
-                :loading="save.pending.value"
+                :loading="save.pending.value && savingToPrint"
+                :disabled="save.pending.value"
                 data-testid="save-print"
                 @click="submit(true)"
               />
@@ -449,9 +508,9 @@ function retryLoad() {
                 icon="i-lucide-save"
                 color="neutral"
                 variant="outline"
-                size="xl"
                 block
                 class="col-span-2"
+                :loading="save.pending.value && !savingToPrint"
                 :disabled="save.pending.value"
                 data-testid="save-only"
                 @click="submit(false)"

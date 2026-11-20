@@ -1,6 +1,5 @@
 import type { SlipDesign, SlipValues } from '#shared/contracts/slip-design'
 import { PAID_KEY } from '#shared/contracts/slip-design'
-import { toE164 } from '#shared/contracts/phone'
 
 /**
  * The owner's values on a slip (plan §5.4, §6.8): what Try it, the owner's order form (step 3) and
@@ -75,10 +74,7 @@ export function checkFill(design: SlipDesign, fill: SlipFill): FillProblems {
       }
       case 'phone': {
         const phone = fill.phone.trim()
-        if (!phone) {
-          if (element.required) problems.phone = { code: 'required' }
-        }
-        else if (!toE164(phone)) problems.phone = { code: 'invalidPhone' }
+        if (!phone && element.required) problems.phone = { code: 'required' }
         break
       }
       case 'amount': {

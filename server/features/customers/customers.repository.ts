@@ -1,6 +1,5 @@
 import { and, asc, count, desc, eq, or } from 'drizzle-orm'
 import type { Db, Statement } from '#server/utils/batch'
-import { updateAtVersion } from '#server/utils/batch'
 import { containsText, firstRow } from '#server/utils/query'
 import { customers } from './customers.schema'
 
@@ -37,9 +36,4 @@ export async function listCustomers(db: Db, shopId: string, query: { page: numbe
 export function insertCustomerStatement(db: Db, customer: { id: string, shopId: string, name: string, phone: string | null, now: Date }): Statement {
   const { id, shopId, name, phone, now } = customer
   return db.insert(customers).values({ id, shopId, name, phone, version: 1, createdAt: now, updatedAt: now })
-}
-
-export function updateCustomerStatement(db: Db, change: { shopId: string, id: string, version: number, name: string, phone: string | null, now: Date }): Statement {
-  const { shopId, id, version, name, phone, now } = change
-  return updateAtVersion(db, customers, { shopId, id, version }, { name, phone, updatedAt: now })
 }

@@ -73,7 +73,6 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
   // Step 2: archive and attachments. Attaching changes what a shop may use: it needs `shop: ['update']` too.
   'platform/templates/[id]/archive.post.ts': `{ template: ['write'] }`,
   'platform/templates/[id]/restore.post.ts': `{ template: ['write'] }`,
-  'platform/templates/[id]/shops/index.get.ts': `{ template: ['read'], shop: ['read'] }`,
   'platform/templates/[id]/shops/index.post.ts': `{ template: ['write'], shop: ['update'] }`,
   'platform/templates/[id]/shops/[shopId].delete.ts': `{ template: ['write'], shop: ['update'] }`,
   'platform/shops/[shopId]/templates.get.ts': `{ shop: ['read'], template: ['read'] }`,
@@ -85,11 +84,11 @@ const PLATFORM_STATEMENTS: Record<string, string> = {
  */
 const SHOP_STATEMENTS: Record<string, string> = {
   'shop/settings.get.ts': `{ shop: ['read'] }`,
-  'shop/settings.patch.ts': `{ shop: ['update'] }`,
   // The owner portal (plan step 3): templates to fill, and orders.
   'shop/templates/index.get.ts': `{ template: ['read'] }`,
   'shop/templates/[id]/images/[imageId].get.ts': `{ template: ['read'] }`,
   'shop/templates/[id]/default.post.ts': `{ template: ['set-default'] }`,
+  'shop/templates/[id]/sample.get.ts': `{ template: ['read'] }`,
   'shop/orders/index.post.ts': `{ order: ['create'] }`,
   'shop/orders/index.get.ts': `{ order: ['read'] }`,
   'shop/orders/[id]/index.get.ts': `{ order: ['read'] }`,
@@ -106,8 +105,6 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/orders/[id]/slip.get.ts': `{ order: ['read'] }`,
   'shop/customers/index.get.ts': `{ customer: ['read'] }`,
   'shop/customers/index.post.ts': `{ customer: ['write'] }`,
-  'shop/customers/[id].get.ts': `{ customer: ['read'] }`,
-  'shop/customers/[id].patch.ts': `{ customer: ['write'] }`,
 }
 
 describe.each([

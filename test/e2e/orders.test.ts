@@ -37,6 +37,7 @@ function lindaDesign(): SlipDesign {
       createElement('textField', { id: 'name', x: 170, y: 126, w: 330, h: 44 }, { label: 'អតិថិជន / Customer', size: 26 }),
       createElement('number', { id: 'shirt', x: 360, y: 255, w: 120, h: 44 }, { label: 'អាវ / Shirt', required: true }),
       createElement('number', { id: 'pants', x: 360, y: 325, w: 120, h: 44 }, { label: 'ខោ / Pants' }),
+      createElement('number', { id: 'weight', x: 360, y: 380, w: 120, h: 44 }, { label: 'Weight', unit: 'kg', min: 0.01, max: 100, decimals: 2 }),
       createElement('option', { id: 'wash', x: 550, y: 258, w: 36, h: 36 }, { group: 'svc', label: 'Wash + iron' }),
       createElement('option', { id: 'iron', x: 550, y: 328, w: 36, h: 36 }, { group: 'svc', label: 'Iron only' }),
       createElement('phone', { id: 'tel', x: 170, y: 415, w: 330, h: 44 }, { size: 26 }),
@@ -45,7 +46,7 @@ function lindaDesign(): SlipDesign {
       createElement('paid', { id: 'not', x: 715, y: 500, w: 36, h: 36 }, { value: 'unpaid', label: 'Not paid' }),
     ],
     groups: [createGroup('svc', { label: 'សេវា / Service', mark: 'dot' })],
-    fillOrder: ['name', 'shirt', 'pants', 'svc', 'tel', 'total', 'paid'],
+    fillOrder: ['name', 'shirt', 'pants', 'weight', 'svc', 'tel', 'total', 'paid'],
   }
 }
 
@@ -99,21 +100,46 @@ describe('the owner\'s counter', () => {
     await page.waitForURL(`${host}/`)
     await expect.poll(() => page.getByText('No orders yet').count()).toBe(1)
 
-    // --- New order: the shop's only slip, every field a row (sheet 01) ---
+    // The selected slip is visible, optional details are closed, and the required count takes focus.
     await page.getByTestId('new-order').click()
     await page.waitForURL(`${host}/orders/new`)
+    expect(await page.getByTestId('paper-slip-name').textContent()).toBe('Linda Laundry')
+    expect(await page.getByTestId('more-details').getAttribute('aria-expanded')).toBe('false')
+    const saveOrder = page.getByTestId('save-order')
+    await saveOrder.focus()
+    await page.keyboard.press('Enter')
+    const shirtInput = page.getByTestId('field-shirt')
+    await expect.poll(() => shirtInput.evaluate(input => input === document.activeElement)).toBe(true)
+    expect(await shirtInput.getAttribute('aria-invalid')).toBe('true')
+    expect(await shirtInput.getAttribute('inputmode')).toBe('numeric')
     await page.getByTestId('field-name').fill('Dara')
     // A count: + twice on one row, typed on another (the − and + sit on the field's row).
     const shirt = page.locator('[data-field="shirt"]')
     await shirt.getByRole('button', { name: /^Add one/ }).click()
     await shirt.getByRole('button', { name: /^Add one/ }).click()
     await page.getByTestId('field-pants').fill('1')
+    const weight = page.getByRole('spinbutton', { name: 'Weight (kg)' })
+    expect(await weight.getAttribute('inputmode')).toBe('decimal')
+    await weight.fill('2,55')
     await page.getByRole('radio', { name: 'Wash + iron' }).check()
     await page.getByTestId('field-phone').fill('012 345 678')
     await page.getByTestId('field-amount').fill('7,000')
     expect(await page.getByRole('radio', { name: 'Not paid' }).isChecked()).toBe(true)
     await page.evaluate(() => window.scrollTo({ top: 0 }))
     await shot(page, '01-intake')
+
+    for (const [width, height] of [[320, 640], [390, 844], [768, 900], [1024, 768], [1440, 900], [844, 390]] as const) {
+      await page.setViewportSize({ width, height })
+      expect(await page.getByTestId('field-amount').evaluate((input) => {
+        const body = input.closest('[data-slot="body"]')!
+        return body.scrollWidth <= body.clientWidth && document.documentElement.scrollWidth <= window.innerWidth
+      })).toBe(true)
+      const bounds = (await saveOrder.boundingBox())!
+      expect(bounds.x).toBeGreaterThanOrEqual(0)
+      expect(bounds.x + bounds.width).toBeLessThanOrEqual(width)
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(height)
+      if (width === 1440) await shot(page, '01-intake-wide')
+    }
 
     // The keyboard open (the page shrinks above it, `interactive-widget=resizes-content`): the
     // focused field and Preview are both on screen, Preview not covering the field.
@@ -136,9 +162,11 @@ describe('the owner\'s counter', () => {
     await shot(page, '03-preview')
     await page.getByTestId('edit').click()
     await page.waitForURL(`${host}/orders/new`)
+    await expect.poll(() => page.getByTestId('preview').evaluate(button => button === document.activeElement)).toBe(true)
     expect(await page.getByTestId('field-name').inputValue()).toBe('Dara')
     expect(await page.getByTestId('field-shirt').inputValue()).toBe('2')
     expect(await page.getByTestId('field-pants').inputValue()).toBe('1')
+    expect(await weight.inputValue()).toBe('2.55')
     expect(await page.getByRole('radio', { name: 'Wash + iron' }).isChecked()).toBe(true)
     expect(await page.getByTestId('field-phone').inputValue()).toBe('012 345 678')
     expect(await page.getByTestId('field-amount').inputValue()).toBe('7,000')
@@ -168,7 +196,7 @@ describe('the owner\'s counter', () => {
     await expect.poll(() => page.getByTestId('telegram-qr').count()).toBe(1)
     await shot(page, '04-saved-slip')
     savedOrder = await page.evaluate(async id => (await fetch(`/api/shop/orders/${id}`)).json(), firstAnswer!.id) as OrderDetail
-    expect(savedOrder).toMatchObject({ number: 1, values: { name: 'Dara', shirt: 2, pants: 1, svc: 'wash' }, phone: '+85512345678', amount: 7000, paid: false, templateVersionNumber: 1 })
+    expect(savedOrder).toMatchObject({ number: 1, values: { name: 'Dara', shirt: 2, pants: 1, weight: 2.55, svc: 'wash' }, phone: '012 345 678', amount: 7000, paid: false, templateVersionNumber: 1 })
     expect(await page.evaluate(async () => (await (await fetch('/api/shop/orders')).json()).total)).toBe(1)
 
     // Two requests at once with one key (a double tap that got past the button): one order.
@@ -201,8 +229,7 @@ describe('the owner\'s counter', () => {
     await shot(page, '05-reopened-order')
 
     // --- Orders: search by number or phone (sheet 03) ---
-    await page.getByRole('button', { name: 'Open sidebar' }).click()
-    await page.getByRole('link', { name: 'Orders' }).click()
+    await page.getByRole('link', { name: 'Back' }).click()
     await page.waitForURL(`${host}/orders`)
     await expect.poll(() => page.getByTestId('orders-list').getByRole('listitem').count()).toBe(2)
     await shot(page, '09-orders')
@@ -256,6 +283,7 @@ describe('the owner\'s counter', () => {
     expect(await page.getByTestId('field-shirt').inputValue()).toBe('1')
     expect(await page.getByRole('radio', { name: 'Paid', exact: true }).isChecked()).toBe(true)
     await page.getByTestId('preview').click()
+    await page.waitForURL(`${host}/orders/new?copy=${secondOrderId!}&step=preview`)
     await page.getByTestId('save-only').click()
     await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
     expect(await page.getByTestId('order-number').textContent()).toBe('3')
@@ -263,7 +291,7 @@ describe('the owner\'s counter', () => {
     expect(old).toMatchObject({ number: 2, status: 'cancelled', paid: true })
   })
 
-  it('adds a customer from New order, and finds the order on the customer\'s page (D39)', async () => {
+  it('adds a customer from New order; the order page names them (D39)', async () => {
     const page = await phone()
     onTestFailed(screenshotOnFailure('orders-customers', [page]))
     await page.goto(`${host}/sign-in`)
@@ -284,16 +312,20 @@ describe('the owner\'s counter', () => {
     await page.evaluate(() => window.scrollTo({ top: 0 }))
     await page.waitForTimeout(400)
     await shot(page, '11-new-order-customer')
-    await page.getByTestId('preview').click()
-    await page.getByTestId('save-only').click()
+    const dueDate = await page.getByTestId('due-date').getAttribute('min')
+    await page.getByTestId('due-date').fill(dueDate!)
+    await page.getByTestId('more-details').click()
+    expect(await page.getByTestId('more-details').textContent()).toContain('Sokha')
+    await page.getByTestId('save-order').click()
     await page.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
-    const number = await page.getByTestId('order-number').textContent()
-
+    const saved = await page.evaluate(async () => (await fetch(location.pathname.replace('/orders/', '/api/shop/orders/'))).json()) as OrderDetail
+    expect(saved).toMatchObject({ dueDate, customerName: 'Sokha' })
+    await expect.poll(() => page.getByText('Sokha', { exact: true }).count()).toBeGreaterThan(0)
+    // No customer pages (D44): the order names the customer as plain text, and More has no Customers.
+    expect(await page.getByRole('link', { name: 'Sokha' }).count()).toBe(0)
     await page.goto(`${host}/more`)
-    await page.getByRole('link', { name: 'Customers' }).click()
-    await page.waitForURL(`${host}/customers`)
-    await page.getByTestId('customers-list').getByRole('link', { name: 'Sokha' }).click()
-    await expect.poll(() => page.getByTestId('customer-orders').getByRole('link').allTextContents()).toEqual([`No. ${number}`])
+    await page.getByRole('link', { name: 'Paper slips' }).waitFor()
+    expect(await page.getByRole('link', { name: 'Customers' }).count()).toBe(0)
   })
 
   it('an HTML slip: started from the sample on a phone, an AI answer imported, published, and filled by the owner (D39)', async () => {

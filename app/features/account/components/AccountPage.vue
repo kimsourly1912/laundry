@@ -21,9 +21,21 @@ const signOutOthers = useMutation(() => apiFetch('/auth/revoke-other-sessions', 
 <template>
   <UDashboardPanel id="account">
     <template #header>
-      <UDashboardNavbar :title="t('account.page.title')">
+      <UDashboardNavbar
+        :toggle="Boolean(me?.platformRole)"
+        :title="t('account.page.title')"
+      >
         <template #leading>
-          <UDashboardSidebarCollapse />
+          <!-- The platform has its sidebar; the owner's shell has tabs, so Back to More. -->
+          <UDashboardSidebarCollapse v-if="me?.platformRole" />
+          <UButton
+            v-else
+            icon="i-lucide-arrow-left"
+            color="neutral"
+            variant="ghost"
+            to="/more"
+            :aria-label="t('common.actions.back')"
+          />
         </template>
       </UDashboardNavbar>
     </template>

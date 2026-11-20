@@ -10,7 +10,7 @@ import { newShopStatements, ownerPasswordResetStatements, renameShopStatement, r
 import type { PlatformActor } from '#server/features/identity'
 import { alreadySuspended, notSuspended, ownerNotFound, shopChanged, shopNotFound } from './shops.errors'
 import * as repo from './shops.repository'
-import type { ShopRow } from './shops.repository'
+import type { SettingsFields, ShopRow } from './shops.repository'
 
 /**
  * The platform's shops (spec §9 → Platform, step M1.5). A super admin creates a shop with its
@@ -69,15 +69,21 @@ export async function createShop(db: Db, actor: PlatformActor, input: CreateShop
   return getShop(db, shopId)
 }
 
-/** Renames the shop, at the version the admin saw (409 when stale: the batch's guard decides). */
+const DETAILS = ['name', 'phone', 'address', 'currency'] as const
+
+/**
+ * Saves the shop's details (what its slips print, D44) at the version the admin saw (409 when stale:
+ * the batch's guard decides). The currency may change at any time: each order keeps a copy (D33).
+ */
 export async function updateShop(db: Db, actor: PlatformActor, shopId: string, input: UpdateShopInput, now = new Date()): Promise<PlatformShopDetail> {
-  const { version, name } = input
-  await loadShop(db, shopId)
+  const { version, name, ...fields } = input
+  const before = await loadShop(db, shopId)
+  const changed = DETAILS.filter(field => before[field] !== input[field])
   await runBatch(db, [
-    repo.updateSettingsAtVersion(db, { shopId, version, now }),
+    repo.updateSettingsAtVersion(db, { shopId, version, now, fields: fields satisfies SettingsFields }),
     requireOneChange(db),
     renameShopStatement(db, shopId, name),
-    audit(db, actor, shopId, { action: 'shop.update', data: { fields: ['name'] } }, now),
+    audit(db, actor, shopId, { action: 'shop.update', data: { fields: changed } }, now),
   ], shopChanged)
   return getShop(db, shopId)
 }

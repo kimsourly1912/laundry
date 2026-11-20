@@ -17,10 +17,11 @@ import { TEMPLATE_NAME_MAX } from '#shared/contracts/templates'
 import type { CustomSample, ImageSummary, TemplateDetail } from '#shared/contracts/templates'
 import { checkHtml, FIELD_PREFIX } from '#shared/html-slip/catalog'
 import type { AiAnswer } from '#shared/html-slip/ai'
-import { newHtmlSlip } from '#shared/html-slip/presets'
+import { blankHtmlSlip, newHtmlSlip } from '#shared/html-slip/presets'
 import { customSampleFieldProblems, SAMPLES } from '#shared/html-slip/sample'
 import type { Sample } from '#shared/html-slip/sample'
-import { publishProblems } from '#shared/slip/checks'
+import { fieldPlaceholder, publishProblems } from '#shared/slip/checks'
+import type { Problem } from '#shared/slip/checks'
 import { isOwnerField } from '#shared/slip/fields'
 import { useSlipPrint } from '~/features/slip-fill'
 import { useHtmlTemplatePreview } from '../composables/useHtmlTemplatePreview'
@@ -34,7 +35,6 @@ import HtmlActivityBar from './HtmlActivityBar.vue'
 import HtmlCodeEditor from './HtmlCodeEditor.vue'
 import HtmlCustomSampleModal from './HtmlCustomSampleModal.vue'
 import HtmlStudioSidebar from './HtmlStudioSidebar.vue'
-import TemplateShopsModal from './TemplateShopsModal.vue'
 
 const props = defineProps<{ template?: TemplateDetail }>()
 
@@ -42,8 +42,8 @@ const { t, te } = useI18n()
 const toast = useToast()
 const { can } = useSession()
 const draft = props.template ? useTemplateDraft(props.template) : undefined
-// A new template keeps the by-weight fields and paper until a preset says otherwise, but no markup.
-const initial = props.template?.design ?? { ...newHtmlSlip(), html: '' }
+// A new template starts with no markup and only the built-in fields; the platform adds the rest.
+const initial = props.template?.design ?? blankHtmlSlip()
 const design = shallowRef<SlipDesign>(initial)
 const newName = ref('')
 const creating = ref(false)
@@ -157,25 +157,15 @@ function doneOnPhone() {
 /** Only offered while the markup is empty; asks first when that would drop intake fields already edited. */
 function applyPreset(preset: HtmlIntakePreset) {
   if (!empty.value) return
-  const untouched = JSON.stringify(design.value.elements) === JSON.stringify(newHtmlSlip(design.value.htmlPreset).elements)
+  // Untouched: still the blank start's fields, or still those of the preset that filled them.
+  const elements = JSON.stringify(design.value.elements)
+  const untouched = elements === JSON.stringify(blankHtmlSlip().elements) || elements === JSON.stringify(newHtmlSlip(design.value.htmlPreset).elements)
   if (!untouched && !window.confirm(t('studio.html.replacePreset'))) return
   change({ ...newHtmlSlip(preset), width: design.value.width, height: design.value.height, paper: design.value.paper })
   doneOnPhone()
 }
 
 // --- Insert image (D41): a library image at the cursor ---
-
-// The editor's font is a preference, kept in a cookie so it survives reloads and renders the same on the server.
-const EDITOR_FONTS = {
-  jetbrains: `'JetBrains Mono', ui-monospace, Consolas, monospace`,
-  fira: `'Fira Code', ui-monospace, Consolas, monospace`,
-  source: `'Source Code Pro', ui-monospace, Consolas, monospace`,
-  system: `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`,
-} as const
-type EditorFont = keyof typeof EDITOR_FONTS
-const editorFont = useCookie<EditorFont>('studio-editor-font', { default: () => 'jetbrains', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
-const editorFontFamily = computed(() => EDITOR_FONTS[editorFont.value] ?? EDITOR_FONTS.jetbrains)
-const editorFontItems = computed(() => (Object.keys(EDITOR_FONTS) as EditorFont[]).map(value => ({ value, label: t(`studio.html.editorFonts.${value}`) })))
 
 const codeEditor = useTemplateRef<{ insert: (text: string) => void, format: () => void }>('codeEditor')
 function insertImage(image: ImageSummary) {
@@ -289,9 +279,31 @@ onBeforeUnmount(() => {
   clearSamplePrint()
 })
 
-// --- Publish, shops ---
+// --- Publish (and assign, for the shop it was set up for) ---
 
 const problems = computed(() => publishProblems(design.value))
+const problemSections = computed(() => (['errors', 'warnings'] as const)
+  .map(kind => ({ kind, problems: problems.value[kind] as Problem<string>[] }))
+  .filter(section => section.problems.length))
+
+/** A problem names a field by its label, not its placeholder (`fields.weight_kg`, `order.phone`) or id. */
+function problemName(key: string | undefined): string {
+  if (!key) return ''
+  const field = design.value.elements.filter(isOwnerField).find(item => item.id === key || fieldPlaceholder(item) === key || `${FIELD_PREFIX}${item.id}` === key)
+  if (field) return field.label
+  const group = design.value.groups.find(item => item.id === key || `${FIELD_PREFIX}${item.id}` === key)
+  if (group) return group.label
+  const element = design.value.elements.find(item => item.id === key)
+  return element && 'label' in element ? element.label : key
+}
+
+/** Closes the dialog where the problem is fixed: the markup, the presets, or the field's card. */
+function showProblem(problem: Problem<string>) {
+  publishOpen.value = false
+  if (problem.code === 'htmlEmpty') openView('presets')
+  else if (problem.key) openView('fields')
+  else tab.value = 'edit'
+}
 const publishOpen = ref(false)
 const publishing = ref(false)
 
@@ -315,6 +327,12 @@ const publishLabel = computed(() => {
   if (assignOnly.value) return t('studio.assign.only', { shop })
   if (!unpublished.value && setup.attached.value) return t('studio.assign.assigned', { shop })
   return t('studio.assign.publishAndAssign')
+})
+/** The dialog's button: the setup's words when assigning, else says when it publishes past warnings. */
+const confirmLabel = computed(() => {
+  if (assignTo.value) return publishLabel.value
+  const number = nextNumber.value
+  return problems.value.warnings.length ? t('studio.publish.confirmAnyway', { number }) : t('studio.publish.confirm', { number })
 })
 const publishDisabled = computed(() => assignTo.value
   ? !unpublished.value && setup.attached.value && !assignFailed.value
@@ -361,7 +379,6 @@ async function publishAndAssignToShop(shop: string) {
   publishOpen.value = false
   toast.add({ title: t('studio.assign.done', { number: result.number, shop }), color: 'success', icon: 'i-lucide-circle-check' })
 }
-const shopsOpen = ref(false)
 
 // --- Layout: sidebar, editor and preview in one splitter from lg; on a phone the tab picks the panel shown ---
 
@@ -448,15 +465,6 @@ const panels = computed(() => [
       />
       <div class="ms-auto flex flex-wrap gap-2">
         <UColorModeButton />
-        <UButton
-          v-if="draft"
-          :label="t('studio.html.shops')"
-          icon="i-lucide-store"
-          :ui="{ label: 'max-sm:sr-only' }"
-          color="neutral"
-          variant="outline"
-          @click="shopsOpen = true"
-        />
         <UButton
           v-if="!draft"
           :label="t('studio.html.saveDraft')"
@@ -572,17 +580,6 @@ const panels = computed(() => [
                 </div>
                 <!-- Editor actions sit at the tab strip's end, as in VS Code. -->
                 <div class="ms-auto flex items-center gap-1 px-2">
-                  <USelect
-                    v-model="editorFont"
-                    :items="editorFontItems"
-                    size="xs"
-                    variant="ghost"
-                    color="neutral"
-                    icon="i-lucide-type"
-                    class="w-40"
-                    :aria-label="t('studio.html.editorFont')"
-                    data-testid="html-editor-font"
-                  />
                   <UTooltip
                     :text="t('studio.html.formatShortcut')"
                     :kbds="['shift', 'alt', 'F']"
@@ -611,10 +608,7 @@ const panels = computed(() => [
                 close
                 @update:open="reviewNotes = []"
               />
-              <div
-                class="relative min-h-0 flex-1"
-                :style="{ '--font-editor': editorFontFamily }"
-              >
+              <div class="relative min-h-0 flex-1">
                 <ClientOnly>
                   <HtmlCodeEditor
                     ref="codeEditor"
@@ -951,38 +945,49 @@ const panels = computed(() => [
         >
           {{ t('studio.assign.description', { shop: assignTo.name }) }}
         </p>
-        <ul
-          v-if="problems.errors.length && !assignFailed && !assignOnly"
-          class="space-y-1 text-sm text-error"
+        <!-- Must fix first, then worth a look; each line takes the admin to where it's fixed. -->
+        <div
+          v-if="!assignFailed && !assignOnly"
+          class="space-y-3"
+          data-testid="publish-checks"
         >
-          <li
-            v-for="(problem, index) in problems.errors"
-            :key="index"
+          <UAlert
+            v-for="section in problemSections"
+            :key="section.kind"
+            :color="section.kind === 'errors' ? 'error' : 'warning'"
+            variant="subtle"
+            :icon="section.kind === 'errors' ? 'i-lucide-circle-x' : 'i-lucide-triangle-alert'"
+            :title="t(section.kind === 'errors' ? 'studio.publish.fixFirst' : 'studio.publish.check')"
+            :data-testid="`publish-${section.kind}`"
           >
-            {{ t(`studio.publish.errors.${problem.code}`, { name: problem.key ?? '' }) }}
-          </li>
-        </ul>
-        <ul
-          v-if="problems.warnings.length && !assignFailed && !assignOnly"
-          class="mt-2 space-y-1 text-sm text-warning"
-        >
-          <li
-            v-for="(problem, index) in problems.warnings"
-            :key="index"
+            <template #description>
+              <ul class="list-disc space-y-1 ps-4">
+                <li
+                  v-for="(problem, index) in section.problems"
+                  :key="index"
+                >
+                  <button
+                    type="button"
+                    class="text-left underline-offset-2 hover:underline"
+                    @click="showProblem(problem)"
+                  >
+                    {{ t(`studio.publish.${section.kind}.${problem.code}`, { name: problemName(problem.key) }) }}
+                  </button>
+                </li>
+              </ul>
+            </template>
+          </UAlert>
+          <p
+            v-if="!problemSections.length"
+            class="text-sm text-success"
           >
-            {{ t(`studio.publish.warnings.${problem.code}`, { name: problem.key ?? '' }) }}
-          </li>
-        </ul>
-        <p
-          v-if="!problems.errors.length && !problems.warnings.length && !assignFailed && !assignOnly"
-          class="text-sm"
-        >
-          {{ t('studio.publish.allGood') }}
-        </p>
+            {{ t('studio.publish.allGood') }}
+          </p>
+        </div>
       </template>
       <template #footer>
         <UButton
-          :label="publishLabel"
+          :label="confirmLabel"
           :disabled="problems.errors.length > 0 && !assignFailed && !assignOnly"
           :loading="publishing"
           data-testid="html-publish-confirm"
@@ -991,12 +996,6 @@ const panels = computed(() => [
       </template>
     </UModal>
 
-    <TemplateShopsModal
-      v-if="template && draft"
-      v-model:open="shopsOpen"
-      :template-id="template.id"
-      :published="draft.saved.value.latestVersion !== null"
-    />
     <Teleport to="body">
       <div
         v-if="samplePrint"

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createCustomer, getCustomer, listCustomers, updateCustomer } from '#server/features/customers'
-import { createOrder, getOrder, listOrders } from '#server/features/orders'
+import { createCustomer, listCustomers } from '#server/features/customers'
+import { createOrder } from '#server/features/orders'
 import { customers } from '#server/features/customers/customers.schema'
 import { auditEvents } from '#server/features/platform/platform.schema'
 import type { ShopActor } from '#server/features/identity'
@@ -59,32 +59,18 @@ describe('customers', () => {
     await createCustomer(db, a, { name: 'Dara', phone: null })
   })
 
-  it('is corrected at the version read; stale is 409; the audit says which fields, not their values', async () => {
+  it('names the order with the customer\'s name at saving; an order may have none; the audit keeps no values', async () => {
     const dara = await createCustomer(db, a, { name: 'Dara', phone: null })
-    const fixed = await updateCustomer(db, a, dara.id, { version: 1, name: 'Dara Sok', phone: '+85512345678' })
-    expect(fixed).toMatchObject({ name: 'Dara Sok', phone: '+85512345678', version: 2 })
-    expect(await refusal(updateCustomer(db, a, dara.id, { version: 1, name: 'Again', phone: null }))).toBe('409 VERSION_CONFLICT')
-    const [audit] = await db.select({ data: auditEvents.data }).from(auditEvents).where(eq(auditEvents.action, 'customer.update'))
-    expect(audit).toEqual({ data: { fields: ['name', 'phone'] } })
-  })
-
-  it('names the order with the name at saving; their history lists only their orders', async () => {
-    const dara = await createCustomer(db, a, { name: 'Dara', phone: null })
-    const first = (await order(dara.id)).order
-    await order(null)
-    expect(first).toMatchObject({ customerId: dara.id, customerName: 'Dara' })
-    await updateCustomer(db, a, dara.id, { version: 1, name: 'Dara Sok', phone: null })
-    expect((await getOrder(db, a, first.id)).customerName).toBe('Dara')
-    const history = await listOrders(db, a, { page: 1, pageSize: 20, customerId: dara.id })
-    expect(history.items.map(item => item.id)).toEqual([first.id])
+    expect((await order(dara.id)).order).toMatchObject({ customerId: dara.id, customerName: 'Dara' })
+    expect((await order(null)).order).toMatchObject({ customerId: null, customerName: null })
+    const [audit] = await db.select({ data: auditEvents.data }).from(auditEvents).where(eq(auditEvents.action, 'customer.create'))
+    expect(audit).toEqual({ data: null })
   })
 })
 
 describe('two shops', () => {
-  it('another shop\'s customer is 404: read, change, list, or put on an order', async () => {
+  it('another shop\'s customer is not in its list, and is 404 on its order', async () => {
     const dara = await createCustomer(db, a, { name: 'Dara', phone: null })
-    expect(await refusal(getCustomer(db, b, dara.id))).toBe('404 NOT_FOUND')
-    expect(await refusal(updateCustomer(db, b, dara.id, { version: 1, name: 'X', phone: null }))).toBe('404 NOT_FOUND')
     expect((await listCustomers(db, b, { page: 1, pageSize: 20 })).total).toBe(0)
     const ownerB = await createTestTemplate(db, b.userId, { design: counterDesign() })
     await attachTestTemplate(db, { shopId: b.shopId, templateId: ownerB.templateId })

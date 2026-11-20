@@ -1,19 +1,16 @@
 <script setup lang="ts">
 /**
- * More (D27): everything besides the daily pages, as one list: Paper slips, the shop's settings, the account,
- * and contact support (the platform makes changes on request, D26).
+ * More (D27): everything besides the daily pages, as one list: Paper slips and the account, and
+ * contact support. The platform makes every change to the slip and the shop's details (D44).
  */
-import { customersNavigation } from '~/features/customers'
 import { paperSlipsNavigation } from '~/features/orders'
-import { shopSettingsNavigation } from '~/features/shop-settings'
 
 definePageMeta({ layout: 'shop', area: 'shop', title: 'more.title' })
 
 const { t } = useI18n()
 const { supportUrl } = useRuntimeConfig().public
 const links = computed(() => [
-  ...[...paperSlipsNavigation, ...customersNavigation].map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
-  ...shopSettingsNavigation.map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
+  ...paperSlipsNavigation.map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
   { label: t('account.page.title'), icon: 'i-lucide-circle-user', to: '/account' },
 ])
 </script>
@@ -21,11 +18,11 @@ const links = computed(() => [
 <template>
   <UDashboardPanel id="more">
     <template #header>
-      <UDashboardNavbar :title="t('more.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <UDashboardNavbar
+        :toggle="false"
+        :title="t('more.title')"
+        icon="i-lucide-menu"
+      />
     </template>
 
     <template #body>

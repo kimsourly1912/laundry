@@ -18,7 +18,6 @@ import { fieldName } from '../utils/field-name'
 import ArtworkPicker from './ArtworkPicker.vue'
 import ElementToolbar from './ElementToolbar.vue'
 import FormPanel from './FormPanel.vue'
-import TemplateShopsModal from './TemplateShopsModal.vue'
 import StudioCanvas from './StudioCanvas.vue'
 
 const props = defineProps<{ template: TemplateDetail }>()
@@ -76,9 +75,8 @@ onBeforeUnmount(() => {
 
 const canvas = ref<InstanceType<typeof StudioCanvas>>()
 
-// --- Shops and archive (step 2) ---
+// --- Archive (step 2); a shop's slips are attached on its page ---
 
-const shopsOpen = ref(false)
 const archiveOpen = ref(false)
 const moreItems = computed(() => [[
   { label: t('studio.artwork.replace'), icon: 'i-lucide-image-up', onSelect: openReplace },
@@ -290,13 +288,6 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
           @click="openTry"
         />
         <UButton
-          :label="t('studio.shops.open')"
-          icon="i-lucide-store"
-          color="neutral"
-          variant="outline"
-          @click="shopsOpen = true"
-        />
-        <UButton
           :label="t('studio.preview.open')"
           icon="i-lucide-eye"
           color="neutral"
@@ -395,12 +386,6 @@ const statusText = computed(() => t(`studio.save.${status.value}`))
         </div>
       </template>
     </UModal>
-
-    <TemplateShopsModal
-      v-model:open="shopsOpen"
-      :template-id="template.id"
-      :published="saved.status === 'published'"
-    />
 
     <UModal
       v-model:open="archiveOpen"

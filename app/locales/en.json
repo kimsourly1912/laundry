@@ -1,7 +1,8 @@
 {
   "app": {
     "name": "Laundry",
-    "menu": "Menu"
+    "menu": "Menu",
+    "navigation": "Main navigation"
   },
   "common": {
     "actions": {
@@ -53,8 +54,7 @@
       "IDEMPOTENCY_MISMATCH": "This order was already sent with different details. Check the orders list, then start again.",
       "TEMPLATE_CHANGED": "This paper slip was just updated. Check the order, then preview it again.",
       "SLIP_VALUES_INVALID": "Some boxes of the slip need a look.",
-      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet.",
-      "QUOTE_CHANGED": "A price changed. Check the new total and save again."
+      "TELEGRAM_NOT_SET_UP": "Telegram is not set up yet."
     }
   },
   "account": {
@@ -105,23 +105,6 @@
     "tooHigh": "Too high",
     "phoneNumber": "Not a valid phone number"
   },
-  "settings": {
-    "nav": "Settings",
-    "title": "Shop settings",
-    "saved": "Settings saved.",
-    "shopSection": "Shop",
-    "name": "Shop name",
-    "phone": "Phone",
-    "phoneHelp": "Shown to customers on their ticket page.",
-    "address": "Address",
-    "currency": "Currency",
-    "currencyHelp": "Amounts on new orders are in this currency.",
-    "currencies": {
-      "KHR": "Riel (៛)",
-      "USD": "US dollar ($)"
-    },
-    "currencySection": "Currency"
-  },
   "platform": {
     "nav": {
       "shops": "Shops",
@@ -159,17 +142,12 @@
       "username": "Username",
       "password": "Temporary password",
       "submit": "Create shop",
-      "created": "{shop} was created.",
-      "template": "Template",
-      "templateHelp": "Attached to the shop as soon as it's created. More can be attached on the shop's page.",
-      "noTemplates": "No published template yet: publish one in Templates, then attach it on the shop's page."
+      "created": "{shop} was created."
     },
     "shop": {
       "title": "Shop",
       "back": "Shops",
       "profile": "Profile",
-      "rename": "Rename",
-      "renamed": "The shop was renamed.",
       "slug": "Short name",
       "createdAt": "Created",
       "owner": "Owner",
@@ -205,6 +183,19 @@
         "attached": "The template was attached.",
         "detached": "The template was detached.",
         "setUp": "Set up paper slip"
+      },
+      "details": {
+        "title": "Shop details",
+        "description": "What the shop’s slips print. The owner asks the platform to change them.",
+        "saved": "Shop details saved.",
+        "phone": "Phone",
+        "address": "Address",
+        "currency": "Currency",
+        "currencyHelp": "Amounts on new orders are in this currency.",
+        "currencies": {
+          "KHR": "Riel (៛)",
+          "USD": "US dollar ($)"
+        }
       }
     }
   },
@@ -263,8 +254,8 @@
         "duplicateFixed": "{name} is on the slip twice.",
         "groupTooSmall": "{name} needs at least two options.",
         "missingLabel": "{name} needs a label.",
+        "htmlEmpty": "The slip has no HTML yet. Pick a preset or write it in the editor.",
         "htmlInvalid": "The HTML has problems: see the list under the markup.",
-        "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML.",
         "htmlRenderFailed": "The slip could not be rendered with sample order data.",
         "missingPrintBinding": "{name} is required on the slip but isn’t in the HTML. Click inside its box, then Intake fields → Insert."
       },
@@ -274,7 +265,9 @@
         "noPhone": "There's no Phone field.",
         "noFields": "The owner has no fields to fill.",
         "noPaperSize": "No paper size: printed slips take the paper's width (⋯ → Paper size).",
-        "unplacedField": "{name} isn’t on the slip. Insert it in the HTML (Intake fields → Insert), or mark it Keep off the slip."
+        "unplacedField": "{name} isn’t printed on the slip. Insert it (Intake fields → Insert), or mark it Keep off the slip.",
+        "noOrderNumber": "The slip doesn’t print the order number, which matches a slip to its order at pickup. Add {'{{'}order.number{'}}'} to show it.",
+        "noQrCode": "The slip doesn’t print a QR code for the customer to scan. Add {'{{'}order.qrCode{'}}'} to show it."
       }
     },
     "list": {
@@ -390,18 +383,6 @@
       "checked": "The slip can be saved.",
       "reset": "Start again"
     },
-    "shops": {
-      "open": "Shops",
-      "title": "Shops using this template",
-      "description": "The owner of each shop can fill this slip. Only a published template can be attached.",
-      "none": "Not attached to any shop.",
-      "add": "Attach to a shop",
-      "choose": "Choose a shop",
-      "attach": "Attach",
-      "detach": "Detach",
-      "default": "Default",
-      "notPublished": "Publish the template before attaching it."
-    },
     "archive": {
       "menu": "More",
       "archive": "Archive",
@@ -464,7 +445,6 @@
     "html": {
       "name": "Template name",
       "untitled": "Untitled template",
-      "shops": "Shops",
       "tabs": {
         "edit": "Edit",
         "preview": "Preview"
@@ -512,13 +492,6 @@
       "promptCopied": "Prompt copied.",
       "format": "Format",
       "formatShortcut": "Format the HTML",
-      "editorFont": "Editor font",
-      "editorFonts": {
-        "jetbrains": "JetBrains Mono",
-        "fira": "Fira Code",
-        "source": "Source Code Pro",
-        "system": "System monospace"
-      },
       "copyFailed": "Couldn't copy. Select the text and copy it.",
       "importHint": "Paste the JSON object your AI answered. The markup replaces the current one; fields, paper size and shops stay.",
       "answer": "The AI's answer",
@@ -665,6 +638,8 @@
   "slipFill": {
     "untitled": "(no label)",
     "paidQuestion": "Paid?",
+    "addOne": "Add one to {field}",
+    "removeOne": "Remove one from {field}",
     "paid": "Paid",
     "notPaid": "Not paid",
     "ticked": "Ticked",
@@ -688,7 +663,7 @@
     "new": {
       "title": "New order",
       "slip": "Paper slip",
-      "chooseSlip": "Choose the paper slip for this order",
+      "chooseSlip": "Choose a paper slip",
       "slipUpdated": "This paper slip was just updated. Check the order, then save it again.",
       "noSlipTitle": "No paper slip yet",
       "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
@@ -696,7 +671,19 @@
       "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number.",
       "dueDate": "Pickup day",
       "save": "Save order",
-      "moreDetails": "More details: customer, pickup day"
+      "sections": {
+        "contact": "Contact",
+        "laundry": "Laundry details",
+        "payment": "Payment"
+      },
+      "quantityWithUnit": "{label} ({unit})",
+      "phoneExample": "012 345 678",
+      "amountExampleKhr": "e.g. 7,000",
+      "amountExampleUsd": "e.g. 12.50",
+      "paymentStatus": "Payment status",
+      "moreDetails": "More details",
+      "detailsHint": "Customer and pickup day · Optional",
+      "pickupHint": "Pickup day · Optional"
     },
     "preview": {
       "title": "Preview",
@@ -742,10 +729,6 @@
       "emptyTitle": "No orders yet",
       "emptyDescription": "Orders you save appear here.",
       "viewAll": "View all orders"
-    },
-    "form": {
-      "more": "Add one {label}",
-      "less": "Remove one {label}"
     },
     "list": {
       "nav": "Orders",
@@ -813,25 +796,11 @@
       "ready": "Ready for pickup",
       "unpaid": "Unpaid",
       "counts": "Today's work"
-    },
-    "customer": {
-      "none": "No orders yet."
     }
   },
   "customers": {
-    "title": "Customers",
-    "add": "Add customer",
-    "search": "Name or phone",
-    "edit": "Edit",
-    "notFound": "This customer doesn't exist",
-    "noPhone": "No phone",
-    "orders": "Orders",
-    "emptyTitle": "No customers yet",
-    "emptyDescription": "Customers you add, here or in New order, appear here.",
-    "noMatch": "No customers match",
     "form": {
       "newTitle": "New customer",
-      "editTitle": "Edit customer",
       "name": "Name",
       "phone": "Phone",
       "save": "Save",
@@ -839,7 +808,7 @@
     },
     "pick": {
       "label": "Customer",
-      "placeholder": "Customer: name or phone (optional)",
+      "placeholder": "Search by name or phone",
       "add": "Add “{text}” as a new customer",
       "none": "No customer found",
       "clear": "No customer"

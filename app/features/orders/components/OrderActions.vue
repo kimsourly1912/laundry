@@ -145,7 +145,6 @@ function confirm() {
         v-if="canReady"
         :label="t('orders.actions.markReady')"
         icon="i-lucide-bell-ring"
-        size="lg"
         block
         class="sm:w-auto"
         :loading="workStep.pending.value"
@@ -157,7 +156,6 @@ function confirm() {
         v-if="canStart"
         :label="t('orders.actions.start')"
         icon="i-lucide-play"
-        size="lg"
         color="neutral"
         variant="outline"
         block
@@ -170,7 +168,6 @@ function confirm() {
         v-if="canRework"
         :label="t('orders.actions.rework')"
         icon="i-lucide-rotate-ccw"
-        size="lg"
         color="neutral"
         variant="outline"
         block
@@ -183,7 +180,6 @@ function confirm() {
         v-if="canPay"
         :label="t('orders.actions.markPaid')"
         icon="i-lucide-banknote"
-        size="lg"
         block
         class="sm:w-auto"
         :loading="pay.pending.value"
@@ -195,7 +191,6 @@ function confirm() {
         v-if="canPickUp"
         :label="t('orders.actions.pickUp')"
         icon="i-lucide-package-check"
-        size="lg"
         color="primary"
         variant="solid"
         block
@@ -209,7 +204,6 @@ function confirm() {
         v-if="canCancel"
         :label="t('orders.actions.copy')"
         icon="i-lucide-copy"
-        size="lg"
         color="neutral"
         variant="outline"
         block
@@ -222,7 +216,6 @@ function confirm() {
         v-if="canCancel"
         :label="t('orders.actions.cancel')"
         icon="i-lucide-x"
-        size="lg"
         color="error"
         variant="ghost"
         block

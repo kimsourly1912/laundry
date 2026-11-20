@@ -1,6 +1,5 @@
 import type { SlipData, SlipDesign, SlipElement, SlipShop } from '#shared/contracts/slip-design'
 import { PAID_KEY } from '#shared/contracts/slip-design'
-import { toE164 } from '#shared/contracts/phone'
 import { fillOrderOf } from '#shared/slip/fields'
 import type { FillProblem, SlipFill } from '#shared/slip/values'
 
@@ -14,7 +13,7 @@ export function fillData(fill: SlipFill, options: { shop: SlipShop, date: string
   const { shop, date, number = null } = options
   return {
     values: fill.values,
-    order: { number, date, phone: toE164(fill.phone), amount: fill.amount, paid: fill.paid },
+    order: { number, date, phone: fill.phone.trim() || null, amount: fill.amount, paid: fill.paid },
     shop,
   }
 }

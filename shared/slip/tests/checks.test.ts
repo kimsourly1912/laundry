@@ -66,7 +66,6 @@ describe('checkFill (plan §5.3)', () => {
       c: { code: 'invalid' },
       g: { code: 'invalid' },
       x: { code: 'invalid' },
-      phone: { code: 'invalidPhone' },
       amount: { code: 'invalid' },
     })
     expect(checkFill(slip, { ...fill, values: { n: 2.55, g: 'o1' }, phone: '012345678' })).toEqual({ n: { code: 'decimals', decimals: 1 } })
@@ -96,11 +95,20 @@ describe('paper size (D39)', () => {
 })
 
 describe('an HTML slip\'s publish checks (D39)', () => {
-  it('needs valid markup with the pickup number and the QR; the fields\' boxes may sit anywhere', () => {
+  it('needs valid markup; the pickup number and the QR are warned about, never required (D45)', () => {
     const fields = [createElement('number', { id: 'n', x: -500, y: 0 }, { label })]
     const html = (markup: string) => ({ ...design(fields), paper: { widthMm: 80, heightMm: 52 }, html: markup })
-    expect(publishProblems(html('<div>{{order.number}} {{fields.n}} <div>{{order.qrCode}}</div></div>')).errors).toEqual([])
-    expect(codes(publishProblems(html('<div>{{fields.n}}</div>')).errors)).toEqual(['noOrderNo', 'noQrCode'])
+    const complete = publishProblems(html('<div>{{order.number}} {{fields.n}} <div>{{order.qrCode}}</div></div>'))
+    expect(complete.errors).toEqual([])
+    expect(codes(complete.warnings)).not.toContain('noOrderNumber')
+    expect(codes(complete.warnings)).not.toContain('noQrCode')
+    const bare = publishProblems(html('<div>{{fields.n}}</div>'))
+    expect(bare.errors).toEqual([])
+    expect(codes(bare.warnings)).toEqual(expect.arrayContaining(['noOrderNumber', 'noQrCode']))
+    // No markup at all is the one thing to fix; the slip's fields aren't called unplaced.
+    const empty = publishProblems(html('  '))
+    expect(codes(empty.errors)).toEqual(['htmlEmpty'])
+    expect(codes(empty.warnings)).not.toContain('unplacedField:fields.n')
     expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}<img></div>')).errors)).toEqual(['htmlInvalid'])
     expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}</div>')).warnings)).not.toContain('offCanvas:n')
   })

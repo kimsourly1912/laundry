@@ -2,12 +2,16 @@ import type { OrderTemplate } from '#shared/contracts/orders'
 import type { ImageType } from '#shared/contracts/templates'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { imagesOf } from '#shared/slip/svg'
+import { sampleOrder } from '#shared/html-slip/sample'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireOneChange, runBatch } from '#server/utils/batch'
+import { shopDate } from '#server/utils/time'
 import { auditStatement } from '#server/features/platform'
 import type { ShopActor } from '#server/features/identity'
+import { shopCopy } from '#server/features/shops'
 import * as attachments from './attachments.repository'
 import { fromBase64 } from './images.bytes'
+import { renderFilledSlipSvg } from './images.service'
 import { imagesData } from './images.repository'
 import * as repo from './templates.repository'
 import type { VersionWithTemplateRow } from './templates.repository'
@@ -115,4 +119,18 @@ export async function versionImage(db: Db, options: { versionId: string, imageId
   const [version] = await repo.findVersions(db, [versionId])
   if (!version) throw imageNotFound()
   return designImage(db, version.design, imageId)
+}
+
+/**
+ * An attached template's latest version with sample values and the shop's own details, as SVG
+ * (Paper slips, D39): an HTML slip is laid out by the server, so the owner sees the same drawing
+ * as New order's preview. Another shop's template answers 404, like a missing one.
+ */
+export async function templateSampleSvg(db: Db, actor: ShopActor, templateId: string, now = new Date()): Promise<string> {
+  const template = (await orderTemplates(db, actor)).find(row => row.templateId === templateId)
+  if (!template) throw paperSlipNotFound()
+  const shop = await shopCopy(db, actor.shopId)
+  if (!shop) throw paperSlipNotFound()
+  const data = sampleOrder(template.design, { sample: 'typical', date: shopDate(now), shop })
+  return renderFilledSlipSvg(db, { design: template.design, data })
 }

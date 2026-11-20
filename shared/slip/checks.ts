@@ -10,10 +10,10 @@ import { checkHtml, FIELD_PREFIX, placeholdersIn } from '#shared/html-slip/catal
 
 export type PublishError
   = | 'noOrderNo'
+    | 'htmlEmpty'
     | 'htmlInvalid'
     | 'htmlRenderFailed'
     | 'missingPrintBinding'
-    | 'noQrCode'
     | 'duplicateFixed'
     | 'groupTooSmall'
     | 'missingLabel'
@@ -25,6 +25,8 @@ export type PublishWarning
     | 'noFields'
     | 'noPaperSize'
     | 'unplacedField'
+    | 'noOrderNumber'
+    | 'noQrCode'
 
 export interface Problem<T extends string> {
   code: T
@@ -84,13 +86,16 @@ export function publishProblems(design: SlipDesign): PublishProblems {
     const found = elements.filter(element => element.type === 'paid' && element.value === value)
     for (const extra of found.slice(1)) errors.push({ code: 'duplicateFixed', key: extra.id })
   }
-  if (design.html !== undefined) {
-    // D39: an HTML slip draws the number and the QR through its markup, which must pass the catalog.
+  // An HTML slip with no markup has nothing to print: that's the one thing to fix.
+  if (design.html !== undefined && !design.html.trim()) errors.push({ code: 'htmlEmpty' })
+  else if (design.html !== undefined) {
+    // D39: the markup must pass the catalog. The number and the QR are the platform's choice
+    // (D45): a slip without them is shown in review, not stopped.
     const { nodes, problems } = checkHtml(design.html, design)
     if (problems.length) errors.push({ code: 'htmlInvalid' })
     const used = placeholdersIn(nodes)
-    if (!used.has('order.number')) errors.push({ code: 'noOrderNo' })
-    if (!used.has('order.qrCode')) errors.push({ code: 'noQrCode' })
+    if (!used.has('order.number')) warnings.push({ code: 'noOrderNumber' })
+    if (!used.has('order.qrCode')) warnings.push({ code: 'noQrCode' })
     for (const element of elements) {
       if ('printRequired' in element && element.printRequired && !used.has(`${FIELD_PREFIX}${element.id}`)) {
         errors.push({ code: 'missingPrintBinding', key: `${FIELD_PREFIX}${element.id}` })
@@ -128,10 +133,10 @@ export function publishProblems(design: SlipDesign): PublishProblems {
 /** English, for the server's 422 and logs; the studio shows its own words for each code. */
 export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   noOrderNo: 'Add an Order No. field.',
+  htmlEmpty: 'The slip has no HTML.',
   htmlInvalid: 'The slip\'s HTML has problems.',
   htmlRenderFailed: 'The slip could not be rendered with sample order data.',
   missingPrintBinding: 'A required print binding is missing from the HTML.',
-  noQrCode: 'Put {{order.qrCode}} in the slip\'s HTML.',
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',
   missingLabel: 'A field needs a label.',

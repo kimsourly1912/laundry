@@ -27,7 +27,8 @@ describe('authorizeShop (spec §12, in order)', () => {
     const owner = await createOwner(db)
     const actor = await authorizeShop({ db, user: sessionOf(owner.userId), permissions: { shop: ['read'] } })
     expect(actor).toMatchObject({ userId: owner.userId, shopId: owner.shopId, role: 'owner' })
-    expect(actor.statements).toContain('shop:update')
+    expect(actor.statements).toContain('order:cancel')
+    expect(actor.statements).not.toContain('shop:update')
   })
 
   it('401 without a session, or for a banned user', async () => {
@@ -71,8 +72,8 @@ describe('authorizeShop (spec §12, in order)', () => {
     const shop = await createTestShop(db)
     const staff = await createTestUser(db)
     await addMember(db, shop.shopId, staff.userId, 'staff')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['update'] } }))).toBe('403 FORBIDDEN')
-    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['read', 'update'] } }))).toBe('403 FORBIDDEN')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { order: ['cancel'] } }))).toBe('403 FORBIDDEN')
+    expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['read'], order: ['cancel'] } }))).toBe('403 FORBIDDEN')
     expect(await refusal(authorizeShop({ db, user: sessionOf(staff.userId), permissions: { shop: ['read'] } }))).toBe('allowed')
   })
 
@@ -128,7 +129,7 @@ describe('me', () => {
     const owner = await createOwner(db, { name: 'Linda Laundry' })
     const answer = await me(db, sessionOf(owner.userId, { name: 'Linda', username: owner.username }))
     expect(answer).toMatchObject({ user: { id: owner.userId, name: 'Linda', username: owner.username }, mustChangePassword: false, platformRole: null, shop: { id: owner.shopId, name: 'Linda Laundry', status: 'active' } })
-    expect(answer.statements).toContain('shop:update')
+    expect(answer.statements).toContain('order:cancel')
   })
 
   it('answers on a temporary password, saying so', async () => {

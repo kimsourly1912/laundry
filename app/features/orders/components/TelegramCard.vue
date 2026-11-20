@@ -110,7 +110,6 @@ const STATUS_COLORS = { pending: 'neutral', sent: 'success', skipped: 'warning',
           icon="i-lucide-refresh-cw"
           color="neutral"
           variant="ghost"
-          size="sm"
           :loading="telegram.pending.value"
           @click="load"
         />

@@ -1,5 +1,4 @@
 import type { OrderStage, OrderStatus } from '#shared/contracts/orders'
-import { toE164 } from '#shared/contracts/phone'
 
 /**
  * The orders feature's pure rules (architecture → Inside a feature): what a search means, and which
@@ -11,11 +10,10 @@ export type OrderSearch = { phone: string } | { number: number } | { none: true 
 
 /** `012 345 678` and `+855 12 345 678` are a phone; `12` and `#12` an order number; anything else matches nothing. */
 export function parseOrderSearch(text: string): OrderSearch {
-  const phone = toE164(text)
-  if (phone) return { phone }
-  const number = text.replace(/^#/, '').trim()
+  const typed = text.trim()
+  const number = typed.replace(/^#/, '')
   if (/^\d{1,9}$/.test(number) && Number(number) >= 1) return { number: Number(number) }
-  return { none: true }
+  return typed ? { phone: typed } : { none: true }
 }
 
 export type OrderAction = 'start' | 'ready' | 'rework' | 'pay' | 'pick-up' | 'cancel'

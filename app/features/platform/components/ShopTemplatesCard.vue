@@ -97,7 +97,6 @@ async function onAttach() {
             :label="t('platform.shop.templates.detach')"
             color="neutral"
             variant="ghost"
-            size="sm"
             :loading="detach.pending.value"
             @click="detach.execute(item.templateId)"
           />
