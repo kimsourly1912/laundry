@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements, isKnownPermission, platformStatements, shopStatements } from '#server/features/identity/identity.permissions'
 
 describe('shop roles (spec §5)', () => {
-  it('give the owner the shop\'s settings, its templates and its orders (plan step 3)', () => {
-    expect(grantedShopStatements('owner').sort()).toEqual(['customer:read', 'customer:write', 'order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'shop:read', 'template:read', 'template:set-default'])
+  it('give the owner the shop\'s settings, its templates and its saved slips', () => {
+    expect(grantedShopStatements('owner').sort()).toEqual(['order:create', 'order:read', 'order:share', 'shop:read', 'template:read', 'template:set-default'])
   })
 
-  it('give staff the counter: orders, payment and pickup, but no cancel and no settings changes', () => {
-    expect(grantedShopStatements('staff').sort()).toEqual(['customer:read', 'customer:write', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'shop:read', 'template:read'])
+  it('give staff slip access and reserve template defaults for owners', () => {
+    expect(grantedShopStatements('staff').sort()).toEqual(['order:create', 'order:read', 'order:share', 'shop:read', 'template:read'])
   })
 
   it('never grant Better Auth\'s own organization statements', () => {
@@ -34,7 +34,7 @@ describe('platform roles', () => {
 
 describe('isKnownPermission', () => {
   it('accepts known statements and refuses unknown resources or actions', () => {
-    expect(isKnownPermission(shopStatements, { order: ['cancel'] })).toBe(true)
+    expect(isKnownPermission(shopStatements, { template: ['set-default'] })).toBe(true)
     // D44: the shop's details are the platform's to change.
     expect(isKnownPermission(shopStatements, { shop: ['update'] })).toBe(false)
     expect(isKnownPermission(shopStatements, { shops: ['read'] })).toBe(false)

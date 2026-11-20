@@ -1,4 +1,4 @@
-import { apiError, ErrorCodes, notFound, versionConflict } from '#server/utils/errors'
+import { apiError, ErrorCodes, notFound } from '#server/utils/errors'
 import type { FillProblems } from '#shared/slip/values'
 import { fillProblemText } from '#shared/slip/values'
 
@@ -7,7 +7,7 @@ export const OrderErrorCodes = {
 } as const
 
 export function orderNotFound() {
-  return notFound('This order')
+  return notFound('This slip')
 }
 
 /**
@@ -21,24 +21,6 @@ export function slipValuesInvalid(problems: FillProblems) {
     fieldErrors[path] = [fillProblemText(problem)]
   }
   return apiError(422, OrderErrorCodes.SLIP_VALUES_INVALID, 'Some boxes of the slip need a look.', { fieldErrors })
-}
-
-export function orderChanged() {
-  return versionConflict('This order')
-}
-
-const STATE_MESSAGES = {
-  'start': 'Work on this order has already started, or it is closed.',
-  'ready': 'This order is already ready, or it is closed.',
-  'rework': 'This order is not ready.',
-  'pay': 'This order is already paid or cancelled.',
-  'pick-up': 'Only a ready order can be picked up.',
-  'cancel': 'This order was already picked up or cancelled.',
-} as const
-
-/** 409 `INVALID_STATE`: the action doesn't apply to the order as it is now. */
-export function orderNotAllowed(action: keyof typeof STATE_MESSAGES) {
-  return apiError(409, ErrorCodes.INVALID_STATE, STATE_MESSAGES[action])
 }
 
 /** 422: the promised day is before the order's day. */

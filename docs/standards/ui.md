@@ -78,7 +78,7 @@ Use Nuxt UI's `--ui-radius`. Don't set `rounded-*` on Nuxt UI components. Plain 
 - Khmer needs more line height than Latin text and its own font: [i18n §3](./i18n.md#3-khmer-type).
 - Long names wrap (`break-words`); truncate only where the full value is one tap away.
 - Headings follow document order (`h1` → `h2` → `h3`).
-- English copy: sentence case, verbs on buttons ("Mark ready", "Record payment"), no ALL CAPS.
+- English copy: sentence case, verbs on buttons ("Save slip", "New slip"), no ALL CAPS.
 
 ## 6. Density and touch targets
 
@@ -126,32 +126,18 @@ From the page outwards:
 | Primary | `UButton` solid, `color="primary"` | **One per page** (the navbar's right, or the bottom bar on a phone), at most one per card or overlay footer |
 | Secondary | `color="neutral" variant="outline"` | Cancel, View, Print |
 | Tertiary | `variant="ghost"` or `variant="link"` | Inline, low-emphasis actions |
-| Destructive trigger | `color="error" variant="soft"` | Cancel order, Archive template, Suspend shop |
+| Destructive trigger | `color="error" variant="soft"` | Archive template, Suspend shop |
 | Destructive confirm | The confirm dialog's error button | Only inside a confirm dialog |
 | Overflow | `⋮` `UDropdownMenu` (a bottom sheet on a phone) | Everything beyond the one or two visible actions |
 
-- A destructive action is never the primary button, never the only visible action, and always confirms with its effect in words ("Cancel order #61? It stays in the list as cancelled.").
+- A destructive action is never the primary button, never the only visible action, and always confirms with its effect in words ("Archive this template? Existing slips will still open.").
 - A disabled action stays visible with its reason (tooltip on wide screens, description in menus and sheets).
 - Labels are verb + object. Icons don't replace labels on primary and secondary actions.
-- **Order status actions** (Start, Mark ready, Rework, Collect) follow the same rule: the one next step the order is most likely to take is primary; the rest are secondary or in `⋮`.
-
 ## 10. Status and badges
 
 - Status is a `UBadge variant="subtle"` **with text**, plus an icon where it helps. Color alone never carries it.
 - Badges are for status and counts. Plain attributes (an amount, a phone) are text. A row shows at most two badges.
-- **One mapping app-wide**, defined once in the orders feature (M2.3) and reused everywhere:
-
-| Status | Color |
-|---|---|
-| Received | neutral |
-| In progress | info |
-| Ready | success |
-| Collected | neutral (outline) |
-| Cancelled | error |
-| Unpaid | warning |
-| Paid | success |
-
-Change a color here and in that one mapping, never on a single screen.
+Use semantic colors consistently across the shop and platform.
 
 ## 11. Expected behavior
 
@@ -181,12 +167,6 @@ The full rules are in [forms.md](./forms.md). In short:
 ### Controls that save when changed
 
 A switch that saves at once (a shop setting toggle) **never blocks the others**: it moves at once, only its own row shows saving, a refused change puts it back and says why. No success toast per change.
-
-### Status actions
-
-- An order action (Start, Mark ready, Collect) disables while it runs and shows loading on its own button.
-- A `409` (someone else changed the order, or it's no longer in that status) shows the reason **and reloads the order**, so the screen shows the true state.
-- Payment and order create send an `Idempotency-Key` per user action ([architecture → Idempotency](../server/architecture.md#idempotency)); a retry of the same action reuses the key.
 
 ## 12. Accessibility (WCAG 2.2 AA minimum)
 

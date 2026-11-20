@@ -10,18 +10,14 @@ What lives where, and how to read it.
 
 ## Authority
 
-1. The product spec, `laundry-portal-spec.md` (in the claude.ai project, not this repo).
-2. [`decisions.md`](decisions.md): architecture choices made while building (D1, D2, …).
-3. The standards below.
-
-A conflict between them is recorded in [`current-state.md`](current-state.md) → Open questions. Never guess.
+The [paper slip plan](plan.md) defines the current product flow. [Decisions](decisions.md) record project history and the standards below cover implementation. Record conflicts in [Open questions](current-state.md#open-questions).
 
 ## Map
 
 | Path | Holds |
 |---|---|
 | [`current-state.md`](current-state.md) | Where the project is, the next step, open questions, blockers. Short |
-| [`plan.md`](plan.md) | **The work plan (D44):** the owner fills the slip, the platform owns the rest; flow, scope, steps, open questions |
+| [`plan.md`](plan.md) | The current slip and Telegram flow, platform setup, scope and verification |
 | [`city-laundry-pilot-plan.md`](city-laundry-pilot-plan.md) | Paper-slip pilot handoff covering Studio field placement, shop assignment, and counter intake |
 | [`studio-behaviour.md`](studio-behaviour.md) | **Studio behaviour spec (draft):** every canvas tool's rules and edge cases, with sources, for the studio rebuild |
 | [`decisions.md`](decisions.md) | Decisions: context, decision, alternatives, consequences |
@@ -30,7 +26,7 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) �
 | [`standards/responsive-layout.md`](standards/responsive-layout.md) | Compact-first layout for a phone at the counter, width classes, sticky bars |
 | [`standards/ui-review-checklist.md`](standards/ui-review-checklist.md) | The checklist run before merging a UI change |
 | [`standards/forms.md`](standards/forms.md) | Validation timing, the submit button, errors, unsaved changes, versions |
-| [`standards/i18n.md`](standards/i18n.md) | English default + Khmer, string keys, Khmer type, money and date display, `*_km`/`*_en` data |
+| [`standards/i18n.md`](standards/i18n.md) | English UI, Khmer slip labels, money and date display |
 | [`html-template-studio-plan.md`](html-template-studio-plan.md) | HTML editor, slip bindings and AI import contract |
 | [`standards/feature-standard.md`](standards/feature-standard.md) | Feature plan template and definition of done |
 | [`server/architecture.md`](server/architecture.md) | Layers, routes, conventions, batch writes, versions, idempotency, errors, side effects, tests |

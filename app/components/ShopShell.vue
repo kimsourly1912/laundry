@@ -2,7 +2,7 @@
 /**
  * The owner's shell (docs/standards/responsive-layout.md → Application shell): a phone-sized app
  * at every width. One centred column up to `max-w-page` (768px), no sidebar; the destinations are a
- * bottom tab bar on the top-level pages. A page one level down (an order, a form) hides the tabs,
+ * bottom tab bar on the top-level pages. A page one level down (a saved slip) hides the tabs,
  * has a Back button, and may bring its own `<BottomBar>` for its primary action.
  */
 import type { ShellLink } from './AppShell.vue'
@@ -46,7 +46,7 @@ const showTabs = computed(() => props.links.some(link => link.to === route.path)
           :aria-current="tab.active ? 'page' : undefined"
           class="flex min-h-15 flex-col items-center justify-center gap-1 px-2 text-xs font-medium focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
           :class="tab.active ? 'text-primary' : 'text-muted hover:text-highlighted'"
-          :data-testid="`tab-${tab.to === '/' ? 'overview' : tab.to.slice(1)}`"
+          :data-testid="`tab-${tab.to === '/' ? 'fill-slip' : tab.to.slice(1)}`"
         >
           <UIcon
             :name="tab.icon"

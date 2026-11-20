@@ -1,6 +1,6 @@
 # Laundry
 
-A platform for small laundry shops: orders, customers, QR slips and Telegram notifications.
+A platform for small laundry shops: create the shop’s paper slip, then send the saved copy to the customer’s Telegram.
 One Nuxt 4 application deployed as a Cloudflare Worker with D1; local development uses Node.js and SQLite.
 
 ## Toolchain

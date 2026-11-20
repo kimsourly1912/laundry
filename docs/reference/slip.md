@@ -1,6 +1,6 @@
 # Slip design and drawing
 
-← [Reference](./README.md) · Plan: [§5 the studio](../plan.md#5-the-studio-artwork--fields-desktop-platform-only), [§6 technical design](../plan.md#6-technical-design) · Decisions: [D32](../decisions.md#d32-studio-canvas-and-slip-text), [D35](../decisions.md#d35-ai-made-artwork-and-fields-only)
+← [Reference](./README.md) · Plan: [paper slip plan](../plan.md) · Decisions: [D32](../decisions.md#d32-studio-canvas-and-slip-text), [D35](../decisions.md#d35-ai-made-artwork-and-fields-only)
 
 A template is one JSON **design**: an uploaded artwork and the form fields on it (D35). One shared function draws it as SVG with an order's values. The studio shows that SVG; the server turns the same SVG into the customer's PNG with resvg. What the platform designs is what the customer gets.
 

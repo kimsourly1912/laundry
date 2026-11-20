@@ -93,18 +93,9 @@ const SHOP_STATEMENTS: Record<string, string> = {
   'shop/orders/index.get.ts': `{ order: ['read'] }`,
   'shop/orders/[id]/index.get.ts': `{ order: ['read'] }`,
   'shop/orders/[id]/images/[imageId].get.ts': `{ order: ['read'] }`,
-  'shop/orders/[id]/payment.post.ts': `{ order: ['pay'] }`,
-  'shop/orders/[id]/pick-up.post.ts': `{ order: ['pick-up'] }`,
-  'shop/orders/[id]/cancel.post.ts': `{ order: ['cancel'] }`,
   'shop/orders/[id]/telegram.post.ts': `{ order: ['share'] }`,
-  'shop/orders/[id]/start.post.ts': `{ order: ['work'] }`,
-  'shop/orders/[id]/ready.post.ts': `{ order: ['work'] }`,
-  'shop/orders/[id]/rework.post.ts': `{ order: ['work'] }`,
-  'shop/orders/overview.get.ts': `{ order: ['read'] }`,
   'shop/orders/preview.post.ts': `{ order: ['create'] }`,
   'shop/orders/[id]/slip.get.ts': `{ order: ['read'] }`,
-  'shop/customers/index.get.ts': `{ customer: ['read'] }`,
-  'shop/customers/index.post.ts': `{ customer: ['write'] }`,
 }
 
 describe.each([

@@ -783,3 +783,9 @@ Create template opens a new split editor with an unsaved, empty design; a preset
 **Consequences.**
 - The `customers.version` column and the `(shop_id, customer_id, created_at)` index stay: a migration for them buys nothing now.
 - Lint, typecheck and unit tests pass; the changed e2e files couldn't run on the Windows machine (sign-in timeouts, current-state).
+
+## D47. The saved paper slip is the product
+
+The owner opens the familiar fillable slip, saves it, and shows its QR. The customer scans it and gets the saved slip image in Telegram for later reference. Saved slips remain searchable for the shop. The platform designs, publishes and assigns templates.
+
+This replaces the active counter and order-flow portions of D37–D39 and D44. Order tracking, payments, pickup, ready notifications and print workflows are outside this flow. Historical records and template versions remain readable. The [current plan](plan.md) is the implementation reference. Older decisions document the context in which they were made.

@@ -102,59 +102,34 @@ it('sets up a paper slip from the shop, publishes and assigns it, and retries a 
   await owner.goto(`${host}/sign-in`)
   await signIn(owner, accounts.pilotOwner.username, accounts.pilotOwner.password)
   await owner.waitForURL(`${host}/`)
-  await owner.goto(`${host}/orders/new`)
-  await expect.poll(() => owner.locator('[data-field="weight_kg"]').count()).toBe(1)
+  await expect.poll(() => owner.getByTestId('fill-box-weight_kg').count()).toBe(1)
   expect(await owner.getByTestId('no-slip').count()).toBe(0)
   expect(await owner.getByTestId('slip-select').count()).toBe(0)
 })
 
-it('takes a paper-slip order on a phone: the slip\'s fields, Save order from the form, Preview keeps the values (pilot §3)', async () => {
+it('fills the assigned HTML slip with boxes and shows its saved image and Telegram QR', async () => {
   const owner = await newDevice(browser)
-  onTestFailed(screenshotOnFailure('shop-setup-counter', [owner]))
+  onTestFailed(screenshotOnFailure('html-slip-counter', [owner]))
   await owner.goto(`${host}/sign-in`)
   await signIn(owner, accounts.pilotOwner.username, accounts.pilotOwner.password)
   await owner.waitForURL(`${host}/`)
-  const posts: string[] = []
-  owner.on('request', (request) => {
-    if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/shop/orders') posts.push(request.headers()['idempotency-key'] ?? '')
-  })
-  await owner.goto(`${host}/orders/new`)
-
-  // The slip's own fields, in its fill order; the customer and the pickup day wait behind More details.
-  await owner.locator('[data-field="weight_kg"]').waitFor()
-  const order = await owner.locator('[data-field]').evaluateAll(rows => rows.map(row => row.getAttribute('data-field')))
-  expect(order).toEqual(['phone', 'weight_kg', 'wash_iron', 'dry_clean', 'iron_only', 'total', 'paid'])
-  expect(await owner.getByTestId('customer-picker').count()).toBe(0)
-  expect(await owner.getByTestId('due-date').isVisible()).toBe(false)
-  const save = owner.getByTestId('save-order')
-  expect(await save.textContent()).toBe('Save order')
-
-  // Save order checks the form first: the required weight, and nothing is sent.
+  await owner.getByTestId('draft-artwork').waitFor()
+  const save = owner.getByTestId('save-slip')
   await save.click()
   await expect.poll(() => owner.locator('[data-field="weight_kg"]').textContent()).toContain('Fill this in')
-  expect(posts).toEqual([])
 
-  // A typical order: the weight, a service tick and the total typed by hand.
+  const before = await owner.getByTestId('draft-artwork').getAttribute('src')
   await owner.getByTestId('field-weight_kg').fill('3.5')
-  await owner.getByTestId('field-wash_iron').click()
+  await owner.getByTestId('fill-box-wash_iron').click()
+  await expect.poll(() => owner.getByTestId('fill-box-wash_iron').getAttribute('aria-pressed')).toBe('true')
+  await owner.getByTestId('fill-box-total').click()
   await owner.getByTestId('field-amount').fill('7,000')
+  await expect.poll(() => owner.getByTestId('draft-artwork').getAttribute('src')).not.toBe(before)
+  await save.click()
 
-  // Preview, then back: everything as typed.
-  await owner.getByTestId('preview').click()
-  await owner.waitForURL(`${host}/orders/new?step=preview`)
-  await owner.getByTestId('edit').click()
-  await owner.waitForURL(`${host}/orders/new`)
-  expect(await owner.getByTestId('field-weight_kg').inputValue()).toBe('3.5')
-  expect(await owner.getByTestId('field-wash_iron').getAttribute('aria-checked')).toBe('true')
-  expect(await owner.getByTestId('field-amount').inputValue()).toBe('7,000')
-
-  // A double tap on Save order makes one order, then the existing order page.
-  await save.dblclick()
-  await owner.waitForURL(/\/orders\/[\da-f-]{36}\?saved=1$/)
-  await expect.poll(() => owner.getByTestId('order-number').textContent()).toContain('1')
-  expect(new Set(posts).size).toBe(1)
-  const orders = await owner.evaluate(async () => (await (await fetch('/api/shop/orders')).json()) as { items: { number: number, amount: number | null }[] })
-  expect(orders.items.map(item => [item.number, item.amount])).toEqual([[1, 7000]])
-  const saved = await owner.evaluate(async () => (await fetch(location.pathname.replace('/orders/', '/api/shop/orders/'))).json())
+  await owner.waitForURL(/\/orders\/[\da-f-]{36}$/)
+  await owner.getByTestId('server-slip').waitFor()
+  await owner.getByTestId('telegram-qr').waitFor()
+  const saved = await owner.evaluate(async () => (await fetch(`/api/shop${location.pathname}`)).json())
   expect(saved).toMatchObject({ amount: 7000, values: { weight_kg: 3.5, wash_iron: true }, templateVersionNumber: 1 })
 })

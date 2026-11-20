@@ -17,7 +17,7 @@ interface Destination {
   meta: PageAccess
 }
 
-/** Where a session starts: the platform's shop list, the shop's Today, or the page that says why not. */
+/** Where a session starts: the platform's shop list, the shop's Fill slip, or the page that says why not. */
 export function homePath(me: DeepReadonly<MeResponse>): string {
   if (me.platformRole === 'superadmin') return '/platform/shops'
   if (me.shop?.status === 'active') return '/'

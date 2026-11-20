@@ -39,10 +39,10 @@ Cron ──► Nitro scheduled tasks (outbox delivery, cleanup)
 
 Rules:
 - **No shop id or slug in shop paths.** The shop comes from the session (spec T3).
-- **Resources are plural kebab-case nouns:** `/api/shop/orders`. Nest only for ownership, at most two levels (`/orders/:id/payment`).
+- **Resources are plural kebab-case nouns:** `/api/shop/orders`. Nest only for ownership, at most two levels (`/orders/:id/telegram`).
 - **CRUD maps to methods:** `GET` list/read, `POST` create, `PATCH` partial update, `DELETE` only where nothing is lost (detaching a template from a shop). Templates are archived with a `POST` verb.
-- **Business actions are `POST` verbs:** `/orders/:id/payment`, `/pick-up`, `/cancel`; `/templates/:id/publish`, `/archive`. Never change state through `PATCH status`.
-- **File layout mirrors the URL:** `server/api/shop/orders/[id]/cancel.post.ts`.
+- **Business actions are `POST` verbs:** `/orders/:id/telegram`; `/templates/:id/publish`, `/archive`. Never change state through `PATCH status`.
+- **File layout mirrors the URL:** `server/api/shop/orders/[id]/telegram.post.ts`.
 - A route test (`server/tests/routes.test.ts`) fails when a `/api/shop` or `/api/platform` route calls no access helper.
 
 ## Features
@@ -55,8 +55,8 @@ Server code is organized by feature, one business area each:
 | `platform` | audit events, idempotency keys, job runs |
 | `shops` | shop settings, suspend/resume |
 | `templates` | templates, versions, attachments to shops, images; the slip renderer and its fonts (D31, D32; code from S1) |
-| `customers` | the shop's customers (D39) |
-| `orders` | orders and their counters: create, read and search (D37), mark paid, pick up, cancel (D38) |
+| `customers` | historical customer records linked from saved slips |
+| `orders` | saved slips and their counters, preview rendering, creation and lookup (D47) |
 | `notifications` | which chats get an order's slip (Telegram links), the outbox and its delivery rules (D28) |
 | `telegram` | the Bot API, the webhook, the order's QR, the scan and the slip sent as a picture (D28, D38) |
 
@@ -154,10 +154,7 @@ Every editable record has `version`. An edit sends the version it read; the writ
 
 ### State changes
 
-The order state machine (spec §7) lives in `orders.rules.ts`, pure and unit-tested. A transition:
-1. Loads the order (by `shop_id` and id), checks the rule: allowed from the current status? Else **`409 INVALID_STATE`**.
-2. Writes a conditional update: `WHERE shop_id = ? AND id = ? AND version = ? AND status = ?`, then a guard that exactly one row changed.
-3. Adds the order event, audit, and any outbox rows **in the same batch**.
+Shop suspension and template publishing use guarded writes. A saved slip is read-only. Its original template version and shop details are used on every render.
 
 ### Lifecycle (never delete)
 
@@ -166,7 +163,7 @@ The order state machine (spec §7) lives in `orders.rules.ts`, pure and unit-tes
 | Shop | Suspended |
 | Owner user | Banned / password reset |
 | Template | Archived; its versions and their orders stay |
-| Order | Cancelled |
+| Saved slip | Kept with its original template version |
 
 Only `notifications` (sent/skipped after 90 days) and `idempotency_keys` (after 24 h) are purged, by scheduled jobs.
 
@@ -179,7 +176,7 @@ D1 has no interactive transactions (spec T9). A write touching several rows is *
 
 ### Idempotency
 
-Order create and mark paid take an **`Idempotency-Key` header** (a UUID the client makes per user action, spec T10):
+Saving a slip takes an **`Idempotency-Key` header** (a UUID the client makes per user action, spec T10):
 - First call: the key, a hash of the request and the id of the record it made or changed are stored **in the same batch** as the action.
 - Same key, same request: 200 with that record as it is now ([D24](../decisions.md#d24-orders)). The work doesn't run again.
 - Same key, different request: **`422 IDEMPOTENCY_MISMATCH`**.
@@ -192,7 +189,7 @@ Internal effects use a deterministic key with a unique index instead (the outbox
 
 ### Audit
 
-Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.cancel`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data).
+Every privileged write adds an `audit_events` row **in the same batch**: actor, action (`order.create`, `shop.suspend`), target, shop (null for platform actions), safe metadata (which fields changed, never secrets or personal data).
 
 ## Errors
 
@@ -232,7 +229,7 @@ Anything outside the database (Telegram) happens **after** the batch commits, ne
 - Right after the commit, the webhook asks to deliver this order's rows with `event.waitUntil`, so the slip goes at once without delaying the response.
 - A `notifications:deliver` job (every minute) sends anything still due, with backoff (1, 5, 15, 60 min); after 5 attempts a row is `failed`.
 - A blocked bot (`403`) or a deleted chat marks the row `skipped` and revokes every link to that chat.
-- **Order actions never fail because of Telegram** (spec §16): sending happens after the response, and its failures stay in the outbox.
+- **Saving is independent of Telegram.** The webhook queues delivery when the customer scans and starts the bot.
 - Delivery is at least once: rows are claimed with a conditional update before sending, and a send can repeat only if a run dies mid-send.
 
 ## Tests

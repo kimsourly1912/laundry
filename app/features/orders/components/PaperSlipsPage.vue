@@ -1,10 +1,4 @@
 <script setup lang="ts">
-/**
- * Paper slips (plan §3 "Templates", §4; implementation guide → sheet 05): the published templates
- * the platform attached to this shop, each with a sample preview. The owner makes one the default
- * (New order starts on it) or uses one for a single order. Only the platform changes a template:
- * the owner asks through the Telegram support link (D44).
- */
 import type { OrderTemplate } from '#shared/contracts/orders'
 import { sampleData } from '#shared/slip/fields'
 import { SlipSvg, useSlipText } from '~/features/slip-fill'
@@ -152,7 +146,7 @@ async function choose(templateId: string) {
                 icon="i-lucide-plus"
                 color="neutral"
                 variant="outline"
-                :to="{ path: '/orders/new', query: { template: template.templateId } }"
+                :to="{ path: '/', query: { template: template.templateId } }"
               />
               <UButton
                 v-if="!template.isDefault && can('template:set-default')"

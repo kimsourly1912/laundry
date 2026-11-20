@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { createOrder, cancelOrder } from '#server/features/orders'
+import { createOrder } from '#server/features/orders'
 import { createOrderInvite, deliverSlips, handleUpdate, sendSlipMessage } from '#server/features/telegram'
 import type { TelegramBot } from '#server/features/telegram'
+import { orders } from '#server/features/orders/orders.schema'
 import { telegramInvites } from '#server/features/telegram/telegram.schema'
 import { notifications, telegramLinks } from '#server/features/notifications/notifications.schema'
 import { shopSettings } from '#server/features/shops/shops.schema'
@@ -75,7 +76,7 @@ describe('createOrderInvite', () => {
   it('refuses another shop\'s order (404), a cancelled one, and a deployment with no bot (409)', async () => {
     expect(await refusal(createOrderInvite(db, b, { orderId, botUsername: 'laundry_bot' }))).toBe('404 NOT_FOUND')
     expect(await refusal(createOrderInvite(db, a, { orderId, botUsername: '' }))).toBe('409 TELEGRAM_NOT_SET_UP')
-    await cancelOrder(db, a, { orderId, input: { version: 1 } })
+    await db.update(orders).set({ status: 'cancelled', cancelledAt: NOW }).where(eq(orders.id, orderId))
     expect(await refusal(createOrderInvite(db, a, { orderId, botUsername: 'laundry_bot' }))).toBe('409 INVALID_STATE')
     expect(await db.$count(telegramInvites)).toBe(0)
   })
@@ -126,7 +127,7 @@ describe('sending the slip', () => {
     expect(await deliverSlips(db, { bot, orderId, now: NOW })).toEqual({ sent: 1, retried: 0, skipped: 0, failed: 0 })
     expect(sent).toHaveLength(1)
     expect([...sent[0]!.photo.slice(1, 4)].map(byte => String.fromCharCode(byte)).join('')).toBe('PNG')
-    expect(sent[0]).toMatchObject({ chatId: '501', caption: 'Linda Laundry · Order No. 1 · 7,000៛' })
+    expect(sent[0]).toMatchObject({ chatId: '501', caption: 'Linda Laundry · Slip No. 1 · 7,000៛' })
     const invite = await createOrderInvite(db, a, { orderId, botUsername: 'bot', now: NOW })
     expect(invite.messages).toEqual([{ status: 'sent', createdAt: NOW.toISOString(), sentAt: NOW.toISOString() }])
     // Sent once: a second run has nothing due.

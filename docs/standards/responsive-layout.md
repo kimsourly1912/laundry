@@ -47,12 +47,12 @@ Nuxt UI's dashboard: `UDashboardGroup` → `UDashboardSidebar` + one `UDashboard
 | Page | Full width | Full width | Beside the sidebar |
 | Shop content | Full width | Up to 768px, centred (`max-w-page`) | Up to 768px, centred |
 
-**Shop screens are mobile first and 768px wide at most** (owner's layout revision, 2026-11-20; D25 had 640px): the shop is a phone-sized app at every width, `components/ShopShell.vue`, with no sidebar. The shell and the body's content column are `max-w-page` (a theme token, `--container-page: 48rem`), and so is the bottom bar. The shop's destinations are a **bottom tab bar** shown only on the top-level pages (Overview, Orders, More); a page one level down hides it, shows Back, and may use `<BottomBar>` (one bottom bar at a time). The platform's editors (the studio, desktop only, plan §5) use the full width.
+**Shop screens are mobile first and 768px wide at most** (owner's layout revision, 2026-11-20; D25 had 640px): the shop is a phone-sized app at every width, `components/ShopShell.vue`, with no sidebar. The shell and the body's content column are `max-w-page` (a theme token, `--container-page: 48rem`), and so is the bottom bar. The shop's destinations are a **bottom tab bar** shown only on the top-level pages (Fill slip, Saved slips, More); a page one level down hides it, shows Back, and may use `<BottomBar>` (one bottom bar at a time). The platform's editors (the studio, desktop only, plan §5) use the full width.
 
 ## 4. Navigation
 
 - **Compact and medium:** `UDashboardNavbar` is the app bar (menu button, page title, the page's one primary action). The drawer holds the full navigation.
-- **The shop's destinations:** **Overview** (the home) and **More** (settings, account, contact support). The owner portal (plan step 3) makes them Overview, Templates and Orders, with Create order on Overview.
+- **The shop's destinations:** **Fill slip**, **Saved slips**, and **More** for templates, account and support.
 - **One source for navigation:** each feature's `navigation.ts`, collected by the layout, so every width has the same destinations in the same order.
 - **Detail routes** show a Back button to their index. Back returns to the index in history when the user came from it (filters in the URL survive), otherwise to the index route.
 
@@ -70,7 +70,7 @@ UDashboardPanel
 - **Navbar primary action:** labelled at every width. Icon-only (with `aria-label`) only when the label can't fit at 320px.
 - **Toolbars never scroll sideways.** On a phone, search takes its own full line; filters wrap below. More than two filters → one **Filters** button (with the active count) opening a bottom sheet with Clear and Apply, writing the same URL query.
 - **Body order:** tabs → page-wide alerts (suspended, conflict) → content. An alert about one row sits on that row.
-- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component is `<BottomBar>` with `<BottomBarSpacer />` ([reference → app shell](../reference/app-shell.md#layouts-and-navigation)): the new-order slip (total, paid, Save), the order page's actions, the order edit page.
+- **One bottom bar at a time.** Below `lg` it's fixed to the bottom, full width, with `env(safe-area-inset-bottom)` padding, and the page body gets matching bottom padding. It holds ordinary Nuxt UI buttons. Overlays use their own footer, not this bar. The shared component is `<BottomBar>` with `<BottomBarSpacer />` ([reference → app shell](../reference/app-shell.md#layouts-and-navigation)): the saved slip's New slip action. The Fill slip page keeps Save above the navigation.
 
 ## 6. Sticky and fixed elements
 

@@ -1,40 +1,9 @@
 <script setup lang="ts">
-/**
- * The shop's Overview (plan §3; implementation guide → sheet 01): New order in one tap, then the
- * counts (received today, in progress, ready, unpaid) and the latest orders.
- */
-import { LatestOrders, OverviewCounts } from '~/features/orders'
+import { FillSlipPage } from '~/features/orders'
 
-definePageMeta({ layout: 'shop', area: 'shop', permission: 'shop:read', title: 'overview.title' })
-
-const { t } = useI18n()
-const { me, can } = useSession()
+definePageMeta({ layout: 'shop', area: 'shop', permission: 'order:create', title: 'orders.new.title' })
 </script>
 
 <template>
-  <UDashboardPanel id="overview">
-    <template #header>
-      <!-- The shop's home: its name on top, so the owner sees which shop this is. -->
-      <UDashboardNavbar
-        :toggle="false"
-        :title="me?.shop?.name ?? t('overview.title')"
-        icon="i-lucide-shirt"
-      />
-    </template>
-
-    <template #body>
-      <div class="mx-auto w-full max-w-page space-y-6">
-        <UButton
-          v-if="can('order:create')"
-          :label="t('orders.new.title')"
-          icon="i-lucide-plus"
-          block
-          to="/orders/new"
-          data-testid="new-order"
-        />
-        <OverviewCounts v-if="can('order:read')" />
-        <LatestOrders v-if="can('order:read')" />
-      </div>
-    </template>
-  </UDashboardPanel>
+  <FillSlipPage />
 </template>

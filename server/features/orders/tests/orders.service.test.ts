@@ -200,7 +200,7 @@ describe('listOrders', () => {
 })
 
 describe('listOrders search and filters', () => {
-  it('finds by exact number or phone, and filters by status and paid', async () => {
+  it('finds historical and new slips by exact number or phone', async () => {
     const one = (await create({ phone: '012 345 678', paid: true })).order
     const two = (await create({ phone: '099 888 777' })).order
     const three = (await create({ phone: '012 345 678' })).order
@@ -211,9 +211,6 @@ describe('listOrders search and filters', () => {
     expect(await numbers({ search: '012 345 678' })).toEqual([three.number, one.number])
     expect(await numbers({ search: 'Dara' })).toEqual([])
     expect(await numbers({ search: '9' })).toEqual([])
-    expect(await numbers({ status: 'cancelled' })).toEqual([three.number])
-    expect(await numbers({ paid: true })).toEqual([one.number])
-    expect(await numbers({ search: '012 345 678', status: 'open', paid: false })).toEqual([])
   })
 })
 

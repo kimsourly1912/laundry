@@ -1,8 +1,7 @@
-import { and, count, desc, eq, ne, sql } from 'drizzle-orm'
+import { and, count, desc, eq, sql } from 'drizzle-orm'
 import type { OrderListQuery, OrderStage, OrderStatus } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 import type { Db, Statement } from '#server/utils/batch'
-import { updateAtVersion } from '#server/utils/batch'
 import { firstRow } from '#server/utils/query'
 import { orderCounters, orders } from './orders.schema'
 import type { OrderShopCopy } from './orders.schema'
@@ -69,38 +68,21 @@ export interface OrderFilter {
   number?: number
   /** Exact E.164 (`orders_shop_phone_idx`): one phone may have several orders. */
   phone?: string
-  status?: OrderStatus
-  stage?: OrderStage
-  paid?: boolean
 }
 
 /** The shop's orders, newest first (`orders_shop_created_idx`), filtered, a page at a time, with how many match. */
 export async function listOrders(db: Db, shopId: string, query: OrderFilter & Pick<OrderListQuery, 'page' | 'pageSize'>): Promise<{ rows: OrderRow[], total: number }> {
-  const { page, pageSize, number, phone, status, stage, paid } = query
+  const { page, pageSize, number, phone } = query
   const where = and(
     eq(orders.shopId, shopId),
     number === undefined ? undefined : eq(orders.number, number),
     phone === undefined ? undefined : eq(orders.phone, phone),
-    status === undefined ? undefined : eq(orders.status, status),
-    stage === undefined ? undefined : eq(orders.stage, stage),
-    paid === undefined ? undefined : eq(orders.paid, paid),
   )
   const [rows, [counted]] = await db.batch([
     db.select(orderColumns).from(orders).where(where).orderBy(desc(orders.createdAt), desc(orders.id)).limit(pageSize).offset((page - 1) * pageSize),
     db.select({ total: count() }).from(orders).where(where),
   ])
   return { rows, total: counted?.total ?? 0 }
-}
-
-/** Overview's counts in one pass over the shop's orders. */
-export async function overviewCounts(db: Db, shopId: string, today: string) {
-  const [row] = await db.select({
-    receivedToday: sql<number>`coalesce(sum(case when ${orders.date} = ${today} then 1 else 0 end), 0)`,
-    inProgress: sql<number>`coalesce(sum(case when ${orders.status} = 'open' and ${orders.stage} = 'in_progress' then 1 else 0 end), 0)`,
-    ready: sql<number>`coalesce(sum(case when ${orders.status} = 'open' and ${orders.stage} = 'ready' then 1 else 0 end), 0)`,
-    unpaid: sql<number>`coalesce(sum(case when ${orders.paid} = 0 and ${orders.status} <> 'cancelled' then 1 else 0 end), 0)`,
-  }).from(orders).where(eq(orders.shopId, shopId))
-  return { receivedToday: Number(row?.receivedToday ?? 0), inProgress: Number(row?.inProgress ?? 0), ready: Number(row?.ready ?? 0), unpaid: Number(row?.unpaid ?? 0) }
 }
 
 // --- Write statements ---
@@ -154,45 +136,4 @@ export function insertOrderStatement(db: Db, order: NewOrder): Statement {
     createdAt: now,
     updatedAt: now,
   })
-}
-
-interface OrderChange {
-  shopId: string
-  id: string
-  version: number
-  now: Date
-}
-
-/**
- * The action's change at the version read, only from the states it is allowed in (the same rule as
- * `canDo`, again in SQL, so a change landing in between stops it). Follow with `requireOneChange`.
- */
-export function payStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { paid: true, paidAt: now, updatedAt: now }, and(eq(orders.paid, false), ne(orders.status, 'cancelled')))
-}
-
-export function pickUpStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { status: 'picked_up', pickedUpAt: now, updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'ready')))
-}
-
-export function cancelStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { status: 'cancelled', cancelledAt: now, updatedAt: now }, eq(orders.status, 'open'))
-}
-
-export function startStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { stage: 'in_progress', updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'received')))
-}
-
-export function readyStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { stage: 'ready', readyAt: now, updatedAt: now }, and(eq(orders.status, 'open'), ne(orders.stage, 'ready')))
-}
-
-export function reworkStatement(db: Db, change: OrderChange): Statement {
-  const { now, ...key } = change
-  return updateAtVersion(db, orders, key, { stage: 'in_progress', updatedAt: now }, and(eq(orders.status, 'open'), eq(orders.stage, 'ready')))
 }

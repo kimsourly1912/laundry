@@ -128,13 +128,13 @@ Defined in `shared/scheduled-tasks.ts` (cron in **UTC**), given to Nitro by `nux
    curl -sS "https://api.telegram.org/bot<TOKEN>/setWebhook" -d "url=https://<site>/api/webhooks/telegram" -d "secret_token=<WEBHOOK_SECRET>" -d 'allowed_updates=["message"]'
    ```
    It answers `{"ok":true,…}`. Check it later with `getWebhookInfo` (same address, that method): `last_error_message` says what failed.
-4. Try it: save an order, scan the QR on the saved screen with your phone's camera, tap Start. The slip arrives as a picture. Without `NUXT_TELEGRAM_BOT_USERNAME` the order page shows no QR; without the token nothing is sent.
+4. Try it: save a slip, scan the QR on the saved preview with your phone's camera, tap Start. The slip arrives as a picture. Without `NUXT_TELEGRAM_BOT_USERNAME` the saved preview shows a Telegram setup error; without the token nothing is sent.
 
-Local development: a separate dev bot, and a tunnel to the dev server for its webhook; or leave the token empty (no QR, nothing sent).
+Local development: a separate dev bot, and a tunnel to the dev server for its webhook; or leave the configuration empty (the saved slip remains accessible).
 
 ### How it behaves
 - **The webhook** answers 404 unless the secret header matches (constant-time) and a token is set, is rate-limited per address, and reads only private messages from people. A 200 tells Telegram the update is handled; an error makes it send the update again.
-- **The flow** (plan §8, Q11: no phone check): the QR's token (a day, a new one each time the card opens) → that one order → the bot answers "your slip is on its way" and the slip is sent as a PNG with the shop's name, the number and the amount as its caption. A bare `/start` or other text gets a hint; an expired token says so. A suspended shop sends nothing. A blocked bot (`403`) or a deleted chat ends every link to that chat. Telegram's `429` wait is honoured; other 5xx retry with backoff; other refusals fail.
+- **The flow** (D47): the QR's token (a day, a new one each time the card opens) → that one saved slip → the bot answers "your slip is on its way" and the slip is sent as a PNG with the shop's name, the number and the amount as its caption. A bare `/start` or other text gets a hint; an expired token says so. A suspended shop sends nothing. A blocked bot (`403`) or a deleted chat ends every link to that chat. Telegram's `429` wait is honoured; other 5xx retry with backoff; other refusals fail.
 - **Slip rendering** costs about 25–50 ms for an 800 × 520 slip with text drawn as paths (D32: measured in the spike, dev server); the old receipt renderer took 0.1–0.7 s.
 
 ## Monitoring
