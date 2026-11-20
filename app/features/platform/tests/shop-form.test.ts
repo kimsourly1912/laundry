@@ -1,7 +1,7 @@
 import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
-import { createShopSchema } from '#shared/contracts/platform-shops'
-import { emptyNewShopForm, newShopFormSchema, slugFromName, toCreateShopRequest } from '../schemas/shop-form'
+import { createShopSchema, updateShopSchema } from '#shared/contracts/platform-shops'
+import { emptyNewShopForm, newShopFormSchema, shopDetailsFormSchema, slugFromName, toCreateShopRequest, toShopDetailsForm, toShopDetailsRequest } from '../schemas/shop-form'
 
 const t = (key: string) => key
 const form = { name: ' Sokha Laundry ', slug: 'Sokha-Laundry', owner: { name: 'Sokha', username: ' Sokha.Chan ', password: 'temporary pass 1' } }
@@ -37,5 +37,25 @@ describe('slugFromName', () => {
     ['បោកអ៊ុត', ''],
   ])('%s → %s', (name, slug) => {
     expect(slugFromName(name)).toBe(slug)
+  })
+})
+
+describe('shopDetailsFormSchema', () => {
+  const saved = { name: 'Sokha Laundry', phone: null, address: 'St 271', currency: 'KHR' as const }
+
+  it('opens the saved details (none as blank) and sends them back at the version opened', () => {
+    const details = toShopDetailsForm(saved)
+    expect(details).toMatchObject({ phone: '', address: 'St 271' })
+    expect(v.parse(updateShopSchema, toShopDetailsRequest(details, 4))).toEqual({ version: 4, name: 'Sokha Laundry', phone: null, address: 'St 271', currency: 'KHR' })
+  })
+
+  it.each([
+    ['no name', { name: ' ' }],
+    ['letters in the phone', { phone: '012 abc' }],
+    ['an address over 200 characters', { address: 'a'.repeat(201) }],
+  ])('refuses %s, like the contract', (_case, change) => {
+    const details = { ...toShopDetailsForm(saved), ...change }
+    expect(v.safeParse(shopDetailsFormSchema(t), details).success).toBe(false)
+    expect(v.safeParse(updateShopSchema, toShopDetailsRequest(details, 1)).success).toBe(false)
   })
 })

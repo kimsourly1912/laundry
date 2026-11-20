@@ -1,7 +1,6 @@
 import type { Page } from '#shared/contracts/common'
 import { toPage } from '#shared/contracts/common'
 import type { CreateOrderInput, OrderPreviewInput, OrderActionInput, OrderDetail, OrderListItem, OrderListQuery, OrderOverview, OrderStage, OrderStatus } from '#shared/contracts/orders'
-import { toE164 } from '#shared/contracts/phone'
 import { checkFill, cleanValues } from '#shared/slip/values'
 import type { Db, Statement } from '#server/utils/batch'
 import { requireOneChange, runBatch } from '#server/utils/batch'
@@ -63,10 +62,10 @@ export async function getOrder(db: Db, actor: ShopActor, orderId: string): Promi
  * text that is neither matches nothing.
  */
 export async function listOrders(db: Db, actor: ShopActor, query: OrderListQuery): Promise<Page<OrderListItem>> {
-  const { search, status, paid, customerId, page, pageSize } = query
+  const { search, status, paid, page, pageSize } = query
   const wanted = search ? parseOrderSearch(search) : undefined
   if (wanted && 'none' in wanted) return toPage([], query, 0)
-  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, customerId, page, pageSize })
+  const { rows, total } = await repo.listOrders(db, actor.shopId, { ...wanted, ...stateFilter(status), paid, page, pageSize })
   return toPage(rows.map(toListItem), query, total)
 }
 
@@ -118,7 +117,7 @@ export async function createOrder(db: Db, actor: ShopActor, options: CreateOrder
           shop,
           customer,
           dueDate: input.dueDate,
-          phone: phone ? toE164(phone) : null,
+          phone: phone || null,
           amount,
           paid,
           userId,
@@ -294,7 +293,7 @@ export async function previewOrderSvg(db: Db, actor: ShopActor, input: OrderPrev
     design: version.design,
     data: {
       values,
-      order: { number: null, date: shopDate(now), phone: input.phone ? toE164(input.phone) : null, amount: input.amount, paid: input.paid, customerName: customer?.name ?? null, dueDate: input.dueDate, qrUrl: null },
+      order: { number: null, date: shopDate(now), phone: input.phone || null, amount: input.amount, paid: input.paid, customerName: customer?.name ?? null, dueDate: input.dueDate, qrUrl: null },
       shop,
     },
   })

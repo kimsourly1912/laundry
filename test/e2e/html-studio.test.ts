@@ -86,13 +86,6 @@ it('has editor shortcuts: Ctrl+S formats, Ctrl+B toggles the sidebar, Emmet expa
   expect(await suggestions.textContent()).toContain('span')
   expect(await suggestions.textContent()).not.toContain('table')
   await editor.press('Escape')
-
-  // The font is a preference that survives a reload.
-  await page.getByTestId('html-editor-font').click()
-  await page.getByRole('option', { name: 'Fira Code' }).click()
-  await page.reload()
-  await editor.waitFor()
-  await expect.poll(() => editor.evaluate(element => getComputedStyle(element.closest('.cm-scroller')!).fontFamily)).toContain('Fira Code')
 })
 
 it('creates an HTML draft from the split editor, previews bindings and publishes', async () => {
@@ -248,7 +241,7 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   const custom = page.getByRole('dialog', { name: 'Test order' })
   const livePreview = custom.getByTestId('html-custom-preview').getByRole('img')
   const customerName = custom.getByRole('textbox', { name: 'Customer name' })
-  const weight = custom.getByRole('textbox', { name: 'Weight (kg)' })
+  const weight = custom.getByRole('spinbutton', { name: 'Weight (kg)' })
   const useSample = custom.getByRole('button', { name: 'Show in preview' })
   await livePreview.waitFor()
   expect((await livePreview.boundingBox())!.y).toBeLessThan((await customerName.boundingBox())!.y)
@@ -427,7 +420,7 @@ it('places Shirt from the list in its box and checks it with Test order, creatin
   const rendered = page.waitForResponse(response => response.url().endsWith('/api/platform/templates/preview')
     && response.request().postDataJSON().custom?.values.shirt_count === 5
     && response.request().postDataJSON().custom?.amount === 7000)
-  await test.getByRole('textbox', { name: 'Shirt', exact: true }).fill('5')
+  await test.getByRole('spinbutton', { name: 'Shirt', exact: true }).fill('5')
   await test.getByRole('textbox', { name: 'Total', exact: true }).fill('7,000')
   expect((await rendered).ok()).toBe(true)
   await test.getByRole('button', { name: 'Show in preview' }).click()

@@ -1,4 +1,4 @@
-import { apiError, notFound, versionConflict } from '#server/utils/errors'
+import { apiError, notFound } from '#server/utils/errors'
 
 export const CustomerErrorCodes = {
   PHONE_TAKEN: 'PHONE_TAKEN',
@@ -6,10 +6,6 @@ export const CustomerErrorCodes = {
 
 export function customerNotFound() {
   return notFound('This customer')
-}
-
-export function customerChanged() {
-  return versionConflict('This customer')
 }
 
 /** 409: another customer of the shop has this phone. */

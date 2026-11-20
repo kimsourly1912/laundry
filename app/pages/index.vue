@@ -15,11 +15,11 @@ const { me, can } = useSession()
   <UDashboardPanel id="overview">
     <template #header>
       <!-- The shop's home: its name on top, so the owner sees which shop this is. -->
-      <UDashboardNavbar :title="me?.shop?.name ?? t('overview.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <UDashboardNavbar
+        :toggle="false"
+        :title="me?.shop?.name ?? t('overview.title')"
+        icon="i-lucide-shirt"
+      />
     </template>
 
     <template #body>
@@ -28,7 +28,6 @@ const { me, can } = useSession()
           v-if="can('order:create')"
           :label="t('orders.new.title')"
           icon="i-lucide-plus"
-          size="xl"
           block
           to="/orders/new"
           data-testid="new-order"

@@ -3,7 +3,7 @@ import { ASSIGNABLE_SHOP_ROLES, grantedPlatformStatements, grantedShopStatements
 
 describe('shop roles (spec §5)', () => {
   it('give the owner the shop\'s settings, its templates and its orders (plan step 3)', () => {
-    expect(grantedShopStatements('owner').sort()).toEqual(['customer:read', 'customer:write', 'order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'shop:read', 'shop:update', 'template:read', 'template:set-default'])
+    expect(grantedShopStatements('owner').sort()).toEqual(['customer:read', 'customer:write', 'order:cancel', 'order:create', 'order:pay', 'order:pick-up', 'order:read', 'order:share', 'order:work', 'shop:read', 'template:read', 'template:set-default'])
   })
 
   it('give staff the counter: orders, payment and pickup, but no cancel and no settings changes', () => {
@@ -34,8 +34,9 @@ describe('platform roles', () => {
 
 describe('isKnownPermission', () => {
   it('accepts known statements and refuses unknown resources or actions', () => {
-    expect(isKnownPermission(shopStatements, { shop: ['update'] })).toBe(true)
-    expect(isKnownPermission(shopStatements, { shop: ['updates'] })).toBe(false)
+    expect(isKnownPermission(shopStatements, { order: ['cancel'] })).toBe(true)
+    // D44: the shop's details are the platform's to change.
+    expect(isKnownPermission(shopStatements, { shop: ['update'] })).toBe(false)
     expect(isKnownPermission(shopStatements, { shops: ['read'] })).toBe(false)
     expect(isKnownPermission(platformStatements, { shop: ['suspend'] })).toBe(true)
   })

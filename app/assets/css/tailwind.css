@@ -7,8 +7,8 @@
    * → Khmer type). Both self-hosted by @nuxt/fonts (CSP font-src 'self').
    */
   --font-sans: 'Inter', 'Noto Sans Khmer', ui-sans-serif, system-ui, sans-serif;
-  /* The shop app's content column (D25: mobile first, 640px at most): `max-w-page`. */
-  --container-page: 40rem;
+  /* The shop app's content column (mobile first, 768px at most): `max-w-page`. */
+  --container-page: 48rem;
 }
 
 /*
@@ -93,5 +93,31 @@
     left: 0;
     width: 100% !important;
     box-shadow: none;
+  }
+}
+
+/*
+ * The owner's shell scrolls at the window's edge and centres its content in the `max-w-page`
+ * column: the app bar lines up with the body by taking this horizontal padding (set by ShopShell;
+ * the platform's navbar keeps its own).
+ */
+[data-shell-gutter] [data-slot='root'].border-b.border-default {
+  padding-inline: max(var(--shell-pad), calc((100% - var(--container-page)) / 2));
+}
+
+/* With the tab bar showing, the scrolling body ends above it, so the last row can be reached. */
+[data-shell-gutter][data-tabs] [data-slot='body'] {
+  padding-bottom: calc(3.75rem + 1rem + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(3.75rem + env(safe-area-inset-bottom));
+}
+
+/* The body's own side padding (Nuxt UI: p-4, sm:p-6), the least the app bar keeps from the edge. */
+[data-shell-gutter] {
+  --shell-pad: 1rem;
+}
+
+@media (min-width: 40rem) {
+  [data-shell-gutter] {
+    --shell-pad: 1.5rem;
   }
 }

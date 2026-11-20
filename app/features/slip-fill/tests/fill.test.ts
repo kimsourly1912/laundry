@@ -29,9 +29,9 @@ describe('fillSteps', () => {
     expect(stepOf(steps, design.elements[0]!)).toBe(-1)
   })
 
-  it('draws the phone as E.164 once it\'s valid', () => {
+  it('draws the phone as typed', () => {
     const data = fillData({ ...emptyFill(), phone: '012 345 678', amount: 500 }, { shop: SAMPLE_SHOP, date: '2026-11-17' })
-    expect(data.order).toEqual({ number: null, date: '2026-11-17', phone: '+85512345678', amount: 500, paid: false })
-    expect(fillData({ ...emptyFill(), phone: '01' }, { shop: SAMPLE_SHOP, date: null }).order.phone).toBeNull()
+    expect(data.order).toEqual({ number: null, date: '2026-11-17', phone: '012 345 678', amount: 500, paid: false })
+    expect(fillData({ ...emptyFill(), phone: '  ' }, { shop: SAMPLE_SHOP, date: null }).order.phone).toBeNull()
   })
 })

@@ -1,3 +1,2 @@
-/** The shop-settings feature's public API: its navigation, and the settings other features read (the currency). */
-export { shopSettingsNavigation } from './navigation'
+/** The shop-settings feature's public API: the shop's details other features read (the slip's name, phone, address and currency). The platform changes them (D44). */
 export { useShopSettings } from './composables/useShopSettings'

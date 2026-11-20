@@ -13,7 +13,7 @@ Blueprints for the five kinds of page, and the states every page handles. Every 
 | Doing one focused job, often in steps | [Task flow](#2-task-flow) | Sign in, change password, **Create order**, new shop |
 | Finding, scanning or acting on many records | [Resource index](#3-resource-index) | Orders, shops, templates |
 | Seeing or changing one record | [Detail / editor](#4-detail--editor) | Order page; the studio is its own desktop editor (plan §5) |
-| Changing configuration | [Settings](#5-settings) | Shop settings, account, platform shop detail |
+| Changing configuration | [Settings](#5-settings) | Account, platform shop detail |
 | Seeing what needs attention now | [Dashboard](#6-dashboard) | Overview: today's orders and Create order (plan §3) |
 
 **The task flow is the primary pattern** in this product: Create order is what the owner does all day.
@@ -23,22 +23,27 @@ Blueprints for the five kinds of page, and the states every page handles. Every 
 **Purpose:** one focused job, done quickly and correctly: sign in, fill a customer's slip (Create order).
 
 ```
-Compact (phone): Create order (plan §3)    Expanded
-[←]  Create order       Shirt · 3 of 8     The same, centred (max-w-page)
-┌──────────────────────────────┐
-│  the shop's slip             │
-│   [ 3 ]  [   ]  [ ✓ ]  …     │  ← the field being filled is outlined;
-└──────────────────────────────┘     tapping another box jumps to it
-Shirt / អាវ        [ − ]  3  [ + ]
-[ Back ]                 [ Next ]  ← bottom bar, thumb reach, above the keyboard
-── the last steps ──
-Amount  12,000 ៛ · Paid ( ) Not paid (•) · Phone (optional)
-[ Save ]
+Compact (phone): New order (plan §3)       Expanded
+[←] New order                             The same, centred (max-w-page)
+Paper slip    Linda Laundry
+
+Contact
+Phone         [ 012 345 678 ]
+Laundry details
+Weight (kg)   [ − ]  2.55  [ + ]
+[✓] Wash & iron
+Payment
+Amount        [ 12,000 ៛ ]               Amount and payment status can share a row
+Payment status   (•) Not paid  ( ) Paid
+More details                     [⌄]
+Customer and pickup day · Optional
+
+[ Preview ]       [ Save order ]          Bottom bar
 ```
 
 - **One primary action per step**, in thumb reach at the bottom on a phone, above the keyboard and the safe area. Back / Cancel is secondary.
-- **Show the step** ("Step 2 of 4") and keep earlier answers visible as a summary line with a Change action. Back keeps what was entered.
-- **What the step decided stays decided.** A filled box is not re-asked later; the slip itself shows every answer before the one Save.
+- **Show the current step.** In a required sequence, show the position ("Step 2 of 4") and summarize earlier answers with a Change action. In New order, label the optional Preview and keep all inputs when staff go back to edit.
+- **Use the configured fill order** for each paper slip. Section headings group consecutive related fields. Only show the sections the slip uses. A sole slip shows its name. Several slips use a selector.
 - **One unsaved-changes guard over the whole flow**, not one per step ([forms](./forms.md#6-unsaved-changes)).
 - **The server decides.** It sets the order number, the date and the template version, and checks every value against the version; its answer is what the done step shows.
 - **The final submit is idempotent:** it sends one `Idempotency-Key` per flow; a double tap or a retry after a network error creates one order.
@@ -46,7 +51,7 @@ Amount  12,000 ៛ · Paid ( ) Not paid (•) · Phone (optional)
 - **Done step:** the order number in big digits (to write on the bag), the Telegram QR, the next useful action ("Next order", "View order"), and nothing that undoes it by accident.
 - **Expanded:** the same steps in a centered card. Never a different flow on a wide screen.
 
-**As built (D37):** New order lists the slip's fields as rows in its fill order, with a sticky Preview; the preview is the slip with the number's box empty, then Edit, Save & print or Save only. The slip-tap filler drawn above is the studio's Try it.
+**New order** follows D44. Save order submits from the form. Preview shows the filled slip before a number is assigned, with Edit, Save & print, and Save only. More details reveals optional customer and pickup fields and summarizes the values when closed.
 
 **Mark paid, Picked up and Cancel** are single actions on the order page (plan §3), not flows.
 

@@ -216,7 +216,7 @@ onMounted(() => {
       EditorView.theme({
         // Fills the panel it sits in; the theme tokens keep it readable in light and dark.
         '&': { height: '100%', fontSize: '13px' },
-        '.cm-scroller, .cm-tooltip-autocomplete': { fontFamily: 'var(--font-editor, "JetBrains Mono", ui-monospace, Consolas, monospace)' },
+        '.cm-scroller, .cm-tooltip-autocomplete': { fontFamily: '"JetBrains Mono", ui-monospace, Consolas, monospace' },
         '.cm-scroller': { overflow: 'auto' },
         '.cm-gutters': { backgroundColor: 'var(--ui-bg-muted)', color: 'var(--ui-text-dimmed)', borderRight: '1px solid var(--ui-border)' },
         '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'color-mix(in oklab, var(--ui-primary) 8%, transparent)' },

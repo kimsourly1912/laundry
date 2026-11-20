@@ -56,21 +56,28 @@ function clearFilters() {
 <template>
   <UDashboardPanel id="orders">
     <template #header>
-      <UDashboardNavbar :title="t('orders.list.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+      <UDashboardNavbar
+        :toggle="false"
+        :title="t('orders.list.title')"
+        icon="i-lucide-receipt-text"
+      >
         <template #right>
           <UButton
             v-if="can('order:create')"
-            :label="t('orders.new.title')"
             icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            :aria-label="t('orders.new.title')"
             to="/orders/new"
+            data-testid="new-order"
           />
         </template>
       </UDashboardNavbar>
-      <UDashboardToolbar>
-        <div class="flex w-full flex-wrap gap-2">
+    </template>
+
+    <template #body>
+      <div class="mx-auto w-full max-w-page space-y-4">
+        <div class="flex gap-2">
           <UInput
             v-model="search"
             :placeholder="t('orders.list.search')"
@@ -78,7 +85,7 @@ function clearFilters() {
             icon="i-lucide-search"
             type="search"
             inputmode="tel"
-            class="min-w-0 flex-1 sm:max-w-xs"
+            class="min-w-0 flex-1"
             data-testid="orders-search"
           />
           <USelect
@@ -89,19 +96,16 @@ function clearFilters() {
             data-testid="orders-paid"
           />
         </div>
-      </UDashboardToolbar>
-    </template>
-
-    <template #body>
-      <div class="mx-auto w-full max-w-page space-y-4">
-        <!-- Six states: the tab row scrolls sideways on a narrow phone instead of squeezing. -->
+        <!-- Six states as chips: the row scrolls sideways on a narrow phone instead of squeezing. -->
         <div class="-mx-4 overflow-x-auto px-4">
           <UTabs
             v-model="filters.status"
             :items="tabs"
             :content="false"
-            variant="link"
+            variant="pill"
+            color="primary"
             class="w-max min-w-full"
+            :ui="{ list: 'gap-2 bg-transparent p-0', indicator: 'rounded-full', trigger: 'rounded-full border border-default px-4 data-[state=active]:border-transparent' }"
             data-testid="orders-tabs"
           />
         </div>

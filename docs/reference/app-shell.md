@@ -40,7 +40,7 @@ The server refuses on its own; these rules only keep people on pages that work f
 
 ## Layouts and navigation
 
-`auth` (one card, the language), `platform` and `shop` (both `AppShell`: sidebar, drawer below `lg`, account menu). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
+`auth` (one card, the language), `platform` (`AppShell`: sidebar, drawer below `lg`, account menu) and `shop` (`ShopShell`: a 768px column, bottom tabs on Overview, Orders and More, no sidebar). Each feature's `navigation.ts` (`ShellLink[]`: label key, icon, path) is exported by its `index.ts` and listed by the layout. `/account` renders inside the session's own layout.
 
 **Bottom bar** ([responsive-layout → Page anatomy](../standards/responsive-layout.md#5-page-anatomy)): a page's primary actions in thumb reach. Below `lg` it's fixed to the bottom with the safe-area inset; from `lg` it's a row at the end of the content. One per page; put `<BottomBarSpacer />` last in the body so nothing hides behind it.
 

@@ -65,7 +65,7 @@ This is deliberately unlike common laundry software, where the shop runs its own
 - Orders: search by number or phone; In progress, Ready, Mark paid, Picked up, Cancel and copy.
 - The Contact support link (Telegram) where the owner would want a change.
 
-**Built before and kept:** customers and pickup day (behind More details), paper size, the lifecycle with Ready, the artwork studio for older templates.
+**Built before and kept:** the customer picker and pickup day (behind More details), paper size, the lifecycle with Ready, the artwork studio for older templates.
 
 **Removed by D44:** the owner's prices and every calculated total; price keys in the Studio; redesign requests.
 
@@ -106,14 +106,15 @@ The rest is as in [data-model.md](server/data-model.md): shops, templates and ve
 
 ## 9. Steps
 
-**One PR for this round (E. Paper-slip pilot), one commit per step**, on branch `plan/city-laundry-pilot`. The owner reviews the PR. Earlier PRs (A Reset, B Studio, B2 Simplify, C Owner + Telegram, D39 items, D Item list and prices) are merged or recorded in [current-state](current-state.md) and git history.
+**One PR for this round (E. Paper-slip pilot), one commit per step.** P1–P4 merged as #25; P6 follows on its own branch. The owner reviews the PR. Earlier PRs (A Reset, B Studio, B2 Simplify, C Owner + Telegram, D39 items, D Item list and prices) are merged or recorded in [current-state](current-state.md) and git history.
 
 | # | Step | Size | Status |
 |---|---|---|---|
-| P1 | **Studio fields, placement, Test order** ([pilot plan §1](city-laundry-pilot-plan.md)): manual total by default, each field says whether the slip prints it, Insert placeholder, portal-only fields, unplaced-field warnings, Test order | Medium | Built, not committed |
-| P2 | **Set up the slip from the shop** (pilot plan §2): Set up paper slip, "For <shop>", Publish and assign, Retry assignment | Medium | Built, not committed |
-| P3 | **Fill the slip at the counter** (pilot plan §3): the slip's fields first, More details collapsed, Save order beside Preview, one order per double tap | Medium | Built, not committed |
-| P4 | **Remove prices and redesign requests** (D44, one step by the owner's choice): everything in §8's Remove column, the Studio's Pricing section, the itemized New order, the platform's price count, the owner's request dialog and the platform's queue; one migration dropping `order_items`, `price_items` and `template_requests`; New order always takes a typed total; Paper slips says "Need a change? Contact support" with the Telegram link | Large | Built, not committed |
+| P1 | **Studio fields, placement, Test order** ([pilot plan §1](city-laundry-pilot-plan.md)): manual total by default, each field says whether the slip prints it, Insert placeholder, portal-only fields, unplaced-field warnings, Test order | Medium | Done (#25) |
+| P2 | **Set up the slip from the shop** (pilot plan §2): Set up paper slip, "For <shop>", Publish and assign, Retry assignment | Medium | Done (#25) |
+| P3 | **Fill the slip at the counter** (pilot plan §3): the slip's fields first, More details collapsed, Save order beside Preview, one order per double tap | Medium | Done (#25) |
+| P4 | **Remove prices and redesign requests** (D44, one step by the owner's choice): everything in §8's Remove column, the Studio's Pricing section, the itemized New order, the platform's price count, the owner's request dialog and the platform's queue; one migration dropping `order_items`, `price_items` and `template_requests`; New order always takes a typed total; Paper slips says "Need a change? Contact support" with the Telegram link | Large | Done (#25) |
+| P5 | **No setup screens for the owner** ([D46](decisions.md#d46-the-owners-app-has-no-setup-screens-one-place-to-attach-a-slip)): the shop's details move to the platform's shop page; no customer pages; a slip is attached on the shop's page only (no New shop picker, no Studio Shops dialog); no editor font picker | Medium | Built, not committed |
 | P6 | **City Laundry's slip:** built from the shop's photo and field walk-through, assigned to the shop; printed at its paper size, its QR scanned from paper; Telegram bot on staging | Medium | Waiting for the shop's photo and paper size |
 
 Each step includes tests (two-shop isolation for every new query, a failing test for each removed guard's replacement), English strings in `en.json`, and docs.

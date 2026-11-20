@@ -109,7 +109,6 @@ function apply() {
                 v-model="state.customerName"
                 :maxlength="CUSTOMER_NAME_MAX"
                 autocomplete="off"
-                size="xl"
                 class="w-full"
               />
             </UFormField>
@@ -142,7 +141,6 @@ function apply() {
                 :model-value="textOf(field.id)"
                 :maxlength="field.maxLength"
                 autocomplete="off"
-                size="xl"
                 class="w-full"
                 @update:model-value="setValue(field.id, String($event))"
               />
@@ -154,7 +152,6 @@ function apply() {
               <UCheckbox
                 :model-value="state.values[field.id] === true"
                 :label="field.label || field.id"
-                size="xl"
                 @update:model-value="setValue(field.id, $event === true)"
               />
             </UFormField>
@@ -169,7 +166,6 @@ function apply() {
                 :model-value="amountText"
                 inputmode="numeric"
                 autocomplete="off"
-                size="xl"
                 class="w-full"
                 @update:model-value="setAmount(String($event))"
               >

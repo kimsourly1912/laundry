@@ -58,7 +58,6 @@ function add(text: string) {
       :create-item="can('customer:write') ? 'always' : false"
       :placeholder="t('customers.pick.placeholder')"
       icon="i-lucide-user"
-      size="xl"
       class="min-w-0 flex-1"
       :loading="found.pending.value"
       :aria-label="t('customers.pick.label')"
@@ -77,7 +76,6 @@ function add(text: string) {
       icon="i-lucide-x"
       color="neutral"
       variant="ghost"
-      size="xl"
       :aria-label="t('customers.pick.clear')"
       @click="customer = null"
     />

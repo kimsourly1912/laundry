@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, expect, inject, it, onTestFailed } from 'vitest'
 import type { Browser, Page } from 'playwright-core'
-import type { TemplateDetail, TemplateShop } from '#shared/contracts/templates'
+import type { ShopTemplate, TemplateDetail } from '#shared/contracts/templates'
 import { launchBrowser, newDevice, screenshotOnFailure, signIn } from './support/browser'
 
 // City Laundry pilot §2 on a disposable shop: Shops → the shop → Set up paper slip, Publish and
@@ -20,7 +20,7 @@ afterAll(async () => {
 
 /** The server's view, through the platform's own reads. */
 const readTemplate = (page: Page, id: string) => page.evaluate(async id => (await fetch(`/api/platform/templates/${id}`)).json() as Promise<TemplateDetail>, id)
-const readShops = (page: Page, id: string) => page.evaluate(async id => (await fetch(`/api/platform/templates/${id}/shops`)).json() as Promise<TemplateShop[]>, id)
+const readShopTemplates = (page: Page, shopId: string) => page.evaluate(async id => (await fetch(`/api/platform/shops/${id}/templates`)).json() as Promise<ShopTemplate[]>, shopId)
 
 it('sets up a paper slip from the shop, publishes and assigns it, and retries a failed assignment', async () => {
   const shopName = accounts.pilotOwner.shop
@@ -66,7 +66,7 @@ it('sets up a paper slip from the shop, publishes and assigns it, and retries a 
   expect(await admin.getByTestId('assign-failed').textContent()).toContain(`Version 1 is published, but it isn’t assigned to ${shopName} yet.`)
   expect(await admin.getByText('is published and assigned').count()).toBe(0)
   expect(await readTemplate(admin, templateId)).toMatchObject({ status: 'published', latestVersion: 1 })
-  expect(await readShops(admin, templateId)).toEqual([])
+  expect(await readShopTemplates(admin, shopId)).toEqual([])
 
   // Retry assignment: the same version, attached once.
   const retry = admin.getByTestId('html-publish-confirm')
@@ -75,7 +75,7 @@ it('sets up a paper slip from the shop, publishes and assigns it, and retries a 
   await expect.poll(() => admin.getByText(`Version 1 is published and assigned to ${shopName}.`).count()).toBeGreaterThan(0)
   expect(attaches).toBe(2)
   expect(await readTemplate(admin, templateId)).toMatchObject({ latestVersion: 1, hasUnpublishedChanges: false })
-  expect((await readShops(admin, templateId)).map(item => item.name)).toEqual([shopName])
+  expect((await readShopTemplates(admin, shopId)).map(item => item.templateId)).toEqual([templateId])
   await expect.poll(() => publish.textContent()).toBe(`Assigned to ${shopName}`)
   expect(await publish.isDisabled()).toBe(true)
 
@@ -90,7 +90,7 @@ it('sets up a paper slip from the shop, publishes and assigns it, and retries a 
   await admin.getByTestId('html-publish-confirm').click()
   await expect.poll(() => admin.getByText(`Version 1 is published and assigned to ${shopName}.`).count()).toBeGreaterThan(0)
   expect(await readTemplate(admin, templateId)).toMatchObject({ latestVersion: 1 })
-  expect((await readShops(admin, templateId)).map(item => item.name)).toEqual([shopName])
+  expect((await readShopTemplates(admin, shopId)).map(item => item.templateId)).toEqual([templateId])
 
   // The shop's page lists it.
   await admin.goto(`${host}/platform/shops/${shopId}`)

@@ -1,15 +1,13 @@
 <script setup lang="ts">
 /**
- * Add a customer, or correct one (D39): name and an optional phone. A short form in a modal
- * (page-patterns → Detail / editor). The server checks the phone and refuses another customer's.
+ * Add a customer from New order's picker (D39): name and an optional phone. A short form in a
+ * modal (page-patterns → Detail / editor). The server checks the phone and refuses another customer's.
  */
 import type { Customer } from '#shared/contracts/customers'
 import { CUSTOMER_NAME_MAX } from '#shared/contracts/customers'
-import { formatPhone, toE164 } from '#shared/contracts/phone'
+import { toE164 } from '#shared/contracts/phone'
 
 const props = defineProps<{
-  /** Correct this customer; add a new one when absent. */
-  customer?: Customer
   /** What the owner typed in the picker: a phone or a name. */
   start?: string
 }>()
@@ -21,21 +19,13 @@ const name = ref('')
 const phone = ref('')
 watch(open, (value) => {
   if (!value) return
-  if (props.customer) {
-    name.value = props.customer.name
-    phone.value = props.customer.phone ? formatPhone(props.customer.phone) : ''
-  }
-  else {
-    const typed = props.start?.trim() ?? ''
-    const asPhone = typed && toE164(typed)
-    name.value = asPhone ? '' : typed
-    phone.value = asPhone ? typed : ''
-  }
+  const typed = props.start?.trim() ?? ''
+  const asPhone = typed && toE164(typed)
+  name.value = asPhone ? '' : typed
+  phone.value = asPhone ? typed : ''
 }, { immediate: true })
 
-const save = useMutation((body: { name: string, phone: string }) => props.customer
-  ? apiFetch<Customer>(`/shop/customers/${props.customer.id}`, { method: 'PATCH', body: { ...body, version: props.customer.version } })
-  : apiFetch<Customer>('/shop/customers', { method: 'POST', body }), { inline: true, invalidate: ['customers'] })
+const save = useMutation((body: { name: string, phone: string }) => apiFetch<Customer>('/shop/customers', { method: 'POST', body }), { inline: true, invalidate: ['customers'] })
 
 const nameError = computed(() => save.error.value?.fieldErrors?.name?.[0])
 const phoneError = computed(() => {
@@ -56,7 +46,7 @@ async function submit() {
 <template>
   <UModal
     v-model:open="open"
-    :title="customer ? t('customers.form.editTitle') : t('customers.form.newTitle')"
+    :title="t('customers.form.newTitle')"
     :dismissible="!save.pending.value"
   >
     <template #body>
@@ -80,7 +70,6 @@ async function submit() {
           <UInput
             v-model="name"
             :maxlength="CUSTOMER_NAME_MAX"
-            size="xl"
             class="w-full"
             autocomplete="off"
             data-testid="customer-name"
@@ -95,7 +84,6 @@ async function submit() {
             v-model="phone"
             type="tel"
             inputmode="tel"
-            size="xl"
             class="w-full"
             autocomplete="off"
             placeholder="012 345 678"

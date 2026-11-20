@@ -86,9 +86,8 @@ describe('the app shell', () => {
     await expect.poll(() => admin.getByText('The owner was signed out everywhere.').count()).toBeGreaterThan(0)
 
     // The phone's next request (opening the account page from the menu) ends the session in the app.
-    await phone.getByRole('button', { name: 'Open sidebar' }).click()
-    await phone.getByRole('button', { name: /Owner/ }).click()
-    await phone.getByRole('menuitem', { name: 'Account' }).click()
+    await phone.getByRole('link', { name: 'More' }).click()
+    await phone.getByRole('link', { name: 'Account' }).click()
     await phone.waitForURL(/\/sign-in\?redirect=%2Faccount|\/sign-in\?redirect=\/account/)
     expect(await phone.getByText(shop).count()).toBe(0)
   })

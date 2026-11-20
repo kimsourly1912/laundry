@@ -1,10 +1,4 @@
 <script setup lang="ts">
-/**
- * New order's fields (implementation guide → sheet 01): every field of the paper slip as a row to
- * fill directly, in the slip's fill order (plan §5.3.4), with the platform's own labels (D36).
- * Counts have − and + beside a box that takes the numeric keypad; the amount is typed by hand on
- * every slip (D44). Problems show under their field once the owner asks to preview.
- */
 import type { SlipDesign, SlipElement, SlipShop } from '#shared/contracts/slip-design'
 import type { FillProblems, SlipFill } from '#shared/slip/values'
 import { fillSteps, problemKey, problemMessage, SlipCountInput } from '~/features/slip-fill'
@@ -13,7 +7,7 @@ import type { FillStep } from '~/features/slip-fill'
 const props = defineProps<{
   design: SlipDesign
   currency: SlipShop['currency']
-  /** Problems to show (empty until the owner asks to preview). */
+  /** Problems to show (empty until the owner tries to save or preview). */
   problems: FillProblems
   /** The server's own words for a field it refused, by the same keys. */
   serverErrors: Record<string, string>
@@ -22,13 +16,27 @@ const fill = defineModel<SlipFill>({ required: true })
 
 const { t } = useI18n()
 const steps = computed(() => fillSteps(props.design))
+const fields = useTemplateRef('fields')
+
+const sections = computed(() => steps.value.reduce<{ kind: 'contact' | 'laundry' | 'payment', steps: FillStep[] }[]>((sections, step) => {
+  // Keep the paper slip's fill order even when a template interleaves different kinds of fields.
+  const kind = step.kind === 'phone' ? 'contact' : step.kind === 'amount' || step.kind === 'paid' ? 'payment' : 'laundry'
+  const last = sections.at(-1)
+  if (last?.kind === kind) last.steps.push(step)
+  else sections.push({ kind, steps: [step] })
+  return sections
+}, []))
+const sectionIcons = { contact: 'i-lucide-phone', laundry: 'i-lucide-shirt', payment: 'i-lucide-banknote' }
 
 function labelOf(step: FillStep): string {
-  if (step.kind === 'paid') return t('slipFill.paidQuestion')
   const label = step.kind === 'choice'
     ? props.design.groups.find(group => group.id === step.key)?.label
-    : 'label' in step.element ? step.element.label : undefined
-  return label?.trim() || t('slipFill.untitled')
+    : 'element' in step && 'label' in step.element ? step.element.label : undefined
+  const name = label?.trim() || t('slipFill.untitled')
+  if (step.kind === 'number' && step.element.type === 'number' && step.element.unit) {
+    return t('orders.new.quantityWithUnit', { label: name, unit: step.element.unit })
+  }
+  return name
 }
 
 function isRequired(step: FillStep): boolean {
@@ -74,13 +82,13 @@ function setAmount(text: string) {
   fill.value = { ...fill.value, amount: text.trim() ? parseMoney(text, props.currency) ?? -1 : null }
 }
 
-/** Focuses the first field with a problem (after Preview found some). */
+/** Focuses the first field with a problem in the paper slip's fill order. */
 function focusFirstProblem() {
   const first = steps.value.find(step => errorOf(step))
   if (!first) return
-  const field = document.querySelector<HTMLElement>(`[data-field="${first.key}"]`)
+  const field = fields.value?.querySelector<HTMLElement>(`[data-field="${CSS.escape(first.key)}"]`)
   field?.scrollIntoView({ block: 'center' })
-  field?.querySelector<HTMLElement>('input, button, [role="radio"]')?.focus({ preventScroll: true })
+  field?.querySelector<HTMLElement>('input:not([type="hidden"]), [role="checkbox"], [role="radio"]')?.focus({ preventScroll: true })
 }
 
 defineExpose({ focusFirstProblem })
@@ -88,143 +96,163 @@ defineExpose({ focusFirstProblem })
 
 <template>
   <div
-    v-if="steps.length"
-    class="divide-y divide-default rounded-md border border-default bg-default"
+    v-if="sections.length"
+    ref="fields"
+    class="space-y-5"
   >
-    <div
-      v-for="step in steps"
-      :key="step.key"
-      class="px-4 py-3"
-      :data-field="step.key"
+    <section
+      v-for="section in sections"
+      :key="section.steps[0]?.key"
+      class="space-y-3"
+      :class="section.kind === 'payment' ? 'rounded-lg border border-default bg-elevated/50 p-4' : 'border-t border-default pt-4'"
     >
-      <UFormField
-        v-if="step.kind === 'number' && step.element.type === 'number'"
-        :label="labelOf(step)"
-        :required="isRequired(step)"
-        :error="errorOf(step)"
-        orientation="horizontal"
-        :ui="{ container: 'shrink-0', label: 'text-base' }"
-        class="items-center justify-between gap-3"
-      >
-        <SlipCountInput
-          :model-value="countOf(step.key)"
-          :range="step.element"
-          :label="labelOf(step)"
-          :test-id="`field-${step.key}`"
-          @update:model-value="setValue(step.key, $event)"
+      <h2 class="flex items-center gap-2 font-semibold text-highlighted">
+        <UIcon
+          :name="sectionIcons[section.kind]"
+          class="size-4 shrink-0 text-muted"
         />
-      </UFormField>
+        {{ t(`orders.new.sections.${section.kind}`) }}
+      </h2>
 
-      <UFormField
-        v-else-if="step.kind === 'textField'"
-        :label="labelOf(step)"
-        :required="isRequired(step)"
-        :error="errorOf(step)"
-        :ui="{ label: 'text-base' }"
+      <div
+        class="grid items-start gap-x-2 gap-y-3 sm:gap-x-4"
+        :class="section.kind === 'payment' ? 'sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-6'"
       >
-        <UInput
-          :model-value="textOf(step.key)"
-          :maxlength="'maxLength' in step.element ? step.element.maxLength : 200"
-          size="xl"
-          class="w-full"
-          autocomplete="off"
-          :data-testid="`field-${step.key}`"
-          @update:model-value="setValue(step.key, String($event))"
-        />
-      </UFormField>
-
-      <UFormField
-        v-else-if="step.kind === 'checkbox'"
-        :error="errorOf(step)"
-      >
-        <UCheckbox
-          :model-value="fill.values[step.key] === true"
-          :label="labelOf(step)"
-          :required="isRequired(step)"
-          size="xl"
-          :ui="{ root: 'py-1', label: 'text-base' }"
-          :data-testid="`field-${step.key}`"
-          @update:model-value="setValue(step.key, $event === true)"
-        />
-      </UFormField>
-
-      <UFormField
-        v-else-if="step.kind === 'choice'"
-        :label="labelOf(step)"
-        :required="isRequired(step)"
-        :error="errorOf(step)"
-        :ui="{ label: 'text-base' }"
-      >
-        <URadioGroup
-          :model-value="typeof fill.values[step.key] === 'string' ? String(fill.values[step.key]) : undefined"
-          :items="step.options.map(option => ({ label: optionLabel(option), value: option.id }))"
-          variant="card"
-          size="xl"
-          :ui="{ fieldset: 'gap-2' }"
-          :data-testid="`field-${step.key}`"
-          @update:model-value="setValue(step.key, String($event))"
-        />
-      </UFormField>
-
-      <UFormField
-        v-else-if="step.kind === 'phone'"
-        :label="labelOf(step)"
-        :required="isRequired(step)"
-        :error="errorOf(step)"
-        :ui="{ label: 'text-base' }"
-      >
-        <UInput
-          :model-value="fill.phone"
-          type="tel"
-          inputmode="tel"
-          autocomplete="off"
-          size="xl"
-          class="w-full"
-          placeholder="012 345 678"
-          data-testid="field-phone"
-          @update:model-value="fill = { ...fill, phone: String($event) }"
-        />
-      </UFormField>
-
-      <UFormField
-        v-else-if="step.kind === 'amount'"
-        :label="labelOf(step)"
-        :required="isRequired(step)"
-        :error="errorOf(step)"
-        :ui="{ label: 'text-base' }"
-      >
-        <UInput
-          :model-value="amountText"
-          inputmode="decimal"
-          autocomplete="off"
-          size="xl"
-          class="w-full"
-          data-testid="field-amount"
-          @update:model-value="setAmount(String($event))"
+        <div
+          v-for="step in section.steps"
+          :key="step.key"
+          :data-field="step.key"
+          class="min-w-0 wrap-anywhere"
+          :class="{
+            'col-span-2 sm:col-span-6': section.kind !== 'payment' && step.kind !== 'checkbox',
+            'sm:col-span-2': step.kind === 'checkbox' || (section.kind === 'payment' && section.steps.length === 1),
+          }"
         >
-          <template #trailing>
-            <span class="text-muted">{{ currency === 'KHR' ? '៛' : '$' }}</span>
-          </template>
-        </UInput>
-      </UFormField>
+          <UFormField
+            v-if="step.kind === 'number' && step.element.type === 'number'"
+            :label="labelOf(step)"
+            :required="isRequired(step)"
+            :error="errorOf(step)"
+            orientation="horizontal"
+            class="flex-wrap items-center justify-between gap-3 rounded-lg bg-elevated/50 p-3 wrap-anywhere"
+          >
+            <SlipCountInput
+              :model-value="countOf(step.key)"
+              :range="step.element"
+              :label="labelOf(step)"
+              :required="isRequired(step)"
+              :test-id="`field-${step.key}`"
+              @update:model-value="setValue(step.key, $event)"
+            />
+          </UFormField>
 
-      <UFormField
-        v-else-if="step.kind === 'paid'"
-        :label="labelOf(step)"
-        :ui="{ label: 'text-base' }"
-      >
-        <URadioGroup
-          :model-value="fill.paid ? 'paid' : 'unpaid'"
-          :items="[{ label: t('slipFill.notPaid'), value: 'unpaid' }, { label: t('slipFill.paid'), value: 'paid' }]"
-          variant="card"
-          orientation="horizontal"
-          size="xl"
-          :ui="{ fieldset: 'gap-2', item: 'flex-1' }"
-          data-testid="field-paid"
-          @update:model-value="fill = { ...fill, paid: $event === 'paid' }"
-        />
-      </UFormField>
-    </div>
+          <UFormField
+            v-else-if="step.kind === 'textField'"
+            :label="labelOf(step)"
+            :required="isRequired(step)"
+            :error="errorOf(step)"
+          >
+            <UInput
+              :model-value="textOf(step.key)"
+              :maxlength="'maxLength' in step.element ? step.element.maxLength : 200"
+              class="w-full"
+              autocomplete="off"
+              :data-testid="`field-${step.key}`"
+              @update:model-value="setValue(step.key, String($event))"
+            />
+          </UFormField>
+
+          <UFormField
+            v-else-if="step.kind === 'checkbox'"
+            :error="errorOf(step)"
+          >
+            <UCheckbox
+              :model-value="fill.values[step.key] === true"
+              :label="labelOf(step)"
+              :required="isRequired(step)"
+              variant="card"
+              :data-testid="`field-${step.key}`"
+              @update:model-value="setValue(step.key, $event === true)"
+            />
+          </UFormField>
+
+          <UFormField
+            v-else-if="step.kind === 'choice'"
+            :error="errorOf(step)"
+          >
+            <URadioGroup
+              :required="isRequired(step)"
+              :model-value="typeof fill.values[step.key] === 'string' ? String(fill.values[step.key]) : undefined"
+              :items="step.options.map(option => ({ label: optionLabel(option), value: option.id }))"
+              variant="card"
+              :data-testid="`field-${step.key}`"
+              @update:model-value="setValue(step.key, String($event))"
+            >
+              <template #legend>
+                {{ labelOf(step) }}
+                <span
+                  v-if="isRequired(step)"
+                  class="text-error"
+                  aria-hidden="true"
+                >*</span>
+              </template>
+            </URadioGroup>
+          </UFormField>
+
+          <UFormField
+            v-else-if="step.kind === 'phone'"
+            :label="labelOf(step)"
+            :required="isRequired(step)"
+            :error="errorOf(step)"
+            :hint="isRequired(step) ? undefined : t('common.optional')"
+          >
+            <UInput
+              :model-value="fill.phone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="off"
+              class="w-full"
+              :placeholder="t('orders.new.phoneExample')"
+              data-testid="field-phone"
+              @update:model-value="fill = { ...fill, phone: String($event) }"
+            />
+          </UFormField>
+
+          <UFormField
+            v-else-if="step.kind === 'amount'"
+            :label="labelOf(step)"
+            :required="isRequired(step)"
+            :error="errorOf(step)"
+          >
+            <UInput
+              :model-value="amountText"
+              :inputmode="currency === 'KHR' ? 'numeric' : 'decimal'"
+              :placeholder="t(currency === 'KHR' ? 'orders.new.amountExampleKhr' : 'orders.new.amountExampleUsd')"
+              autocomplete="off"
+              class="w-full tabular-nums"
+              data-testid="field-amount"
+              @update:model-value="setAmount(String($event))"
+            >
+              <template #trailing>
+                <span class="text-muted">{{ currency === 'KHR' ? '៛' : '$' }}</span>
+              </template>
+            </UInput>
+          </UFormField>
+
+          <URadioGroup
+            v-else-if="step.kind === 'paid'"
+            :legend="t('orders.new.paymentStatus')"
+            :model-value="fill.paid ? 'paid' : 'unpaid'"
+            :items="[{ label: t('slipFill.notPaid'), value: 'unpaid' }, { label: t('slipFill.paid'), value: 'paid' }]"
+            variant="card"
+            orientation="horizontal"
+            class="[&_[data-slot=item]]:flex-1"
+            data-testid="field-paid"
+            @update:model-value="fill = { ...fill, paid: $event === 'paid' }"
+          />
+        </div>
+      </div>
+    </section>
   </div>
   <p
     v-else

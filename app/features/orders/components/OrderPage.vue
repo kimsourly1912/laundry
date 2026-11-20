@@ -73,13 +73,16 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
 <template>
   <UDashboardPanel id="order">
     <template #header>
-      <UDashboardNavbar :title="order.data.value ? t('orders.order.title', { number: order.data.value.number }) : t('orders.order.loadingTitle')">
+      <UDashboardNavbar
+        :toggle="false"
+        :title="order.data.value ? t('orders.order.title', { number: order.data.value.number }) : t('orders.order.loadingTitle')"
+      >
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
-            to="/"
+            to="/orders"
             :aria-label="t('common.actions.back')"
           />
         </template>
@@ -145,14 +148,12 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
                 :label="t(badge!.key)"
                 :color="badge!.color"
                 variant="subtle"
-                size="lg"
                 data-testid="order-status"
               />
               <UBadge
                 :label="order.data.value.paid ? t('orders.paid') : t('orders.unpaid')"
                 :color="order.data.value.paid ? 'success' : 'warning'"
                 variant="subtle"
-                size="lg"
                 data-testid="order-paid"
               />
             </div>
@@ -205,13 +206,7 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
                 {{ t('orders.order.customer') }}
               </dt>
               <dd class="min-w-0 break-words">
-                <ULink
-                  v-if="order.data.value.customerId"
-                  :to="`/customers/${order.data.value.customerId}`"
-                  class="text-primary"
-                >
-                  {{ order.data.value.customerName }}
-                </ULink>
+                {{ order.data.value.customerName }}
               </dd>
             </template>
             <template v-if="order.data.value.readyAt">
@@ -262,7 +257,6 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
               <UButton
                 :label="justSaved ? t('orders.order.printAgain') : t('orders.order.print')"
                 icon="i-lucide-printer"
-                size="xl"
                 block
                 :loading="printing"
                 data-testid="print"
@@ -274,7 +268,6 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
                 icon="i-lucide-arrow-right"
                 color="neutral"
                 variant="outline"
-                size="xl"
                 block
                 to="/orders/new"
                 data-testid="next-order"

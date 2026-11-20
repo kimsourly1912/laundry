@@ -131,7 +131,7 @@ Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointe
 `customers` (shop-owned): `id`, `shop_id`, `name`, `phone` (E.164 null), `version`, `created_at`, `updated_at`.
 - Partial UNIQUE `(shop_id, phone)` where `phone` is set: one customer per phone in a shop. Index `(shop_id, name)`: the list. UNIQUE `(shop_id, id)`.
 - **Never deleted:** `orders.customer_id` points at it (restrict).
-- `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders.
+- `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders (no query uses it since D46 removed the customer page; kept).
 
 ## `orders.due_date` (owner: `orders`)
 

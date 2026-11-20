@@ -11,6 +11,7 @@ import { SlipSvg, useSlipText } from '~/features/slip-fill'
 import { useShopSettings } from '~/features/shop-settings'
 import { useOrderTemplates } from '../composables/useOrderTemplates'
 import { shopToday } from '../utils/order-form'
+import ServerSlip from './ServerSlip.vue'
 
 const { t } = useI18n()
 const { can } = useSession()
@@ -30,8 +31,13 @@ const makeDefault = useMutation((templateId: string) => apiFetch<OrderTemplate[]
   success: () => t('orders.slips.defaultSaved'),
 })
 
+/** The template being made the default, so only its button spins. */
+const choosing = ref<string>()
+
 async function choose(templateId: string) {
+  choosing.value = templateId
   const result = await makeDefault.execute(templateId)
+  choosing.value = undefined
   if (result.ok) templates.data.value = result.data
 }
 </script>
@@ -39,7 +45,10 @@ async function choose(templateId: string) {
 <template>
   <UDashboardPanel id="paper-slips">
     <template #header>
-      <UDashboardNavbar :title="t('orders.slips.title')">
+      <UDashboardNavbar
+        :toggle="false"
+        :title="t('orders.slips.title')"
+      >
         <template #leading>
           <UButton
             icon="i-lucide-arrow-left"
@@ -79,7 +88,7 @@ async function choose(templateId: string) {
           <USkeleton
             v-for="n in 2"
             :key="n"
-            class="aspect-[3/2] w-full"
+            class="aspect-3/2 w-full"
           />
         </div>
         <UEmpty
@@ -100,7 +109,7 @@ async function choose(templateId: string) {
             class="space-y-3 rounded-md border border-default p-4"
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
-              <h2 class="min-w-0 font-semibold break-words text-highlighted">
+              <h2 class="min-w-0 font-semibold wrap-break-word text-highlighted">
                 {{ template.name }}
               </h2>
               <UBadge
@@ -117,8 +126,15 @@ async function choose(templateId: string) {
               role="img"
               :aria-label="t('orders.slips.sample', { name: template.name })"
             >
+              <!-- D39: an HTML slip is laid out by the server; its fields have no place of their own to draw at. -->
+              <ServerSlip
+                v-if="template.design.html !== undefined"
+                :path="`/shop/templates/${template.templateId}/sample`"
+                :width="template.design.width"
+                :height="template.design.height"
+              />
               <SlipSvg
-                v-if="slipText.text.value"
+                v-else-if="slipText.text.value"
                 :design="template.design"
                 :data="sampleData(template.design, { shop, date: today })"
                 :text="slipText.text.value"
@@ -142,7 +158,8 @@ async function choose(templateId: string) {
                 v-if="!template.isDefault && can('template:set-default')"
                 :label="t('orders.slips.makeDefault')"
                 icon="i-lucide-star"
-                :loading="makeDefault.pending.value"
+                :loading="choosing === template.templateId"
+                :disabled="makeDefault.pending.value"
                 :data-testid="`make-default-${template.name}`"
                 @click="choose(template.templateId)"
               />

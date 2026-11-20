@@ -1,11 +1,11 @@
 import * as v from 'valibot'
-import { nameSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
+import { nameSchema, optionalParam, pageQuerySchema } from './common'
 import { optionalPhoneSchema } from './phone'
 
 /**
  * The shop's customers (`/api/shop/customers`, D39; product notes → customers): a name and an
- * optional phone, looked up at the counter and kept with their orders. One phone per customer in a
- * shop; another shop may have the same person.
+ * optional phone, picked or added under New order → More details and kept with their orders. One
+ * phone per customer in a shop; another shop may have the same person. No customer pages (D44).
  */
 
 export const CUSTOMER_NAME_MAX = 80
@@ -16,14 +16,6 @@ export const createCustomerSchema = v.strictObject({
   phone: optionalPhoneSchema,
 })
 export type CreateCustomerInput = v.InferOutput<typeof createCustomerSchema>
-
-/** `PATCH /api/shop/customers/:id`: both fields, at the version read. */
-export const updateCustomerSchema = v.strictObject({
-  version: versionSchema,
-  name: nameSchema(CUSTOMER_NAME_MAX, 'Name'),
-  phone: optionalPhoneSchema,
-})
-export type UpdateCustomerInput = v.InferOutput<typeof updateCustomerSchema>
 
 /** `GET /api/shop/customers?search=`: a phone (exact) or part of the name; by name. */
 export const customerListQuerySchema = v.object({

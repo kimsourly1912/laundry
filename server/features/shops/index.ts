@@ -4,7 +4,7 @@ import { findShopCopy, findShopProfile, findShopStatus } from './shops.repositor
 
 /** The shops feature's public API (docs/server/architecture.md → Features). */
 export { createShop, getShop, listShops, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from './shops.service'
-export { getSettings, updateSettings } from './shops.settings.service'
+export { getSettings } from './shops.settings.service'
 
 /** The shop's status for access checks (spec §5): `undefined` when the shop has no settings row. */
 export async function shopStatus(db: Db, shopId: string): Promise<'active' | 'suspended' | undefined> {

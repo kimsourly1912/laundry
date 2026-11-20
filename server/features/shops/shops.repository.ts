@@ -17,13 +17,15 @@ export function findShopStatus(db: Db, shopId: string): Promise<ShopStatusRow | 
   return firstRow(db.select({ status: shopSettings.status }).from(shopSettings).where(eq(shopSettings.shopId, shopId)))
 }
 
-/** A shop as the platform sees it: the organization's name and short name, and its settings' status. */
+/** A shop as the platform sees it: the organization's name and short name, its details and status. */
 const shopColumns = {
   id: shopSettings.shopId,
   name: organization.name,
   slug: organization.slug,
   status: shopSettings.status,
   currency: shopSettings.currency,
+  phone: shopSettings.phone,
+  address: shopSettings.address,
   version: shopSettings.version,
   createdAt: organization.createdAt,
 }
@@ -34,6 +36,8 @@ export interface ShopRow {
   slug: string
   status: ShopStatus
   currency: Currency
+  phone: string | null
+  address: string | null
   version: number
   createdAt: Date
 }
@@ -82,7 +86,7 @@ export function insertSettingsStatement(db: Db, settings: NewSettings): Statemen
   return db.insert(shopSettings).values({ shopId, status: 'active', version: 1, createdAt: now, updatedAt: now })
 }
 
-/** The settings an owner edits (spec §3 → Shop settings); the name is the organization's. */
+/** The shop's details besides its name (the organization's), kept by the platform (D44). */
 export interface SettingsFields {
   phone: string | null
   address: string | null

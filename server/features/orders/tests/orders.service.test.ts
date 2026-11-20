@@ -58,7 +58,7 @@ describe('createOrder', () => {
       templateVersionNumber: 1,
       templateName: 'Linda slip',
       values: { name: 'Dara', shirt: 2, pants: 1, svc: 'wash' },
-      phone: '+85512345678',
+      phone: '012 345 678',
       amount: 7000,
       currency: 'KHR',
       paid: true,
@@ -110,7 +110,7 @@ describe('createOrder', () => {
       statusCode: 422,
       data: {
         code: 'SLIP_VALUES_INVALID',
-        fieldErrors: { 'values.shirt': ['From 0 to 999'], 'values.svc': ['Not a value of this slip'], 'values.extra': ['Not a value of this slip'], 'phone': ['Not a valid phone number'] },
+        fieldErrors: { 'values.shirt': ['From 0 to 999'], 'values.svc': ['Not a value of this slip'], 'values.extra': ['Not a value of this slip'] },
       },
     })
     expect(await refusal(create({ values: {} }, key))).toBe('422 SLIP_VALUES_INVALID') // Shirt is required
@@ -195,7 +195,7 @@ describe('listOrders', () => {
     const page = await listOrders(db, actor, { page: 1, pageSize: 2 })
     expect(page.items.map(item => item.number)).toEqual([3, 2])
     expect(page).toMatchObject({ total: 3, page: 1, pageSize: 2 })
-    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', customerName: null, dueDate: null, phone: '+85512345678', amount: 7000, currency: 'KHR', paid: false, status: 'open', stage: 'received', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
+    expect(page.items[0]).toEqual({ id: page.items[0]!.id, number: 3, date: '2026-11-18', customerName: null, dueDate: null, phone: '012 345 678', amount: 7000, currency: 'KHR', paid: false, status: 'open', stage: 'received', createdAt: new Date(NOW.getTime() + 2000).toISOString() })
   })
 })
 
@@ -208,7 +208,7 @@ describe('listOrders search and filters', () => {
     const numbers = async (query: Partial<Parameters<typeof listOrders>[2]>) => (await listOrders(db, actor, { page: 1, pageSize: 20, ...query })).items.map(item => item.number)
     expect(await numbers({ search: '2' })).toEqual([two.number])
     expect(await numbers({ search: '#1' })).toEqual([one.number])
-    expect(await numbers({ search: '012345678' })).toEqual([three.number, one.number])
+    expect(await numbers({ search: '012 345 678' })).toEqual([three.number, one.number])
     expect(await numbers({ search: 'Dara' })).toEqual([])
     expect(await numbers({ search: '9' })).toEqual([])
     expect(await numbers({ status: 'cancelled' })).toEqual([three.number])

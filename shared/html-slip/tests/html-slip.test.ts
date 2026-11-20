@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
-import { newHtmlSlip } from '../presets'
+import { blankHtmlSlip, newHtmlSlip } from '../presets'
+import { isOwnerField } from '#shared/slip/fields'
 import { customSampleOrder, sampleOrder } from '../sample'
 import { previewHtmlTemplateSchema } from '#shared/contracts/templates'
 import { publishProblems } from '#shared/slip/checks'
@@ -12,6 +13,17 @@ import { checkHtml, isKnownUtility } from '#shared/html-slip/catalog'
 import { placeholderText, slipTree } from '#shared/html-slip/build'
 import type { SatoriNode } from '#shared/html-slip/build'
 import { aiPrompt, readAiAnswer } from '#shared/html-slip/ai'
+
+describe('A new template (blankHtmlSlip)', () => {
+  it('starts with no markup and only the built-in fields, for the platform to add the rest', () => {
+    const blank = blankHtmlSlip()
+    expect(blank.html).toBe('')
+    expect(blank.elements.filter(isOwnerField).map(field => field.type)).toEqual(['phone', 'amount'])
+    expect(blank.elements.filter(element => element.type === 'paid')).toHaveLength(2)
+    expect(blank.fillOrder).toEqual(['phone', 'total', 'paid'])
+    expect(blank.paper).toEqual({ widthMm: 100, heightMm: 70 })
+  })
+})
 
 describe('Custom sample (Test order)', () => {
   const design = newHtmlSlip('byWeight')

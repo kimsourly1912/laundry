@@ -1,9 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { CreateShopInput } from '#shared/contracts/platform-shops'
+import type { CreateShopInput, UpdateShopInput } from '#shared/contracts/platform-shops'
 import { authorizeShop, me } from '#server/features/identity'
 import type { PlatformActor } from '#server/features/identity'
-import { createShop, getShop, listShops, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from '#server/features/shops'
+import { createShop, getSettings, getShop, listShops, resetOwnerPassword, resumeShop, revokeOwnerSessions, suspendShop, updateShop } from '#server/features/shops'
 import { auditEvents } from '#server/features/platform/platform.schema'
 import { shopSettings } from '#server/features/shops/shops.schema'
 import { account, member, organization, session, user } from '#server/db/tables'
@@ -31,6 +31,11 @@ function input(overrides: Partial<CreateShopInput> & { username?: string } = {})
   const n = ++made
   const { username = `owner${n}`, ...rest } = overrides
   return { name: `Shop ${n}`, slug: `shop-${n}`, owner: { name: `Owner ${n}`, username, password: 'temporary password 1' }, ...rest }
+}
+
+/** The shop's details as the platform's form sends them: unchanged but for what's given. */
+function details(change: Pick<UpdateShopInput, 'version' | 'name'> & Partial<UpdateShopInput>): UpdateShopInput {
+  return { phone: null, address: null, currency: 'KHR', ...change }
 }
 
 function refusal(promise: Promise<unknown>) {
@@ -146,24 +151,36 @@ describe('listShops and getShop', () => {
 describe('updateShop', () => {
   it('renames at the version the admin saw, moves the version, audits which field; the other shop stays', async () => {
     const { a, b } = await twoShops()
-    const renamed = await updateShop(db, actor, a.id, { version: 1, name: 'New Name' })
+    const renamed = await updateShop(db, actor, a.id, details({ version: 1, name: 'New Name' }))
     expect(renamed).toMatchObject({ name: 'New Name', version: 2 })
     expect(await getShop(db, b.id)).toMatchObject({ name: b.name, version: 1 })
     expect((await auditOf(a.id)).map(row => [row.action, row.data])).toEqual([['shop.create', expect.anything()], ['shop.update', { fields: ['name'] }]])
   })
 
+  it('saves every detail the slips print (D44); the owner reads them; the audit names what changed', async () => {
+    const { a, b } = await twoShops()
+    const saved = await updateShop(db, actor, a.id, { version: 1, name: a.name, phone: '012 345 678', address: 'St 271, Phnom Penh', currency: 'USD' })
+    expect(saved).toMatchObject({ name: a.name, phone: '012 345 678', address: 'St 271, Phnom Penh', currency: 'USD', version: 2 })
+    const owner = await authorizeShop({ db, user: await sessionUserOf(a.owner!.id), permissions: { shop: ['read'] } })
+    expect(await getSettings(db, owner)).toEqual({ name: a.name, phone: '012 345 678', address: 'St 271, Phnom Penh', currency: 'USD', version: 2 })
+    expect(await getShop(db, b.id)).toMatchObject({ phone: null, address: null, currency: 'KHR', version: 1 })
+    expect((await auditOf(a.id)).at(-1)?.data).toEqual({ fields: ['phone', 'address', 'currency'] })
+    // The currency may change back at any time: orders keep a copy (D33).
+    expect((await updateShop(db, actor, a.id, { version: 2, name: a.name, phone: saved.phone, address: saved.address, currency: 'KHR' })).currency).toBe('KHR')
+  })
+
   it('409 VERSION_CONFLICT on a stale version, renaming nothing', async () => {
     const shop = await createShop(db, actor, input())
-    await updateShop(db, actor, shop.id, { version: 1, name: 'First' })
-    expect(await refusal(updateShop(db, actor, shop.id, { version: 1, name: 'Second' }))).toBe('409 VERSION_CONFLICT')
+    await updateShop(db, actor, shop.id, details({ version: 1, name: 'First' }))
+    expect(await refusal(updateShop(db, actor, shop.id, details({ version: 1, name: 'Second' })))).toBe('409 VERSION_CONFLICT')
     expect((await getShop(db, shop.id)).name).toBe('First')
   })
 
   it('two saves of one version at once: one wins, the other 409, one audit row', async () => {
     const shop = await createShop(db, actor, input())
     const results = await Promise.all([
-      refusal(updateShop(db, actor, shop.id, { version: 1, name: 'One' })),
-      refusal(updateShop(db, actor, shop.id, { version: 1, name: 'Two' })),
+      refusal(updateShop(db, actor, shop.id, details({ version: 1, name: 'One' }))),
+      refusal(updateShop(db, actor, shop.id, details({ version: 1, name: 'Two' }))),
     ])
     expect(results.sort()).toEqual(['409 VERSION_CONFLICT', 'allowed'])
     expect((await getShop(db, shop.id)).version).toBe(2)
@@ -171,7 +188,7 @@ describe('updateShop', () => {
   })
 
   it('404 for an unknown shop', async () => {
-    expect(await refusal(updateShop(db, actor, '01900000-0000-7000-8000-000000000000', { version: 1, name: 'X' }))).toBe('404 NOT_FOUND')
+    expect(await refusal(updateShop(db, actor, '01900000-0000-7000-8000-000000000000', details({ version: 1, name: 'X' })))).toBe('404 NOT_FOUND')
   })
 })
 
@@ -203,7 +220,7 @@ describe('suspendShop and resumeShop (spec §5)', () => {
 
   it('409 VERSION_CONFLICT on a stale version', async () => {
     const shop = await createShop(db, actor, input())
-    await updateShop(db, actor, shop.id, { version: 1, name: 'Renamed' })
+    await updateShop(db, actor, shop.id, details({ version: 1, name: 'Renamed' }))
     expect(await refusal(suspendShop(db, actor, shop.id, { version: 1 }))).toBe('409 VERSION_CONFLICT')
     expect((await getShop(db, shop.id)).status).toBe('active')
   })
@@ -212,7 +229,7 @@ describe('suspendShop and resumeShop (spec §5)', () => {
     const shop = await createShop(db, actor, input())
     const results = await Promise.all([
       refusal(suspendShop(db, actor, shop.id, { version: 1 })),
-      refusal(updateShop(db, actor, shop.id, { version: 1, name: 'Renamed' })),
+      refusal(updateShop(db, actor, shop.id, details({ version: 1, name: 'Renamed' }))),
     ])
     expect(results.sort()).toEqual(['409 VERSION_CONFLICT', 'allowed'])
     expect((await getShop(db, shop.id)).version).toBe(2)

@@ -74,7 +74,6 @@ const percent = (value: number, of: number) => `${value / of * 100}%`
         :icon="zoomed ? 'i-lucide-minimize-2' : 'i-lucide-zoom-in'"
         color="neutral"
         variant="ghost"
-        size="sm"
         :aria-pressed="zoomed"
         @click="zoomed = !zoomed"
       />

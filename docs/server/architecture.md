@@ -116,18 +116,19 @@ ESLint enforces these. A schema file may import another feature's `*.schema.ts` 
 ## Anatomy of a route
 
 ```ts
-// server/api/shop/settings.patch.ts
-import { updateShopSettingsSchema } from '#shared/contracts/shop-settings'
-import { updateSettings } from '#server/features/shops'
+// server/api/platform/shops/[shopId].patch.ts
+import { updateShopSchema } from '#shared/contracts/platform-shops'
+import { updateShop } from '#server/features/shops'
 
 export default defineEventHandler(async (event) => {
-  const actor = await requireShopPermission(event, { shop: ['update'] }) // 1. who, allowed, which shop
-  const input = await readValidBody(event, updateShopSettingsSchema)    // 2. validate the body (with its version)
-  return updateSettings(useDb(), actor, input)                          // 3. one service call
+  const actor = await requirePlatformPermission(event, { shop: ['update'] }) // 1. who, allowed
+  const shopId = readIdParam(event, 'shopId', 'The shop')                  // 2. the record's id, then
+  const input = await readValidBody(event, updateShopSchema)               //    the body (with its version)
+  return updateShop(useDb(), actor, shopId, input)                         // 3. one service call
 })
 ```
 
-A route on one record also reads its id with `readIdParam(event, 'id')` before the body.
+A shop route never reads a shop id: the actor (`requireShopPermission`) carries the shop from the session. A route on one record reads its id with `readIdParam` before the body.
 
 The actor (`{ userId, shopId, statements }`) comes from the session; `shopId` is never read from the request.
 
