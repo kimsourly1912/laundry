@@ -8,7 +8,6 @@ import type { ChoiceGroup, SlipElement } from '#shared/contracts/slip-design'
 import { ALIGNS, MARKS } from '#shared/contracts/slip-design'
 import type { StudioEditor } from '../composables/useStudioEditor'
 import { updateElements } from '../utils/design-ops'
-import PriceKeySelect from './PriceKeySelect.vue'
 
 const props = defineProps<{ editor: StudioEditor, element: SlipElement }>()
 const { t } = useI18n()
@@ -161,18 +160,6 @@ const decimalItems = computed(() => [0, 1, 2].map(value => ({ value, label: t(`s
                 />
               </UFormField>
             </div>
-            <UFormField
-              :label="t('studio.field.priceKey')"
-              :help="t('studio.field.priceKeyHelp')"
-            >
-              <!-- D43: an item from the list; a weight (unit kg) picks a per-kg item. -->
-              <PriceKeySelect
-                :model-value="element.priceKey"
-                :weight="element.unit === 'kg'"
-                test-id="price-key"
-                @update:model-value="set({ priceKey: $event })"
-              />
-            </UFormField>
             <UFormField :label="t('studio.field.unit')">
               <UInput
                 :model-value="element.unit"

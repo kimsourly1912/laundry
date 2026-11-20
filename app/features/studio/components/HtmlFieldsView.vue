@@ -1,29 +1,32 @@
 <script setup lang="ts">
 /**
  * The Studio sidebar's Intake fields view: what staff enter on each order (D35), placed in the markup
- * as `{{fields.<id>}}`. Rename, set a price key or Required, copy the placeholder, remove, add one, or
- * add several from the item list (D42). Every edit hands the page a new design.
+ * as `{{fields.<id>}}`. Each field says whether the slip prints it, and can put its placeholder at the
+ * editor's cursor; Test order fills the slip to check (pilot plan §1). Rename, Required, remove, add
+ * one, or add several from the item list (D42). Fields record quantities and ticks only; staff type
+ * the total (D44). Every edit
+ * hands the page a new design.
  */
 import { MAX_ELEMENTS } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
-import { FIELD_PREFIX, PLACEHOLDER } from '#shared/html-slip/catalog'
 import type { IntakeItem } from '#shared/html-slip/items'
 import { intakeField } from '#shared/html-slip/items'
+import { fieldPlaceholder, fieldPlacement, usedPlaceholders } from '#shared/slip/checks'
 import { createElement } from '#shared/slip/elements'
 import { isOwnerField } from '#shared/slip/fields'
 import type { OwnerField } from '#shared/slip/fields'
 import HtmlItemListModal from './HtmlItemListModal.vue'
 import HtmlFieldRow from './HtmlFieldRow.vue'
-import PriceKeySelect from './PriceKeySelect.vue'
 
 const props = defineProps<{ design: SlipDesign, readOnly: boolean }>()
-const emit = defineEmits<{ change: [design: SlipDesign] }>()
+const emit = defineEmits<{ change: [design: SlipDesign], insert: [text: string], test: [] }>()
 const { t } = useI18n()
 const toast = useToast()
 
 const fields = computed(() => props.design.elements.filter(isOwnerField))
 const full = computed(() => props.design.elements.length >= MAX_ELEMENTS)
-const placeholderOf = (id: string) => `{{${FIELD_PREFIX}${id}}}`
+/** `{{order.total}}` and `{{order.phone}}` for the built-ins, `{{fields.<id>}}` for the rest. */
+const placeholderOf = (field: OwnerField) => `{{${fieldPlaceholder(field)}}}`
 
 /**
  * Phone and amount are the order's own details (every order stores them): built in, renamed but
@@ -40,14 +43,16 @@ function addBuiltIn(type: BuiltInType) {
   change({ elements: [...props.design.elements, createElement(type, { id })], fillOrder: [...props.design.fillOrder, id] })
 }
 
-/** Fields the markup prints: removing one would leave an unknown placeholder, so it waits for the HTML. */
-const usedInHtml = computed(() => new Set([...(props.design.html ?? '').matchAll(PLACEHOLDER)].map(match => match[1]!)))
-const isUsed = (field: OwnerField) => usedInHtml.value.has(`${FIELD_PREFIX}${field.id}`)
+/** The markup's placeholders, read as the publish check reads them, and where each field stands. */
+const used = computed(() => usedPlaceholders(props.design))
+const placementOf = (field: OwnerField) => fieldPlacement(field, used.value)
+const placedCount = computed(() => fields.value.filter(field => placementOf(field) === 'placed').length)
+const unplacedCount = computed(() => fields.value.filter(field => placementOf(field) === 'unplaced').length)
 
 function change(patch: Partial<SlipDesign>) {
   emit('change', { ...props.design, ...patch })
 }
-function updateField(field: OwnerField, patch: { label?: string, required?: boolean, printRequired?: boolean, priceKey?: string }) {
+function updateField(field: OwnerField, patch: { label?: string, required?: boolean, printRequired?: boolean, portalOnly?: boolean }) {
   change({ elements: props.design.elements.map(item => item.id === field.id ? { ...field, ...patch } : item) })
 }
 function remove(field: OwnerField) {
@@ -65,7 +70,7 @@ function uniqueKey(slug: string, taken: ReadonlySet<string> = new Set()): string
   return key
 }
 
-/** Add from list (D42): each item's field with the list's price key; an id already used gets a suffix. */
+/** Add from list (D42): each item's field, a quantity with no price; an id already used gets a suffix. */
 const itemsOpen = ref(false)
 function addItems(items: IntakeItem[]) {
   const taken = new Set<string>()
@@ -80,14 +85,8 @@ function addItems(items: IntakeItem[]) {
 
 const adding = ref(false)
 const newLabel = ref('')
-const newPriceKey = ref<string>()
 const newType = ref<'count' | 'weight' | 'text' | 'checkbox'>('count')
 const fieldTypes = computed(() => (['count', 'weight', 'text', 'checkbox'] as const).map(value => ({ value, label: t(`studio.html.fieldType.${value}`) })))
-const usesPrice = computed(() => newType.value === 'count' || newType.value === 'weight')
-// A count and a weight price from different items (D43): switching between them drops the choice.
-watch(newType, () => {
-  newPriceKey.value = undefined
-})
 const canAddField = computed(() => Boolean(newLabel.value.trim()) && !full.value)
 
 function addField() {
@@ -99,7 +98,7 @@ function addField() {
     ? createElement('textField', { id }, { label })
     : newType.value === 'checkbox'
       ? createElement('checkbox', { id }, { label })
-      : createElement('number', { id }, { label, priceKey: newPriceKey.value, decimals: kg ? 2 : 0, max: kg ? 100 : 999, unit: kg ? 'kg' : '' })
+      : createElement('number', { id }, { label, decimals: kg ? 2 : 0, max: kg ? 100 : 999, unit: kg ? 'kg' : '' })
   change({ elements: [...props.design.elements, field], fillOrder: [...props.design.fillOrder, id] })
   closeAdd()
 }
@@ -107,12 +106,11 @@ function closeAdd() {
   adding.value = false
   newLabel.value = ''
   newType.value = 'count'
-  newPriceKey.value = undefined
 }
 
-async function copyPlaceholder(id: string) {
+async function copyPlaceholder(field: OwnerField) {
   try {
-    await navigator.clipboard.writeText(placeholderOf(id))
+    await navigator.clipboard.writeText(placeholderOf(field))
     toast.add({ title: t('studio.html.copied'), color: 'success', icon: 'i-lucide-clipboard-check' })
   }
   catch {
@@ -127,6 +125,30 @@ async function copyPlaceholder(id: string) {
       {{ t('studio.html.fieldsHint') }}
     </p>
 
+    <!-- What the printout shows so far, and the way to check it with an example order. -->
+    <div class="flex flex-wrap items-center gap-2 rounded-lg border border-default bg-elevated/50 p-2 ps-3">
+      <p
+        class="me-auto text-sm"
+        :class="unplacedCount ? 'text-warning' : 'text-muted'"
+        role="status"
+        data-testid="placement-summary"
+      >
+        {{ unplacedCount
+          ? t('studio.html.placement.summaryUnplaced', { count: unplacedCount }, unplacedCount)
+          : t('studio.html.placement.summary', { placed: placedCount, total: fields.length }) }}
+      </p>
+      <UButton
+        :label="t('studio.html.customSample.button')"
+        icon="i-lucide-flask-conical"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="!design.html?.trim()"
+        data-testid="fields-test-order"
+        @click="emit('test')"
+      />
+    </div>
+
     <section class="space-y-2">
       <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
         {{ t('studio.html.builtInTitle') }}
@@ -138,9 +160,10 @@ async function copyPlaceholder(id: string) {
           :field="field"
           :read-only="readOnly"
           built-in
-          :used="isUsed(field)"
+          :placement="placementOf(field)"
           @update="updateField(field, $event)"
-          @copy="copyPlaceholder(field.id)"
+          @copy="copyPlaceholder(field)"
+          @insert="emit('insert', placeholderOf(field))"
         />
       </ul>
       <div
@@ -176,10 +199,11 @@ async function copyPlaceholder(id: string) {
           :field="field"
           :read-only="readOnly"
           :built-in="false"
-          :used="isUsed(field)"
+          :placement="placementOf(field)"
           @update="updateField(field, $event)"
           @remove="remove(field)"
-          @copy="copyPlaceholder(field.id)"
+          @copy="copyPlaceholder(field)"
+          @insert="emit('insert', placeholderOf(field))"
         />
       </ul>
       <p
@@ -210,16 +234,6 @@ async function copyPlaceholder(id: string) {
             v-model="newType"
             :items="fieldTypes"
             class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          v-if="usesPrice"
-          :label="t('studio.field.priceKey')"
-        >
-          <PriceKeySelect
-            v-model="newPriceKey"
-            :weight="newType === 'weight'"
-            test-id="count-key"
           />
         </UFormField>
         <div class="flex gap-2">

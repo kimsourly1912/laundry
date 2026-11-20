@@ -1,18 +1,22 @@
 <script setup lang="ts">
 /**
- * One intake field in the Studio's Intake fields view, as a card: its kind, label, Priced as for a
- * count or weight, Required, copy placeholder and remove. A built-in field (phone, amount) can't be
- * removed; a field the HTML prints can't be removed until the markup stops using it.
+ * One intake field in the Studio's Intake fields view, as a card: its kind, label, Required, insert
+ * or copy its placeholder, and remove; under it, whether the slip prints it (pilot plan §1): Placed,
+ * Not placed, or Portal only when the admin keeps it off the printout on purpose. A built-in field
+ * (phone, amount) can't be removed; a field the HTML prints can't be removed until the markup stops
+ * using it.
  */
-import { FIELD_PREFIX } from '#shared/html-slip/catalog'
+import { fieldPlaceholder } from '#shared/slip/checks'
+import type { FieldPlacement } from '#shared/slip/checks'
 import type { OwnerField } from '#shared/slip/fields'
-import PriceKeySelect from './PriceKeySelect.vue'
+import { portalOnlyPatch, requiredPatch, requiredState } from '../utils/field-flags'
 
-const props = defineProps<{ field: OwnerField, readOnly: boolean, builtIn: boolean, used: boolean }>()
+const props = defineProps<{ field: OwnerField, readOnly: boolean, builtIn: boolean, placement: FieldPlacement }>()
 const emit = defineEmits<{
-  update: [patch: { label?: string, required?: boolean, printRequired?: boolean, priceKey?: string }]
+  update: [patch: { label?: string, required?: boolean, printRequired?: boolean, portalOnly?: boolean }]
   remove: []
   copy: []
+  insert: []
 }>()
 const { t } = useI18n()
 
@@ -30,19 +34,31 @@ const kind = computed<FieldKind>(() => {
   if (field.type === 'number') return field.unit === 'kg' ? 'weight' : 'count'
   return field.type === 'textField' ? 'text' : field.type
 })
-const placeholder = computed(() => `{{${FIELD_PREFIX}${props.field.id}}}`)
+const placeholder = computed(() => `{{${fieldPlaceholder(props.field)}}}`)
+const used = computed(() => props.placement === 'placed')
 
-/** One Required for both checks: staff must enter it, and the HTML must print it. */
-const required = computed<boolean | 'mixed'>(() => {
-  const onSlip = 'printRequired' in props.field && Boolean(props.field.printRequired)
-  return props.field.required === onSlip ? onSlip : 'mixed'
-})
+/** Required for staff, and for the printout unless the field is portal-only (`field-flags`). */
+const required = computed(() => requiredState(props.field))
+const portalOnly = computed(() => Boolean(props.field.portalOnly))
+const requiredHint = computed(() => t(portalOnly.value ? 'studio.html.requiredPortalOnly' : 'studio.html.required'))
 function toggleRequired() {
-  const next = required.value !== true
-  emit('update', { required: next, printRequired: next })
+  emit('update', requiredPatch(props.field, required.value !== true))
 }
+/** Publish needs the HTML to print it (`missingPrintBinding`). */
+const printRequired = computed(() => 'printRequired' in props.field && Boolean(props.field.printRequired))
 
-const removeHint = computed(() => props.builtIn ? t('studio.html.builtInHint') : props.used ? t('studio.html.usedHint', { placeholder: placeholder.value }) : t('studio.html.removeField'))
+type Status = FieldPlacement | 'missingRequired'
+const STATUS: Record<Status, { icon: string, color: 'success' | 'warning' | 'error' | 'neutral' }> = {
+  placed: { icon: 'i-lucide-circle-check', color: 'success' },
+  unplaced: { icon: 'i-lucide-circle-dashed', color: 'warning' },
+  // Publish stops on it (`missingPrintBinding`), so it reads as an error before then.
+  missingRequired: { icon: 'i-lucide-circle-alert', color: 'error' },
+  portalOnly: { icon: 'i-lucide-monitor-smartphone', color: 'neutral' },
+}
+const status = computed<Status>(() => props.placement === 'unplaced' && printRequired.value ? 'missingRequired' : props.placement)
+const portalOnlyHint = computed(() => t(props.placement === 'portalOnly' ? 'studio.html.placement.unmarkPortalOnly' : 'studio.html.placement.markPortalOnly'))
+
+const removeHint = computed(() => props.builtIn ? t('studio.html.builtInHint') : used.value ? t('studio.html.usedHint', { placeholder: placeholder.value }) : t('studio.html.removeField'))
 </script>
 
 <template>
@@ -75,7 +91,7 @@ const removeHint = computed(() => props.builtIn ? t('studio.html.builtInHint') :
       <div class="flex shrink-0 items-center">
         <UTooltip
           v-if="!builtIn"
-          :text="t('studio.html.required')"
+          :text="requiredHint"
         >
           <UButton
             icon="i-lucide-asterisk"
@@ -83,19 +99,20 @@ const removeHint = computed(() => props.builtIn ? t('studio.html.builtInHint') :
             :variant="required === true ? 'soft' : 'ghost'"
             size="xs"
             :disabled="readOnly"
-            :aria-label="t('studio.html.required')"
+            :aria-label="requiredHint"
             :aria-pressed="required"
             :data-testid="`required-${field.id}`"
             @click="toggleRequired"
           />
         </UTooltip>
-        <UTooltip :text="placeholder">
+        <UTooltip :text="t('studio.html.copyPlaceholder', { placeholder })">
           <UButton
-            icon="i-lucide-braces"
+            icon="i-lucide-copy"
             color="neutral"
             variant="ghost"
             size="xs"
-            :aria-label="t('studio.html.copyPlaceholder', { placeholder })"
+            :aria-label="t('studio.html.copyPlaceholderFor', { placeholder, field: field.label || field.id })"
+            :data-testid="`copy-${field.id}`"
             @click="emit('copy')"
           />
         </UTooltip>
@@ -119,22 +136,47 @@ const removeHint = computed(() => props.builtIn ? t('studio.html.builtInHint') :
         </UTooltip>
       </div>
     </div>
-    <div
-      v-if="field.type === 'number'"
-      class="mt-1 flex items-center gap-2 border-t border-default pt-1.5 ps-9 text-xs text-muted"
-    >
-      <span class="shrink-0">{{ t('studio.field.priceKey') }}</span>
-      <div class="min-w-0 flex-1">
-        <PriceKeySelect
-          :model-value="field.priceKey"
-          :weight="field.unit === 'kg'"
-          :disabled="readOnly"
+    <!-- On the slip: placed, not placed, or portal-only, with what to do next. -->
+    <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-default pt-1.5 ps-9">
+      <UBadge
+        :icon="STATUS[status].icon"
+        :color="STATUS[status].color"
+        :label="t(`studio.html.placement.${status}`)"
+        variant="subtle"
+        size="sm"
+        :data-testid="`placement-${field.id}`"
+      />
+      <span class="me-auto" />
+      <UTooltip
+        v-if="!readOnly && placement !== 'placed'"
+        :text="t('studio.html.placement.insertHint')"
+      >
+        <UButton
+          :label="t('studio.html.placement.insert')"
+          :aria-label="t('studio.html.placement.insertFor', { placeholder, field: field.label || field.id })"
+          icon="i-lucide-text-cursor-input"
+          color="neutral"
+          variant="ghost"
           size="xs"
-          variant="soft"
-          :test-id="`price-key-${field.id}`"
-          @update:model-value="emit('update', { priceKey: $event })"
+          :data-testid="`insert-${field.id}`"
+          @click="emit('insert')"
         />
-      </div>
+      </UTooltip>
+      <!-- Keep off the slip / Print on the slip: an intentionally portal-only field; a required one stays required for staff. -->
+      <UTooltip
+        v-if="!readOnly && placement !== 'placed'"
+        :text="portalOnlyHint"
+      >
+        <UButton
+          :icon="placement === 'portalOnly' ? 'i-lucide-printer' : 'i-lucide-eye-off'"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :aria-label="`${portalOnlyHint}: ${field.label || field.id}`"
+          :data-testid="`portal-only-${field.id}`"
+          @click="emit('update', portalOnlyPatch(field, placement !== 'portalOnly'))"
+        />
+      </UTooltip>
     </div>
   </li>
 </template>

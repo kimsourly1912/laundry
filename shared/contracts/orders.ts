@@ -2,7 +2,6 @@ import * as v from 'valibot'
 import { idSchema, optionalParam, pageQuerySchema, versionSchema } from './common'
 import { keySchema, MAX_ELEMENTS, MAX_GROUPS, TEXT_FIELD_MAX } from './slip-design'
 import type { SlipDesign, SlipShop } from './slip-design'
-import type { PriceUnit } from './prices'
 import { AMOUNT_MAX } from '#shared/slip/values'
 
 /**
@@ -111,20 +110,6 @@ export interface OrderOverview {
   unpaid: number
 }
 
-/** One priced line of an order, as charged when it was saved (D39). */
-export interface OrderLineItem {
-  /** The slip field it came from. */
-  fieldId: string
-  key: string
-  label: string
-  unit: PriceUnit
-  /** Pieces, or grams for `kg`. */
-  quantity: number
-  /** Minor units per piece or per kg. */
-  unitPrice: number
-  lineTotal: number
-}
-
 /** An order in a list (Overview's latest orders). */
 export interface OrderListItem {
   id: string
@@ -155,8 +140,6 @@ export interface OrderListItem {
 export interface OrderDetail extends OrderListItem {
   /** The shop's customer (D39), or `null` for a walk-in. */
   customerId: string | null
-  /** The priced lines (D39), in the slip's fill order; empty for a free-entry slip. */
-  items: OrderLineItem[]
   /** The template it was made on: Cancel and copy starts the new order on it, at its latest version. */
   templateId: string
   templateVersionId: string

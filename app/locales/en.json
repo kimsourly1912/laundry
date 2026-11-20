@@ -114,13 +114,13 @@
     "phone": "Phone",
     "phoneHelp": "Shown to customers on their ticket page.",
     "address": "Address",
-    "pricesSection": "Currency",
     "currency": "Currency",
     "currencyHelp": "Amounts on new orders are in this currency.",
     "currencies": {
       "KHR": "Riel (៛)",
       "USD": "US dollar ($)"
-    }
+    },
+    "currencySection": "Currency"
   },
   "platform": {
     "nav": {
@@ -203,10 +203,9 @@
         "noneToAdd": "No other published template",
         "attach": "Attach",
         "attached": "The template was attached.",
-        "detached": "The template was detached."
-      },
-      "prices": "Prices",
-      "pricesSet": "{set} of {needed} set"
+        "detached": "The template was detached.",
+        "setUp": "Set up paper slip"
+      }
     }
   },
   "overview": {
@@ -267,16 +266,15 @@
         "htmlInvalid": "The HTML has problems: see the list under the markup.",
         "noQrCode": "Put {'{{'}order.qrCode{'}}'} in the HTML.",
         "htmlRenderFailed": "The slip could not be rendered with sample order data.",
-        "missingPrintBinding": "Add {name} to the HTML to show this required field.",
-        "unknownPriceKey": "{name}’s price key isn’t on the item list. Pick one from the list.",
-        "priceUnitMismatch": "{name} is priced per kg but isn’t a weight, or the reverse. Pick an item that matches."
+        "missingPrintBinding": "{name} is required on the slip but isn’t in the HTML. Click inside its box, then Intake fields → Insert."
       },
       "warnings": {
         "offCanvas": "{name} is partly off the slip.",
         "noAmount": "There's no Amount field.",
         "noPhone": "There's no Phone field.",
         "noFields": "The owner has no fields to fill.",
-        "noPaperSize": "No paper size: printed slips take the paper's width (⋯ → Paper size)."
+        "noPaperSize": "No paper size: printed slips take the paper's width (⋯ → Paper size).",
+        "unplacedField": "{name} isn’t on the slip. Insert it in the HTML (Intake fields → Insert), or mark it Keep off the slip."
       }
     },
     "list": {
@@ -382,10 +380,7 @@
         "right": "Align right"
       },
       "border": "Draw a border",
-      "groupLabel": "Group label",
-      "priceKey": "Priced as",
-      "priceKeyHelp": "The item on the laundry list each shop prices this count or weight by; the slip's amount is then the total. No price: a plain count.",
-      "noPrice": "No price"
+      "groupLabel": "Group label"
     },
     "tryIt": {
       "open": "Try it",
@@ -446,30 +441,25 @@
       "description": "The printed slip's size in millimetres. Each published version keeps it, so a reprint comes out the same.",
       "width": "Width (mm)",
       "height": "Height (mm)",
+      "groups": {
+        "receipt": "Thermal receipt roll",
+        "label": "Thermal label",
+        "sheet": "Sheet (A-sizes)"
+      },
+      "presets": {
+        "receipt58": "58 × 100 mm",
+        "receipt80": "80 × 120 mm",
+        "label40x30": "40 × 30 mm",
+        "label60x40": "60 × 40 mm",
+        "label100x50": "100 × 50 mm",
+        "label100x70": "100 × 70 mm",
+        "label100x150": "100 × 150 mm (4×6 in)",
+        "a6": "A6 · 105 × 148 mm",
+        "a5": "A5 · 148 × 210 mm",
+        "a4": "A4 · 210 × 297 mm"
+      },
       "proportional": "Height from the artwork",
       "apply": "Set size"
-    },
-    "requests": {
-      "title": "Requests",
-      "empty": "Nothing here",
-      "from": "Request from {shop}",
-      "photoOf": "{shop}'s slip",
-      "noNotes": "No notes.",
-      "madeTemplate": "The template made for it",
-      "chooseTemplate": "Choose when done",
-      "decline": "Decline",
-      "start": "Start",
-      "done": "Done",
-      "kind": {
-        "keep": "Keep the layout",
-        "redesign": "Redesign it"
-      },
-      "status": {
-        "new": "New",
-        "in_progress": "In progress",
-        "done": "Done",
-        "declined": "Declined"
-      }
     },
     "html": {
       "name": "Template name",
@@ -522,6 +512,13 @@
       "promptCopied": "Prompt copied.",
       "format": "Format",
       "formatShortcut": "Format the HTML",
+      "editorFont": "Editor font",
+      "editorFonts": {
+        "jetbrains": "JetBrains Mono",
+        "fira": "Fira Code",
+        "source": "Source Code Pro",
+        "system": "System monospace"
+      },
       "copyFailed": "Couldn't copy. Select the text and copy it.",
       "importHint": "Paste the JSON object your AI answered. The markup replaces the current one; fields, paper size and shops stay.",
       "answer": "The AI's answer",
@@ -530,7 +527,7 @@
       "at": "Line {line}, column {column}:",
       "ok": "No HTML errors",
       "fieldsTitle": "Intake fields",
-      "fieldsHint": "What staff enter on each order. Priced as picks the price-list item a count or weight is charged at. ✱ marks a required field.",
+      "fieldsHint": "What staff enter on each order. Place each field in the HTML so the slip prints it, then check it with Test order. Staff type the total unless a count or weight is linked under Pricing. ✱ marks a required field.",
       "builtInTitle": "Order details",
       "builtInHint": "Every order has this. Rename it, but it can’t be removed.",
       "addBuiltIn": "Add {field}",
@@ -543,18 +540,18 @@
       "removeField": "Remove the field",
       "sample": "Sample order",
       "customSample": {
-        "button": "Custom",
-        "edit": "Edit custom sample",
-        "title": "Custom sample",
-        "description": "Enter a test order to see the slip update as you type.",
-        "customerName": "Sample customer name",
-        "total": "Sample total",
-        "totalHint": "Leave blank to use the sample total.",
+        "button": "Test order",
+        "edit": "Edit test order",
+        "title": "Test order",
+        "description": "Enter an example order to check where each value prints. A test creates no order.",
+        "customerName": "Customer name",
+        "total": "Total",
+        "totalHint": "Type the total, as staff will. Leave blank to use the sample total.",
         "currency": "៛",
         "fieldWithUnit": "{label} ({unit})",
         "live": "Live preview",
         "updated": "Preview updated.",
-        "apply": "Use sample"
+        "apply": "Show in preview"
       },
       "samples": {
         "blank": "Blank",
@@ -570,10 +567,10 @@
       "itemList": {
         "open": "Add from list",
         "title": "Add from the item list",
-        "description": "Pick the items staff enter on this slip. Each one keeps the item’s price key, so it matches the shop’s price list.",
+        "description": "Pick the items staff enter on this slip. Each one records a quantity or a tick; staff type the total unless you link it under Pricing.",
         "search": "Search items",
         "empty": "No item matches. Use Add field for something not on the list.",
-        "perKg": "Per kg",
+        "perKg": "Weight in kg",
         "add": "Add fields | Add {count} field | Add {count} fields",
         "tooMany": "This slip has room for {count} more fields.",
         "groups": {
@@ -587,15 +584,16 @@
           "other": "Other things",
           "services": "Services",
           "extras": "Notes and staff"
-        }
+        },
+        "tick": "Service tick"
       },
       "presetPicker": {
         "description": "Pick how the shop charges. The preset fills in the HTML and intake fields, and you can change both afterwards.",
         "locked": "A preset starts an empty slip. Clear the HTML to use one.",
         "fields": "Staff enter: {fields}",
         "hints": {
-          "byWeight": "Staff enter the weight in kg; the total comes from the shop’s price per kg.",
-          "byItem": "Staff count each garment on the grid; the total comes from the shop’s prices.",
+          "byWeight": "Staff enter the weight in kg and type the total.",
+          "byItem": "Staff count each garment on the grid and type the total.",
           "mixed": "Staff enter the kilos, the common pieces, the services and who received it, as most paper slips have."
         }
       },
@@ -634,7 +632,34 @@
       "previewStale": "Preview is out of date.",
       "previewInvalid": "Fix the HTML errors to show a preview.",
       "previewEmpty": "Your slip preview appears here.",
-      "priceKeyError": "Use up to 40 lowercase letters, digits, dots, underscores, or dashes. Start with a letter or digit."
+      "copyPlaceholderFor": "Copy {placeholder} for {field}",
+      "placement": {
+        "placed": "On the slip",
+        "unplaced": "Not placed",
+        "portalOnly": "Portal only",
+        "insert": "Insert",
+        "insertFor": "Insert {placeholder} for {field} at the cursor",
+        "markPortalOnly": "Keep off the slip",
+        "unmarkPortalOnly": "Print on the slip",
+        "summary": "{placed} of {total} fields on the slip",
+        "summaryUnplaced": "{count} field not placed | {count} field not placed | {count} fields not placed",
+        "missingRequired": "Required, not placed",
+        "insertHint": "Click inside the field’s box in the HTML first; Insert puts its placeholder there."
+      },
+      "requiredPortalOnly": "Required: staff must enter it. It stays off the slip."
+    },
+    "assign": {
+      "for": "For {shop}",
+      "publishAndAssign": "Publish and assign",
+      "only": "Assign to {shop}",
+      "assigned": "Assigned to {shop}",
+      "retry": "Retry assignment",
+      "title": "Publish version {number} and assign it to {shop}?",
+      "titleAssign": "Assign version {number} to {shop}?",
+      "description": "{shop} will use this slip for new orders. Orders already saved keep the version they were made on.",
+      "failed": "Version {number} is published, but it isn’t assigned to {shop} yet.",
+      "done": "Version {number} is published and assigned to {shop}.",
+      "shopMissing": "The shop this slip was being set up for can’t be found. Publish works as usual; assign it from Shops."
     }
   },
   "slipFill": {
@@ -664,13 +689,14 @@
       "title": "New order",
       "slip": "Paper slip",
       "chooseSlip": "Choose the paper slip for this order",
-      "slipUpdated": "This paper slip was just updated. Check the order, then preview it again.",
+      "slipUpdated": "This paper slip was just updated. Check the order, then save it again.",
       "noSlipTitle": "No paper slip yet",
       "noSlipDescription": "Your shop's paper slip isn't set up yet, so orders can't be taken. Contact support to set it up.",
       "preview": "Preview",
       "copiedFrom": "A copy of order No. {number}, which is cancelled. Check it and save: it gets a new number.",
       "dueDate": "Pickup day",
-      "quoteChanged": "A price changed. Check the new total, then preview again."
+      "save": "Save order",
+      "moreDetails": "More details: customer, pickup day"
     },
     "preview": {
       "title": "Preview",
@@ -708,11 +734,7 @@
       "cancelledAt": "Cancelled",
       "readyAt": "Ready",
       "dueDate": "Pickup day",
-      "customer": "Customer",
-      "item": "Item",
-      "quantity": "Qty",
-      "lineTotal": "Amount",
-      "kg": "{kg} kg"
+      "customer": "Customer"
     },
     "latest": {
       "title": "Latest orders",
@@ -723,12 +745,7 @@
     },
     "form": {
       "more": "Add one {label}",
-      "less": "Remove one {label}",
-      "fromPrices": "From your price list",
-      "noPrice": "No price yet. Ask the owner to set it in Prices.",
-      "each": "{price} each",
-      "perKg": "{price} per kg",
-      "noPriceOwner": "No price yet. Set it in Prices to use it."
+      "less": "Remove one {label}"
     },
     "list": {
       "nav": "Orders",
@@ -769,7 +786,9 @@
       "defaultSaved": "New orders now start on this slip.",
       "use": "Use for a new order",
       "sample": "{name} with sample values",
-      "sampleNote": "Sample values. Your orders show their own."
+      "sampleNote": "Sample values. Your orders show their own.",
+      "changeTitle": "Need a change?",
+      "changeDescription": "To change a price, add an item or move a box on your slip, message us on Telegram. We update the slip for you."
     },
     "telegram": {
       "title": "Slip on Telegram",
@@ -797,29 +816,6 @@
     },
     "customer": {
       "none": "No orders yet."
-    },
-    "requests": {
-      "ask": "Ask for a new design",
-      "title": "Ask for a new design",
-      "description": "Send a photo of your paper slip. The platform makes the design and adds it to Paper slips.",
-      "photo": "Photo of your slip",
-      "photoHelp": "A blank slip, or cover customers' names and phones.",
-      "photoAlt": "The photo you chose",
-      "kind": "What should change?",
-      "keep": "Keep the layout",
-      "keepHelp": "Make it like this slip.",
-      "redesign": "Redesign it",
-      "redesignHelp": "A new, cleaner design from this slip.",
-      "notes": "Notes for the platform",
-      "send": "Send",
-      "sent": "Sent. The platform will get back to you.",
-      "mine": "Your requests",
-      "status": {
-        "new": "Sent",
-        "in_progress": "In progress",
-        "done": "Done",
-        "declined": "Declined"
-      }
     }
   },
   "customers": {
@@ -848,30 +844,5 @@
       "none": "No customer found",
       "clear": "No customer"
     }
-  },
-  "prices": {
-    "title": "Prices",
-    "intro": "What each item on your paper slips costs. Staff count or weigh it on a new order, and the total comes from these prices. An order keeps the price it was charged.",
-    "emptyTitle": "Nothing to price yet",
-    "emptyDescription": "Your paper slips have no items with a price. Ask the platform to add the items you charge for to your slip.",
-    "unit": {
-      "piece": "Per piece",
-      "kg": "Per kg"
-    },
-    "noPrice": "No price yet",
-    "missing": "No items need a price | 1 item needs a price | {count} items need a price",
-    "missingHint": "Staff can’t fill these on a new order until they have a price.",
-    "pricePlaceholder": "Price",
-    "priceFor": "Price of {label}, {unit}",
-    "saved": "Saved the price of {label}.",
-    "kept": "Not on your slips any more",
-    "keptHint": "Kept for the orders that used them.",
-    "form": {
-      "badPrice": "Not an amount in your currency.",
-      "save": "Save"
-    },
-    "missingOwner": "Staff can’t fill {items} on a new order until you set a price.",
-    "missingStaff": "Staff can’t fill these on a new order yet. Ask the owner to set their prices.",
-    "setPrices": "Set prices"
   }
 }

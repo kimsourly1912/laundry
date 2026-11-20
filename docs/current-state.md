@@ -2,6 +2,24 @@
 
 Keep this page short: where we are, what's next, what's blocked. History goes in git and `decisions.md`.
 
+## Re-scoped: the owner fills the slip (D44, 2026-11-20)
+
+The owner and Claude re-planned the business flow ([D44](decisions.md#d44-the-owner-fills-the-slip-the-platform-owns-everything-else), [plan](plan.md)): the owner only fills their paper slip; layout, items and prices are the platform's job, and the owner asks for changes through the Telegram support link. Manual total, no price list; the Ready step stays. P1–P3 below are built and not committed.
+
+**P4 Remove prices and redesign requests (2026-11-20, not committed, awaiting review):** gone are the owner's Prices page and its warnings, the platform's price count, `priceKey` and the Studio's Pricing section, the itemized New order (every slip saves from the form with a typed total), server pricing and `QUOTE_CHANGED`, `{{order.itemLines}}`, redesign requests (the owner's dialog, the platform's queue), and the `price:*` and `template:request` statements. Paper slips shows "Need a change?" with the Telegram support link when `NUXT_PUBLIC_SUPPORT_URL` is set. Migration `0007_drop_prices_requests` drops `order_items`, `price_items` and `template_requests`. A saved draft that still has `priceKey` on a field is refused on its next save (staging test data only; recreate it). Lint, typecheck, unit tests (595) and the changed e2e files (`orders`, `html-studio`, `shop-setup`) pass. The D43 and D39 notes further down describe removed code. **Next: P6** (City Laundry's real slip), waiting for the shop's photo and paper size.
+
+## Next pilot: City Laundry paper slip
+
+[Implementation plan](city-laundry-pilot-plan.md) (steps P1–P3, P6 of the [plan](plan.md#9-steps)). Start in Studio with a test fixture, then connect shop setup and the owner's counter flow. The real pilot template awaits a blank slip photo, paper dimensions, a field review with the shop, and agreement on QR placement.
+
+**§1 Studio fields, placement, and Test order (2026-11-20, branch `plan/city-laundry-pilot`, not committed, awaiting review):** new drafts, presets and fields from the list start on a manual total (no price key); Pricing is a collapsed section under the field buttons and keeps existing links. Each field card says **On the slip**, **Not placed**, **Required, not placed** or **Portal only** (`portalOnly`), with **Insert** (its placeholder at the editor's cursor) and Keep off the slip. Phone and amount count as placed by `{{order.phone}}` / `{{order.total}}`. Publish review warns about each unplaced field (`unplacedField`); `missingPrintBinding` still blocks. Custom sample is now **Test order**, opened from the preview or the Intake fields view; it creates nothing. The phone sidebar slideover scrolls again (`min-h-0`). Verified on a disposable fixture in Brave; §2 (shop setup) and §3 (counter) are next.
+
+**§1 review fixes (2026-11-20, not committed):** Required and Portal only work together: a portal-only field's ✱ makes it required for staff only, and keeping a required field off the slip keeps it required for staff (`app/features/studio/utils/field-flags.ts`); `missingPrintBinding` still guards `printRequired`. Add from list matches by the field's kind and its recorded `item`, so a custom text field "Shirt count" no longer blocks Shirt, and a suffixed `shirt_count_2` still marks Shirt as on the slip.
+
+**§2 Set up the slip from the shop (2026-11-20, not committed, awaiting review):** the shop page's Templates card has **Set up paper slip**, which opens the Studio at `/platform/templates/new?shop=<id>`; the Studio shows "For <shop>", and the shop rides along to the draft's page. There, Publish becomes **Publish and assign**: it publishes with the existing API, then attaches with the existing attach API (`template: ['write'], shop: ['update']`), and says it's done only once attached. A failed attach keeps the version published and offers **Retry assignment**, which only attaches (attaching again changes nothing on the server); after a reload, a published draft not yet attached offers **Assign to <shop>**. No server or schema change (`useShopSetup`, `utils/publish-assign.ts`). The owner's New order opens the single assigned slip (existing `startingTemplate`); shops with several slips keep the existing rules and tests. E2E: `test/e2e/shop-setup.test.ts` on a seeded disposable shop (Pilot Test Laundry). §3 (counter) is next.
+
+**§3 Take a paper-slip order on a phone (2026-11-20, not committed, awaiting review):** on a manual-total slip New order shows the slip's fields in its fill order, then **More details** (customer, pickup day; collapsed, opened when filled), and a bottom bar with **Preview** and **Save order**. Save order checks the form like Preview does and sends the same request and idempotency key; a double tap makes one order. Preview → Edit keeps everything typed. Priced slips are unchanged (Preview first, rates, server checks). See [D37](decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint). E2E: `shop-setup.test.ts` (pilot owner on a phone); `orders.test.ts` opens More details before the customer picker.
+
 ## HTML-first Template Studio
 
 [Implementation and contract](html-template-studio-plan.md): direct Create template route, CodeMirror, SVG preview before saving, and By weight / By item bindings. A new template opens with an empty editor that offers a preset picker (By weight / By item) instead of starter code; the Intake fields panel shows one line per field (label, price key, Required), takes each new key from its label, and opens its add form on demand. Physical print size and QR scanning remain pilot checks.
@@ -110,7 +128,7 @@ The owner tested M2.3 and chose a simpler, managed flow: the platform sets each 
 
 | # | Question | Who answers | Blocks |
 |---|---|---|---|
-| Q7, Q11 | Moved to [plan → Open questions](plan.md#10-open-questions) (D31) | Owner | Steps 3 and 4 |
+| Q7, Q11 | Answered 2026-11-17: Cancel and copy, no edit after save ([D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes)); no phone check on Telegram (D38) | — | — |
 | Q15 | The guide sets the owner's content width to 768 px; `--container-page` is 640 px (D25). Change it for every shop screen? Kept at 640 px in D37 | Owner | The next owner screens |
 | Q16 | The mockups write the number as `#002139`; the app and the slip write `1`, `2`, … A zero-padded number changes every slip's Order No. drawing. Pad it, and to how many digits? | Owner | Before a pilot shop |
 | Q18 | `pnpm seed:admin` is local only. How does a deployed environment (staging, production) get its first super admin? | Owner | Before production |

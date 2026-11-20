@@ -13,12 +13,12 @@ import { placeholderText, slipTree } from '#shared/html-slip/build'
 import type { SatoriNode } from '#shared/html-slip/build'
 import { aiPrompt, readAiAnswer } from '#shared/html-slip/ai'
 
-describe('Custom sample', () => {
+describe('Custom sample (Test order)', () => {
   const design = newHtmlSlip('byWeight')
   const date = '2026-11-19'
-  const custom = { customerName: 'សុខ ចាន់ដារ៉ា Sok Chandara', amount: null, values: { weight_kg: 3.5 } }
+  const custom = { customerName: 'សុខ ចាន់ដារ៉ា Sok Chandara', amount: 10500, values: { weight_kg: 3.5 } }
 
-  it('fills the slip with test values and calculates synthetic item lines', () => {
+  it('fills the slip with the test values and the typed total', () => {
     const slip = customSampleOrder(design, { custom, date })
     expect(slip.values).toEqual({ weight_kg: 3.5 })
     expect(slip.order).toMatchObject({
@@ -27,11 +27,20 @@ describe('Custom sample', () => {
       date,
       number: 1024,
       qrUrl: 'https://example.com/sample-laundry-slip',
-      lines: [{ quantity: 3500, unit: 'kg', lineTotal: 10500 }],
     })
     const empty = customSampleOrder(design, { custom: { ...custom, amount: 0, values: {} }, date })
     expect(empty.values).toEqual({})
-    expect(empty.order).toMatchObject({ amount: 0, lines: [] })
+    expect(empty.order).toMatchObject({ amount: 0 })
+  })
+
+  it('prints a manual total as typed, apart from the counts', () => {
+    // Pilot plan §1: Shirt = 5 and Total = 7,000៛ (D44: every slip takes a typed total).
+    const manual = { ...newHtmlSlip('byItem') }
+    const slip = customSampleOrder(manual, { custom: { customerName: '', amount: 7000, values: { shirt_count: 5 } }, date })
+    expect(slip.values).toEqual({ shirt_count: 5 })
+    expect(slip.order).toMatchObject({ amount: 7000 })
+    expect(placeholderText('fields.shirt_count', manual, slip)).toBe('5')
+    expect(placeholderText('order.total', manual, slip)).toBe('7,000៛')
   })
 
   it('accepts ordinary previews and validates custom values against the design', () => {
@@ -59,7 +68,7 @@ const design: SlipDesign = {
 
 const data = (extra: Partial<SlipData['order']> = {}, values: SlipData['values'] = {}): SlipData => ({
   values,
-  order: { number: 2139, date: '2026-11-18', phone: '+85512345678', amount: 7000, paid: false, customerName: 'Dara', dueDate: '2026-11-20', lines: [{ label: 'Shirt', unit: 'piece', quantity: 2, lineTotal: 4000 }], ...extra },
+  order: { number: 2139, date: '2026-11-18', phone: '+85512345678', amount: 7000, paid: false, customerName: 'Dara', dueDate: '2026-11-20', ...extra },
   shop: { name: 'Linda Laundry', phone: '012 345 678', address: null, logoImageId: null, currency: 'KHR' },
 })
 
@@ -98,8 +107,10 @@ describe('parseHtml', () => {
 
 describe('checkHtml (the catalog)', () => {
   it('accepts the catalog\'s placeholders and the design\'s fields; names unknown ones and utilities', () => {
-    const ok = checkHtml('<div class="flex flex-col p-4 text-[28px] border-2 w-1/2">{{order.number}} {{fields.shirt}} {{fields.svc}}<div>{{order.itemLines}}</div></div>', design)
+    const ok = checkHtml('<div class="flex flex-col p-4 text-[28px] border-2 w-1/2">{{order.number}} {{fields.shirt}} {{fields.svc}}<div>{{order.qrCode}}</div></div>', design)
     expect(ok.problems).toEqual([])
+    // D44: there are no priced lines to draw.
+    expect(checkHtml('<div><div>{{order.itemLines}}</div></div>', design).problems.map(problem => problem.message.slice(0, 40))).toEqual(['{{order.itemLines}} isn\'t a placeholder.'])
     const bad = checkHtml('<div class="flex hover:bg-red-500 animate-spin">{{order.secret}} {{fields.coat}}</div>', design)
     expect(bad.problems.map(problem => problem.message.slice(0, 40))).toEqual([
       'The class hover:bg-red-500 isn\'t support',
@@ -130,10 +141,10 @@ describe('slipTree (values as text)', () => {
     expect(JSON.stringify(tree)).not.toContain('"type":"script"')
   })
 
-  it('draws the item lines and the QR (a sample before saving, the order\'s link after)', () => {
-    const { nodes } = parseHtml('<div><div>{{order.itemLines}}</div><div>{{order.qrCode}}</div></div>')
+  it('draws the QR (a sample before saving, the order\'s link after)', () => {
+    const { nodes } = parseHtml('<div><div>{{order.qrCode}}</div></div>')
     const sample = slipTree({ nodes, design, data: data() })
-    expect(texts(sample)).toEqual(['Shirt', '2', '4,000៛', 'QR'])
+    expect(texts(sample)).toEqual(['QR'])
     const linked = JSON.stringify(slipTree({ nodes, design, data: data({ qrUrl: 'https://t.me/bot?start=abc' }) }))
     expect(linked).toContain('"type":"img"')
     expect(linked).toContain('data:image/svg+xml;base64,')
@@ -186,26 +197,32 @@ describe('the AI import (v1)', () => {
 })
 
 describe('sampleOrder (the Studio\'s blank, typical and crowded)', () => {
-  it('blank fills nothing; typical totals its lines; crowded has the most and the longest', async () => {
+  it('blank fills nothing; typical has a customer and a total; crowded has the largest and the longest', async () => {
     const { sampleOrder } = await import('#shared/html-slip/sample')
-    const priced: SlipDesign = { ...design, elements: [createElement('number', { id: 'shirt' }, { label: 'Shirt', priceKey: 'shirt' }), createElement('number', { id: 'pants' }, { label: 'Pants', priceKey: 'pants' })] }
-    expect(sampleOrder(priced, { sample: 'blank', date: '2026-11-18' }).order).toMatchObject({ number: null, amount: null, lines: [] })
-    const typical = sampleOrder(priced, { sample: 'typical', date: '2026-11-18' })
-    expect(typical.order.amount).toBe(8000)
-    const crowded = sampleOrder(priced, { sample: 'crowded', date: '2026-11-18' })
-    expect(crowded.order.lines!.length).toBeGreaterThanOrEqual(8)
+    const counts: SlipDesign = { ...design, elements: [createElement('number', { id: 'shirt' }, { label: 'Shirt' }), createElement('number', { id: 'pants' }, { label: 'Pants' })] }
+    expect(sampleOrder(counts, { sample: 'blank', date: '2026-11-18' }).order).toMatchObject({ number: null, amount: null })
+    const typical = sampleOrder(counts, { sample: 'typical', date: '2026-11-18' })
+    expect(typical.order).toMatchObject({ customerName: 'Dara', dueDate: '2026-11-18' })
+    const crowded = sampleOrder(counts, { sample: 'crowded', date: '2026-11-18' })
+    expect(crowded.order.amount).toBe(999_999_000)
     expect(crowded.values.shirt).toBe(999)
   })
 })
 
 describe('HTML intake presets', () => {
-  it('publishes with the starter bindings and shows the same priced sample weight and total', () => {
+  it('starts every preset on a manual total: no field carries a price (D44)', () => {
+    for (const preset of ['byWeight', 'byItem', 'mixed'] as const) {
+      const design = newHtmlSlip(preset)
+      expect(design.elements.filter(element => 'priceKey' in element)).toEqual([])
+      expect(design.elements.some(element => element.type === 'amount')).toBe(true)
+    }
+  })
+
+  it('publishes with the starter bindings and fills the weight in the typical sample only', () => {
     const design = newHtmlSlip('byWeight')
     expect(publishProblems(design).errors).toEqual([])
     const typical = sampleOrder(design, { sample: 'typical', date: '2026-11-18' })
-    expect(typical.values.weight_kg).toBe(2.5)
-    expect(typical.order.lines).toEqual([{ label: 'Weight', unit: 'kg', quantity: 2500, lineTotal: 7500 }])
-    expect(typical.order.amount).toBe(7500)
+    expect(typeof typical.values.weight_kg).toBe('number')
     const blank = sampleOrder(design, { sample: 'blank', date: '2026-11-18' })
     expect(blank.values.weight_kg).toBeUndefined()
   })
@@ -221,15 +238,13 @@ describe('HTML intake presets', () => {
     expect(publishProblems(changed).errors).toContainEqual({ code: 'missingPrintBinding', key: 'fields.weight_kg' })
   })
 
-  it('supports by-item totals from the starter garment keys', () => {
+  it('By item publishes with a count for every garment on the grid', () => {
     const design = newHtmlSlip('byItem')
     expect(publishProblems(design).errors).toEqual([])
     expect(design.fillOrder).toContain('shirt_count')
     expect(design.fillOrder).toContain('trousers_count')
-    // One priced line per garment on the grid.
-    const garments = design.elements.filter(element => element.type === 'number' && element.priceKey)
+    const garments = design.elements.filter(element => element.type === 'number' && element.id.endsWith('_count'))
     expect(garments).toHaveLength(10)
-    expect(sampleOrder(design, { sample: 'typical', date: '2026-11-18' }).order.lines).toHaveLength(10)
     expect(checkHtml(design.html!, design).problems).toEqual([])
   })
 })

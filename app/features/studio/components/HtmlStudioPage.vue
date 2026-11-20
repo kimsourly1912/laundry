@@ -25,6 +25,7 @@ import { isOwnerField } from '#shared/slip/fields'
 import { useSlipPrint } from '~/features/slip-fill'
 import { useHtmlTemplatePreview } from '../composables/useHtmlTemplatePreview'
 import { useHtmlPreviewViewport } from '../composables/useHtmlPreviewViewport'
+import { useShopSetup } from '../composables/useShopSetup'
 import { useTemplateDraft } from '../composables/useTemplateDraft'
 import { useWideScreen } from '../composables/useWideScreen'
 import { pickSidebarView } from '../utils/html-sidebar'
@@ -84,7 +85,8 @@ async function saveFirstDraft() {
       method: 'POST',
       body: { name: templateName, start: { kind: 'htmlDraft', design: design.value } },
     })
-    await navigateTo(`/platform/templates/${created.value.id}`, { replace: true })
+    // From a shop's Set up paper slip, the shop rides along to the draft's page (pilot plan §2).
+    await navigateTo({ path: `/platform/templates/${created.value.id}`, query: setup.shopId.value ? { shop: setup.shopId.value } : {} }, { replace: true })
   }
   catch (error) {
     createError.value = error
@@ -140,6 +142,12 @@ function openView(view: SidebarView) {
   sidebarView.value = view
   setSidebarOpen(true)
 }
+// Ctrl/Cmd+B toggles the sidebar, as in VS Code; Ctrl/Cmd+S formats the markup (the draft saves itself),
+// and keeps the browser's own Save dialog from opening. Both work while the editor has focus.
+defineShortcuts({
+  meta_b: { usingInput: true, handler: () => setSidebarOpen(!sidebarOpen.value) },
+  meta_s: { usingInput: true, handler: () => codeEditor.value?.format() },
+})
 /** On a phone the slideover covers the editor, so it closes once its job is done. */
 function doneOnPhone() {
   if (!wide.value) sheetOpen.value = false
@@ -157,9 +165,27 @@ function applyPreset(preset: HtmlIntakePreset) {
 
 // --- Insert image (D41): a library image at the cursor ---
 
+// The editor's font is a preference, kept in a cookie so it survives reloads and renders the same on the server.
+const EDITOR_FONTS = {
+  jetbrains: `'JetBrains Mono', ui-monospace, Consolas, monospace`,
+  fira: `'Fira Code', ui-monospace, Consolas, monospace`,
+  source: `'Source Code Pro', ui-monospace, Consolas, monospace`,
+  system: `ui-monospace, SFMono-Regular, Menlo, Consolas, monospace`,
+} as const
+type EditorFont = keyof typeof EDITOR_FONTS
+const editorFont = useCookie<EditorFont>('studio-editor-font', { default: () => 'jetbrains', maxAge: 60 * 60 * 24 * 365, sameSite: 'lax' })
+const editorFontFamily = computed(() => EDITOR_FONTS[editorFont.value] ?? EDITOR_FONTS.jetbrains)
+const editorFontItems = computed(() => (Object.keys(EDITOR_FONTS) as EditorFont[]).map(value => ({ value, label: t(`studio.html.editorFonts.${value}`) })))
+
 const codeEditor = useTemplateRef<{ insert: (text: string) => void, format: () => void }>('codeEditor')
 function insertImage(image: ImageSummary) {
   codeEditor.value?.insert(`<img src="image:${image.id}" class="w-24">`)
+  doneOnPhone()
+}
+
+/** A field's placeholder at the editor's cursor (pilot plan §1): click in the box, then Insert. */
+function insertPlaceholder(text: string) {
+  codeEditor.value?.insert(text)
   doneOnPhone()
 }
 
@@ -186,6 +212,13 @@ const presetSample = computed<Sample | 'custom'>({
     if (value !== 'custom' && value !== sample.value.sample) sample.value = { sample: value }
   },
 })
+
+/** Test order (pilot plan §1) is the custom sample: entered values on the live preview, no order made. */
+const testOrderOpen = ref(false)
+function openTestOrder() {
+  if (!wide.value) sheetOpen.value = false
+  testOrderOpen.value = true
+}
 
 function applyCustomSample(custom: CustomSample) {
   customSample.value = custom
@@ -261,13 +294,48 @@ onBeforeUnmount(() => {
 const problems = computed(() => publishProblems(design.value))
 const publishOpen = ref(false)
 const publishing = ref(false)
+
+/**
+ * Set up from a shop (pilot plan §2): Publish becomes Publish and assign, and succeeds only once the
+ * template is attached to that shop. A published version that isn't attached yet (the attach failed,
+ * or the page was reloaded after) is assigned without publishing again.
+ */
+const setup = useShopSetup(() => props.template?.id ?? created.value?.id)
+const assignTo = computed(() => (draft && setup.canAssign.value ? setup.target.value : undefined))
+const unpublished = computed(() => Boolean(draft && (draft.saved.value.hasUnpublishedChanges || draft.status.value !== 'saved' || draft.saved.value.latestVersion === null)))
+/** The published version waits for its assignment: nothing new to publish, and not attached. */
+const assignOnly = computed(() => Boolean(assignTo.value && !unpublished.value && !setup.attached.value))
+const assignFailed = shallowRef<{ number: number, error: unknown }>()
+const nextNumber = computed(() => (draft?.saved.value.latestVersion ?? 0) + 1)
+const publishLabel = computed(() => {
+  const shop = assignTo.value?.name
+  // While the shop is read, the label is already the setup's, so it doesn't switch under the admin.
+  if (!shop) return setup.loading.value ? t('studio.assign.publishAndAssign') : t('studio.publish.open')
+  if (assignFailed.value) return t('studio.assign.retry')
+  if (assignOnly.value) return t('studio.assign.only', { shop })
+  if (!unpublished.value && setup.attached.value) return t('studio.assign.assigned', { shop })
+  return t('studio.assign.publishAndAssign')
+})
+const publishDisabled = computed(() => assignTo.value
+  ? !unpublished.value && setup.attached.value && !assignFailed.value
+  : Boolean(draft && !draft.saved.value.hasUnpublishedChanges && draft.status.value === 'saved'))
+const publishTitle = computed(() => {
+  const shop = assignTo.value?.name
+  if (!shop) return t('studio.publish.title', { number: nextNumber.value })
+  const number = assignFailed.value?.number ?? draft?.saved.value.latestVersion ?? nextNumber.value
+  return assignFailed.value || assignOnly.value ? t('studio.assign.titleAssign', { number, shop }) : t('studio.assign.title', { number: nextNumber.value, shop })
+})
+
 async function publish() {
   if (!draft) return
   publishing.value = true
   try {
-    await draft.publish()
-    publishOpen.value = false
-    toast.add({ title: t('studio.publish.done', { number: draft.saved.value.latestVersion ?? 1 }), color: 'success', icon: 'i-lucide-circle-check' })
+    if (assignTo.value) await publishAndAssignToShop(assignTo.value.name)
+    else {
+      await draft.publish()
+      publishOpen.value = false
+      toast.add({ title: t('studio.publish.done', { number: draft.saved.value.latestVersion ?? 1 }), color: 'success', icon: 'i-lucide-circle-check' })
+    }
   }
   catch (error) {
     toast.add({ title: errorText(error, t, te), color: 'error', icon: 'i-lucide-circle-alert' })
@@ -275,6 +343,23 @@ async function publish() {
   finally {
     publishing.value = false
   }
+}
+
+async function publishAndAssignToShop(shop: string) {
+  if (!draft) return
+  // A retry, or a published version not yet attached: assign that version, publish nothing.
+  const pending = assignFailed.value?.number ?? (assignOnly.value ? draft.saved.value.latestVersion ?? undefined : undefined)
+  const result = await setup.run(pending !== undefined
+    ? { number: pending }
+    : { publish: async () => (await draft.publish()).latestVersion ?? 1 })
+  if (result.status === 'publishFailed') throw result.error
+  if (result.status === 'assignFailed') {
+    assignFailed.value = { number: result.number, error: result.error }
+    return
+  }
+  assignFailed.value = undefined
+  publishOpen.value = false
+  toast.add({ title: t('studio.assign.done', { number: result.number, shop }), color: 'success', icon: 'i-lucide-circle-check' })
 }
 const shopsOpen = ref(false)
 
@@ -352,6 +437,15 @@ const panels = computed(() => [
           >{{ t(`studio.save.${saveStatus}`) }}</span>
         </span>
       </UTooltip>
+      <UBadge
+        v-if="setup.target.value"
+        :label="t('studio.assign.for', { shop: setup.target.value.name })"
+        icon="i-lucide-store"
+        color="neutral"
+        variant="subtle"
+        class="max-w-full truncate"
+        data-testid="setup-shop"
+      />
       <div class="ms-auto flex flex-wrap gap-2">
         <UColorModeButton />
         <UButton
@@ -372,15 +466,24 @@ const panels = computed(() => [
         />
         <UButton
           v-if="draft && !readOnly"
-          :label="t('studio.publish.open')"
-          icon="i-lucide-upload"
-          :disabled="!draft.saved.value.hasUnpublishedChanges && draft.status.value === 'saved'"
+          :label="publishLabel"
+          :icon="assignTo ? 'i-lucide-store' : 'i-lucide-upload'"
+          :disabled="publishDisabled || setup.loading.value"
+          :loading="setup.loading.value"
           data-testid="html-publish"
           @click="publishOpen = true"
         />
       </div>
     </header>
 
+    <UAlert
+      v-if="setup.shopId.value && setup.shopError.value"
+      class="mx-3 mt-3 w-auto"
+      color="warning"
+      variant="subtle"
+      :title="t('studio.assign.shopMissing')"
+      data-testid="setup-shop-missing"
+    />
     <UAlert
       v-if="createError"
       class="mx-3 mt-3 w-auto"
@@ -440,6 +543,8 @@ const panels = computed(() => [
                 @preset="applyPreset"
                 @image="insertImage"
                 @import="importAnswer"
+                @insert="insertPlaceholder"
+                @test="openTestOrder"
                 @close="setSidebarOpen(false)"
               />
             </div>
@@ -466,7 +571,18 @@ const panels = computed(() => [
                   />
                 </div>
                 <!-- Editor actions sit at the tab strip's end, as in VS Code. -->
-                <div class="ms-auto flex items-center px-2">
+                <div class="ms-auto flex items-center gap-1 px-2">
+                  <USelect
+                    v-model="editorFont"
+                    :items="editorFontItems"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                    icon="i-lucide-type"
+                    class="w-40"
+                    :aria-label="t('studio.html.editorFont')"
+                    data-testid="html-editor-font"
+                  />
                   <UTooltip
                     :text="t('studio.html.formatShortcut')"
                     :kbds="['shift', 'alt', 'F']"
@@ -495,7 +611,10 @@ const panels = computed(() => [
                 close
                 @update:open="reviewNotes = []"
               />
-              <div class="relative min-h-0 flex-1">
+              <div
+                class="relative min-h-0 flex-1"
+                :style="{ '--font-editor': editorFontFamily }"
+              >
                 <ClientOnly>
                   <HtmlCodeEditor
                     ref="codeEditor"
@@ -639,6 +758,7 @@ const panels = computed(() => [
                   :ui="{ fieldset: 'flex-nowrap', legend: 'sr-only', item: 'h-8 items-center px-2.5 py-0', wrapper: 'ms-0', label: 'leading-none' }"
                 />
                 <HtmlCustomSampleModal
+                  v-model:open="testOrderOpen"
                   :design="design"
                   :custom="customSample"
                   :can-preview="!empty && !check.problems.length"
@@ -802,6 +922,8 @@ const panels = computed(() => [
           @preset="applyPreset"
           @image="insertImage"
           @import="importAnswer"
+          @insert="insertPlaceholder"
+          @test="openTestOrder"
           @close="sheetOpen = false"
         />
       </template>
@@ -809,11 +931,28 @@ const panels = computed(() => [
 
     <UModal
       v-model:open="publishOpen"
-      :title="t('studio.publish.title', { number: (draft?.saved.value.latestVersion ?? 0) + 1 })"
+      :title="publishTitle"
     >
       <template #body>
+        <UAlert
+          v-if="assignFailed && assignTo"
+          class="mb-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :title="t('studio.assign.failed', { number: assignFailed.number, shop: assignTo.name })"
+          :description="errorText(assignFailed.error, t, te)"
+          data-testid="assign-failed"
+        />
+        <p
+          v-if="assignTo"
+          class="mb-3 text-sm"
+          data-testid="assign-target"
+        >
+          {{ t('studio.assign.description', { shop: assignTo.name }) }}
+        </p>
         <ul
-          v-if="problems.errors.length"
+          v-if="problems.errors.length && !assignFailed && !assignOnly"
           class="space-y-1 text-sm text-error"
         >
           <li
@@ -824,7 +963,7 @@ const panels = computed(() => [
           </li>
         </ul>
         <ul
-          v-if="problems.warnings.length"
+          v-if="problems.warnings.length && !assignFailed && !assignOnly"
           class="mt-2 space-y-1 text-sm text-warning"
         >
           <li
@@ -835,7 +974,7 @@ const panels = computed(() => [
           </li>
         </ul>
         <p
-          v-if="!problems.errors.length && !problems.warnings.length"
+          v-if="!problems.errors.length && !problems.warnings.length && !assignFailed && !assignOnly"
           class="text-sm"
         >
           {{ t('studio.publish.allGood') }}
@@ -843,8 +982,8 @@ const panels = computed(() => [
       </template>
       <template #footer>
         <UButton
-          :label="t('studio.publish.open')"
-          :disabled="problems.errors.length > 0"
+          :label="publishLabel"
+          :disabled="problems.errors.length > 0 && !assignFailed && !assignOnly"
           :loading="publishing"
           data-testid="html-publish-confirm"
           @click="publish"

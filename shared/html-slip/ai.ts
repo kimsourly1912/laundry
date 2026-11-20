@@ -7,7 +7,7 @@ import { HTML_TAGS, SVG_TAGS, imagesIn, parseHtml } from './parse'
 /**
  * The AI import contract, version 1 (D39; product notes → Proposed v1 import): the platform copies a
  * prompt into its own AI with a photo of the shop's slip, and pastes the answer back. The answer is
- * one JSON object; the target shop, paper size, fields and prices stay the Studio's.
+ * one JSON object; the target shop, paper size and fields stay the Studio's.
  */
 
 export const aiAnswerSchema = v.strictObject({
@@ -162,7 +162,7 @@ export function aiPrompt(options: PromptOptions): string {
       : 'Use no <img>: this slip has no uploaded images.',
     '',
     'Put values only through these placeholders (written exactly, with double braces, in text content only):',
-    'Use {{order.number}} and {{order.qrCode}}. Keep prices, calculations, conditionals, and loops in Laundry.',
+    'Use {{order.number}} and {{order.qrCode}}. Keep calculations, conditionals, and loops in Laundry.',
     ...Object.entries(TEXT_PLACEHOLDERS).map(([name, what]) => `- {{${name}}}: ${what}`),
     ...Object.entries(BLOCK_PLACEHOLDERS).map(([name, what]) => `- {{${name}}}: ${what} (a block: put it alone in its own div)`),
     ...(fields.length ? ['The shop\'s own fields:', ...fields] : []),

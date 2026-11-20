@@ -26,6 +26,10 @@ const emit = defineEmits<{
   preset: [preset: HtmlIntakePreset]
   image: [image: ImageSummary]
   import: [answer: AiAnswer]
+  /** A placeholder for the editor's cursor. */
+  insert: [text: string]
+  /** Open Test order. */
+  test: []
   close: []
 }>()
 const { t } = useI18n()
@@ -34,7 +38,7 @@ const { t } = useI18n()
 <template>
   <aside
     id="html-studio-sidebar"
-    class="flex min-w-0 flex-1 flex-col bg-default"
+    class="flex min-h-0 min-w-0 flex-1 flex-col bg-default"
     aria-labelledby="html-studio-sidebar-title"
     :data-testid="`sidebar-${view}`"
   >
@@ -66,6 +70,8 @@ const { t } = useI18n()
         :design="design"
         :read-only="readOnly"
         @change="emit('change', $event)"
+        @insert="emit('insert', $event)"
+        @test="emit('test')"
       />
       <HtmlPresetsView
         v-else-if="view === 'presets'"

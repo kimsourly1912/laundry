@@ -9,7 +9,8 @@ import { useHtmlTemplatePreview } from '../composables/useHtmlTemplatePreview'
 
 const props = defineProps<{ design: SlipDesign, custom?: CustomSample, canPreview: boolean }>()
 const emit = defineEmits<{ apply: [sample: CustomSample] }>()
-const open = ref(false)
+/** Opened by its trigger (the default slot) or by the page, from the Intake fields view. */
+const open = defineModel<boolean>('open', { default: false })
 const { t } = useI18n()
 
 const fields = computed(() => customSampleFields(props.design))

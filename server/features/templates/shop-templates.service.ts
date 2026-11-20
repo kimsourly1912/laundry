@@ -31,16 +31,6 @@ export async function orderTemplates(db: Db, actor: ShopActor): Promise<OrderTem
   })
 }
 
-/**
- * The latest design of each published template attached to the shop, in name order: the slips its
- * prices are for (D43). The shop comes from the caller; another shop's slips never show.
- */
-export async function shopSlipDesigns(db: Db, shopId: string): Promise<SlipDesign[]> {
-  const rows = await attachments.orderableTemplatesOfShop(db, shopId)
-  const latest = await Promise.all(rows.map(row => repo.findLatestVersion(db, row.templateId)))
-  return latest.flatMap(version => (version ? [version.design] : []))
-}
-
 export interface OrderableVersion {
   versionId: string
   templateId: string

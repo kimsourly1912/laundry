@@ -148,7 +148,7 @@ const readOnly = computed(() => !can('shop:update'))
           </UPageCard>
 
           <UPageCard
-            :title="t('settings.pricesSection')"
+            :title="t('settings.currencySection')"
             variant="subtle"
           >
             <UFormField

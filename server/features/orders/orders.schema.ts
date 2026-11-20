@@ -1,10 +1,8 @@
 import { sql } from 'drizzle-orm'
-import { check, foreignKey, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { check, index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 import { createdBy, inList, nowMs, shopId, timestamp } from '#server/db/columns'
 import { templateVersions } from '#server/features/templates/templates.schema'
 import { customers } from '#server/features/customers/customers.schema'
-import { priceItems } from '#server/features/prices/prices.schema'
-import { PRICE_UNITS } from '#shared/contracts/prices'
 import { ORDER_STAGES, ORDER_STATUSES } from '#shared/contracts/orders'
 import type { SlipValues } from '#shared/contracts/slip-design'
 
@@ -89,33 +87,4 @@ export const orders = sqliteTable('orders', {
   check('orders_paid_at_check', sql`${table.paid} = (${table.paidAt} is not null)`),
   check('orders_picked_up_at_check', sql`(${table.status} = 'picked_up') = (${table.pickedUpAt} is not null)`),
   check('orders_cancelled_at_check', sql`(${table.status} = 'cancelled') = (${table.cancelledAt} is not null)`),
-])
-
-/**
- * The priced lines of an itemized order (D39; docs/server/data-model.md → order_items): one per
- * count field linked to a price key that has a value. Each keeps what it was priced at, so a later
- * price change never changes the order. Written with the order, never changed.
- */
-export const orderItems = sqliteTable('order_items', {
-  id: text().primaryKey(),
-  shopId: shopId(),
-  orderId: text().notNull(),
-  /** The slip field it came from (element id), in the fill order. */
-  fieldId: text().notNull(),
-  position: integer().notNull(),
-  priceItemId: text().notNull().references(() => priceItems.id, { onDelete: 'restrict' }),
-  key: text().notNull(),
-  label: text().notNull(),
-  unit: text({ enum: PRICE_UNITS }).notNull(),
-  /** Pieces, or grams for `kg`. */
-  quantity: integer().notNull(),
-  /** Per piece or per kg, minor units, at saving. */
-  unitPrice: integer().notNull(),
-  lineTotal: integer().notNull(),
-}, table => [
-  foreignKey({ columns: [table.shopId, table.orderId], foreignColumns: [orders.shopId, orders.id], name: 'order_items_order_fk' }).onDelete('restrict'),
-  uniqueIndex('order_items_order_position_unique').on(table.orderId, table.position),
-  check('order_items_unit_check', sql`${table.unit} in (${inList(PRICE_UNITS)})`),
-  check('order_items_quantity_check', sql`${table.quantity} > 0`),
-  check('order_items_amounts_check', sql`${table.unitPrice} >= 0 and ${table.lineTotal} >= 0`),
 ])

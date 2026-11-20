@@ -1,7 +1,6 @@
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
 import { FIXED_TYPES, isOwnerField } from './fields'
 import { checkHtml, FIELD_PREFIX, placeholdersIn } from '#shared/html-slip/catalog'
-import { pricedItem } from '#shared/html-slip/items'
 
 /**
  * What a template needs before it's published (plan §5.6). Errors stop Publish, in the studio and on
@@ -18,8 +17,6 @@ export type PublishError
     | 'duplicateFixed'
     | 'groupTooSmall'
     | 'missingLabel'
-    | 'unknownPriceKey'
-    | 'priceUnitMismatch'
 
 export type PublishWarning
   = | 'offCanvas'
@@ -27,6 +24,7 @@ export type PublishWarning
     | 'noPhone'
     | 'noFields'
     | 'noPaperSize'
+    | 'unplacedField'
 
 export interface Problem<T extends string> {
   code: T
@@ -40,6 +38,31 @@ export interface PublishProblems {
 }
 
 const hasLabel = (label: string) => Boolean(label.trim())
+
+/**
+ * Where an HTML slip prints an intake field (pilot plan §1): `placed` when its `{{fields.<id>}}` is
+ * in the markup, `portalOnly` when the admin keeps it off the printout on purpose, else `unplaced`.
+ * `used` is the markup's placeholders (`usedPlaceholders`).
+ */
+export type FieldPlacement = 'placed' | 'unplaced' | 'portalOnly'
+
+/** The order's own placeholder for a built-in field: the slip prints the phone and the total from the order. */
+const ORDER_PLACEHOLDERS: Partial<Record<string, string>> = { phone: 'order.phone', amount: 'order.total' }
+
+/** The placeholder Studio inserts for a field: `order.total` for the amount, `fields.<id>` for an item. */
+export function fieldPlaceholder(field: { id: string, type: string }): string {
+  return ORDER_PLACEHOLDERS[field.type] ?? `${FIELD_PREFIX}${field.id}`
+}
+
+export function fieldPlacement(field: { id: string, type: string, portalOnly?: boolean }, used: ReadonlySet<string>): FieldPlacement {
+  if (used.has(`${FIELD_PREFIX}${field.id}`) || used.has(fieldPlaceholder(field))) return 'placed'
+  return field.portalOnly ? 'portalOnly' : 'unplaced'
+}
+
+/** The placeholders an HTML slip's markup prints, as the publish check reads them. */
+export function usedPlaceholders(design: Pick<SlipDesign, 'html' | 'elements' | 'groups' | 'htmlPreset'>): Set<string> {
+  return placeholdersIn(checkHtml(design.html ?? '', design).nodes)
+}
 
 /** Whether any part of the field's box is outside the canvas. */
 export function isOffCanvas(element: SlipElement, design: Pick<SlipDesign, 'width' | 'height'>): boolean {
@@ -72,6 +95,10 @@ export function publishProblems(design: SlipDesign): PublishProblems {
       if ('printRequired' in element && element.printRequired && !used.has(`${FIELD_PREFIX}${element.id}`)) {
         errors.push({ code: 'missingPrintBinding', key: `${FIELD_PREFIX}${element.id}` })
       }
+      // Staff enter it but the slip doesn't print it: shown in review, unless it's portal-only.
+      else if (isOwnerField(element) && fieldPlacement(element, used) === 'unplaced') {
+        warnings.push({ code: 'unplacedField', key: fieldPlaceholder(element) })
+      }
     }
   }
   else if (!elements.some(element => element.type === 'orderNo')) errors.push({ code: 'noOrderNo' })
@@ -85,12 +112,6 @@ export function publishProblems(design: SlipDesign): PublishProblems {
   for (const element of elements) {
     const labelled = isOwnerField(element) || element.type === 'option' || element.type === 'paid'
     if (labelled && 'label' in element && !hasLabel(element.label)) errors.push({ code: 'missingLabel', key: element.id })
-    // D43: a price key names an item on the list, counted or weighed as the field is.
-    if (element.type === 'number' && element.priceKey) {
-      const item = pricedItem(element.priceKey)
-      if (!item) errors.push({ code: 'unknownPriceKey', key: element.id })
-      else if ((item.kind === 'weight') !== (element.unit === 'kg')) errors.push({ code: 'priceUnitMismatch', key: element.id })
-    }
     // An HTML slip doesn't draw the fields' boxes: where they sit doesn't matter.
     if (design.html === undefined && isOffCanvas(element, design)) warnings.push({ code: 'offCanvas', key: element.id })
   }
@@ -114,6 +135,4 @@ export const PUBLISH_ERROR_TEXT: Record<PublishError, string> = {
   duplicateFixed: 'A fixed field is on the slip twice.',
   groupTooSmall: 'A choice group needs at least two options.',
   missingLabel: 'A field needs a label.',
-  unknownPriceKey: 'A price key isn\'t on the item list.',
-  priceUnitMismatch: 'A per-kg item is on a field that isn\'t in kg, or the reverse.',
 }

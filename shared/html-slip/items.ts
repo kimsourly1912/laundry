@@ -3,18 +3,19 @@ import { createElement } from '#shared/slip/elements'
 
 /*
  * The laundry item list (D42): what Cambodian shops print on their paper slips, from real slips and
- * shops' price lists. One list for the Studio's "Add from list" and the presets, so a field's price
- * key is the same in every template and in every shop's price list. New items are added here.
+ * shops' price lists. One list for the Studio's "Add from list" and the presets, so an item has
+ * the same field id and label in every template. Labels and kinds only: no prices (D44). New items
+ * are added here.
  */
 
 export const INTAKE_GROUPS = ['weight', 'tops', 'bottoms', 'formal', 'small', 'bedding', 'home', 'other', 'services', 'extras'] as const
 export type IntakeGroup = typeof INTAKE_GROUPS[number]
 
-/** `count`: pieces; `weight`: kg; both priced by `key`. `checkbox`: a ticked service; `text`: free text. */
+/** `count`: pieces; `weight`: kg; `checkbox`: a ticked service; `text`: free text. */
 export type IntakeKind = 'count' | 'weight' | 'checkbox' | 'text'
 
 export interface IntakeItem {
-  /** The price-list key of a count or weight; the field id of a checkbox or text. */
+  /** The item's stable key: a count's field id is `<key>_count`, every other kind's is the key. */
   key: string
   /** The field's starting label; the Studio can rename it. */
   label: string
@@ -60,55 +61,42 @@ export function intakeFieldId(entry: IntakeItem): string {
   return entry.kind === 'count' ? `${entry.key}_count` : entry.key
 }
 
-/** Whether the design already has the item: a priced field by its price key, others by id. */
-export function hasIntakeItem(elements: readonly { id: string, type: string, priceKey?: string }[], entry: IntakeItem): boolean {
-  const priced = entry.kind === 'count' || entry.kind === 'weight'
-  return elements.some(element => priced ? element.type === 'number' && element.priceKey === entry.key : element.id === intakeFieldId(entry))
-}
+type ItemCandidate = { id: string, type: string, unit?: string, item?: string }
 
-/** The items a price key may name: counts and weights. */
-export const PRICED_ITEMS: readonly IntakeItem[] = INTAKE_ITEMS.filter(item => item.kind === 'count' || item.kind === 'weight')
-
-/** The priced item of `key`, or undefined when the key isn't on the list. */
-export function pricedItem(key: string): IntakeItem | undefined {
-  return PRICED_ITEMS.find(item => item.key === key)
-}
-
-/** What a shop prices for one key on its slips (D43): the list's name, and per piece or per kg. */
-export interface SlipPrice {
-  key: string
-  label: string
-  unit: 'piece' | 'kg'
+/** Whether a field is the item's kind: a count (no unit), a weight (kg), a tick or text. */
+function isItemKind(element: ItemCandidate, kind: IntakeKind): boolean {
+  switch (kind) {
+    case 'count': return element.type === 'number' && element.unit !== 'kg'
+    case 'weight': return element.type === 'number' && element.unit === 'kg'
+    case 'checkbox': return element.type === 'checkbox'
+    case 'text': return element.type === 'textField'
+  }
 }
 
 /**
- * Every priced key on these slips, once each, in slip order (D43). The name and unit come from the
- * item list; a key that isn't on it (a slip published before D43) takes its first field's label and
- * unit.
+ * Whether the design already has the item, among fields of its kind (a text field the admin called
+ * "Shirt count" isn't the Shirt count): the field added from the list (`item`, whatever its id
+ * became), or an untracked field with the item's id (added before `item` was kept).
  */
-export function slipPrices(designs: readonly { elements: readonly { type: string, label?: string, unit?: string, priceKey?: string }[] }[]): SlipPrice[] {
-  const found = new Map<string, SlipPrice>()
-  for (const design of designs) {
-    for (const element of design.elements) {
-      const key = element.type === 'number' ? element.priceKey : undefined
-      if (!key || found.has(key)) continue
-      const item = pricedItem(key)
-      found.set(key, item
-        ? { key, label: item.label, unit: item.kind === 'weight' ? 'kg' : 'piece' }
-        : { key, label: element.label?.trim() || key, unit: element.unit === 'kg' ? 'kg' : 'piece' })
-    }
-  }
-  return [...found.values()]
+export function hasIntakeItem(elements: readonly ItemCandidate[], entry: IntakeItem): boolean {
+  return elements.some(element => isItemKind(element, entry.kind) && (
+    element.item === entry.key
+    || (element.item === undefined && element.id === intakeFieldId(entry))
+  ))
 }
 
-/** The intake field for an item, with the Studio's defaults for its kind. */
+/**
+ * The intake field for an item, with the Studio's defaults for its kind. A count or weight records a
+ * quantity only: staff type the total (manual total, D44).
+ */
 export function intakeField(entry: IntakeItem): OwnerField {
   const id = intakeFieldId(entry)
-  const { key, label } = entry
+  // `item` remembers the list entry, so a suffixed id (`shirt_count_2`) is still this item.
+  const { key: item, label } = entry
   switch (entry.kind) {
-    case 'weight': return createElement('number', { id }, { label, unit: 'kg', decimals: 2, min: 0, max: 100, priceKey: key })
-    case 'count': return createElement('number', { id }, { label, priceKey: key })
-    case 'checkbox': return createElement('checkbox', { id }, { label })
-    case 'text': return createElement('textField', { id }, { label, maxLength: key === 'note' ? 100 : 40 })
+    case 'weight': return createElement('number', { id }, { label, item, unit: 'kg', decimals: 2, min: 0, max: 100 })
+    case 'count': return createElement('number', { id }, { label, item })
+    case 'checkbox': return createElement('checkbox', { id }, { label, item })
+    case 'text': return createElement('textField', { id }, { label, item, maxLength: item === 'note' ? 100 : 40 })
   }
 }

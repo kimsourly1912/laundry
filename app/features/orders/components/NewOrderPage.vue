@@ -5,13 +5,14 @@
  * everything entered: the form, and the preview (`?step=preview`, so the phone's Back returns to
  * the form). Previewing creates nothing.
  *
+ * The owner types the total as on paper (D44). Save order saves straight from the form, Preview
+ * beside it; the customer and the pickup day wait behind More details (City Laundry pilot §3).
+ *
  * Saving sends one `Idempotency-Key` for the whole flow: a double tap or a retry after a lost
  * answer makes one order (architecture → Idempotency). The server sets the number, the day and the
  * version; the order page then shows the saved slip, and prints it for Save & print.
  */
 import type { OrderDetail, OrderTemplate } from '#shared/contracts/orders'
-import type { PriceList } from '#shared/contracts/prices'
-import { priceLines } from '#shared/pricing'
 import { formatPhone } from '#shared/contracts/phone'
 import type { SlipShop } from '#shared/contracts/slip-design'
 import { checkFill } from '#shared/slip/values'
@@ -63,31 +64,17 @@ const fill = ref<SlipFill>(emptyFill())
 const dueDate = ref('')
 const today = shopToday()
 
-// D39: a slip whose counts are linked to price keys is itemized: its amount is the price list's total.
-const itemized = computed(() => template.value?.design.elements.some(element => element.type === 'number' && Boolean(element.priceKey)) ?? false)
-const priceList = useApiQuery('orders:prices', () => (itemized.value ? apiFetch<PriceList>('/shop/prices') : Promise.resolve(undefined)), { watch: [itemized] })
-// D43: only items with a price; the server prices the order again. The key stands in for the item's id in this running total.
-const prices = computed(() => new Map((priceList.data.value?.items ?? []).flatMap(item => (item.price === null ? [] : [[item.key, { id: item.key, label: item.label, unit: item.unit, price: item.price }] as const]))))
-const quote = computed(() => {
-  const design = template.value?.design
-  if (!design || !itemized.value) return undefined
-  const values = design.elements.flatMap(element => (element.type === 'number' && element.priceKey && typeof fill.value.values[element.id] === 'number' ? [{ fieldId: element.id, key: element.priceKey, value: fill.value.values[element.id] as number }] : []))
-  return priceLines(values, prices.value)
-})
-const hasAmountField = computed(() => template.value?.design.elements.some(element => element.type === 'amount') ?? false)
-// The amount follows the total, so the slip draws it and the server checks it is the same.
-watch(() => quote.value?.total, (total) => {
-  if (total !== undefined && hasAmountField.value && fill.value.amount !== total) fill.value = { ...fill.value, amount: total }
-})
-/** The server's total differed from the one shown: a price changed. */
-const quoteChanged = ref(false)
-
 // The order's customer (D39), optional. Picking one fills the slip's phone box when it is empty.
 const customer = ref<CustomerChoice | null>(null)
 watch(customer, (picked) => {
   const hasPhone = template.value?.design.elements.some(element => element.type === 'phone')
   if (picked?.phone && hasPhone && !fill.value.phone.trim()) fill.value = { ...fill.value, phone: formatPhone(picked.phone) }
 })
+/** Customer and pickup day, outside a paper slip's routine: behind More details, open once they hold something. */
+const detailsOpen = ref(false)
+watch(() => customer.value !== null || dueDate.value !== '', (filled) => {
+  if (filled) detailsOpen.value = true
+}, { immediate: true })
 const showProblems = ref(false)
 const serverErrors = ref<Record<string, string>>({})
 const problems = computed(() => (template.value && showProblems.value ? checkFill(template.value.design, fill.value) : {}))
@@ -145,20 +132,33 @@ onMounted(() => {
 })
 
 const form = useTemplateRef('form')
-async function preview() {
+/** The same checks before Preview and before Save order: problems show, and the first one gets focus. */
+async function checkForm(): Promise<boolean> {
   showProblems.value = true
-  quoteChanged.value = false
   if (Object.keys(problems.value).length || Object.keys(serverErrors.value).length) {
     await nextTick()
     form.value?.focusFirstProblem()
-    return
+    return false
   }
   slipUpdated.value = false
+  return true
+}
+
+async function preview() {
+  if (!await checkForm()) return
   await router.push({ query: { step: 'preview' } })
   window.scrollTo({ top: 0 })
 }
 
+/** Save order from the form (pilot plan §3): the same checks, the same save and key as from the preview. */
+async function saveFromForm() {
+  if (save.pending.value || !await checkForm()) return
+  await submit(false)
+}
+
+/** Back to the form; already there (Save order from the form), nothing to do. */
 function edit() {
+  if (step.value !== 'preview') return
   if (window.history.state?.back) router.back()
   else router.replace({ query: {} })
 }
@@ -179,7 +179,7 @@ useUnsavedChanges(() => dirty.value)
 
 const failure = computed(() => {
   const error = save.error.value
-  if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID' || error.code === 'QUOTE_CHANGED') return undefined
+  if (!error || error.code === 'TEMPLATE_CHANGED' || error.code === 'SLIP_VALUES_INVALID') return undefined
   return errorText(error, t, te)
 })
 
@@ -196,11 +196,6 @@ async function submit(print: boolean) {
     // Reload the slip; the watch above keeps what still fits. Back to the form to check it.
     await templates.refresh()
     slipUpdated.value = true
-    edit()
-  }
-  else if (result.error.code === 'QUOTE_CHANGED') {
-    await priceList.refresh()
-    quoteChanged.value = true
     edit()
   }
   else if (result.error.code === 'SLIP_VALUES_INVALID') {
@@ -305,15 +300,6 @@ function retryLoad() {
               data-testid="copied-from"
             />
             <UAlert
-              v-if="quoteChanged"
-              color="warning"
-              variant="subtle"
-              icon="i-lucide-refresh-cw"
-              :title="t('orders.new.quoteChanged')"
-              role="alert"
-              data-testid="quote-changed"
-            />
-            <UAlert
               v-if="slipUpdated"
               color="warning"
               variant="subtle"
@@ -321,14 +307,6 @@ function retryLoad() {
               :title="t('orders.new.slipUpdated')"
               role="alert"
             />
-
-            <UFormField
-              v-if="can('customer:read')"
-              :label="t('customers.pick.label')"
-              :ui="{ label: 'text-base' }"
-            >
-              <CustomerPicker v-model="customer" />
-            </UFormField>
 
             <OrderForm
               v-if="template && shop"
@@ -338,24 +316,59 @@ function retryLoad() {
               :currency="shop.currency"
               :problems="problems"
               :server-errors="serverErrors"
-              :prices="itemized && priceList.data.value ? prices : undefined"
-              :total="itemized && hasAmountField ? (quote?.total ?? 0) : undefined"
             />
 
-            <UFormField
-              :label="t('orders.new.dueDate')"
-              :hint="t('common.optional')"
-              :ui="{ label: 'text-base' }"
+            <!-- A paper slip's routine is its own fields: the customer and the pickup day wait here (pilot plan §3). -->
+            <UCollapsible
+              v-model:open="detailsOpen"
+              :ui="{ content: 'space-y-4 pt-3' }"
             >
-              <UInput
-                v-model="dueDate"
-                type="date"
-                :min="today"
-                size="xl"
-                class="w-full"
-                data-testid="due-date"
+              <UButton
+                :label="t('orders.new.moreDetails')"
+                :trailing-icon="detailsOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                color="neutral"
+                variant="outline"
+                size="lg"
+                block
+                class="justify-between"
+                data-testid="more-details"
               />
-            </UFormField>
+              <template #content>
+                <UFormField
+                  v-if="can('customer:read')"
+                  :label="t('customers.pick.label')"
+                  :hint="t('common.optional')"
+                  :ui="{ label: 'text-base' }"
+                >
+                  <CustomerPicker v-model="customer" />
+                </UFormField>
+                <UFormField
+                  :label="t('orders.new.dueDate')"
+                  :hint="t('common.optional')"
+                  :ui="{ label: 'text-base' }"
+                >
+                  <UInput
+                    v-model="dueDate"
+                    type="date"
+                    :min="today"
+                    size="xl"
+                    class="w-full"
+                    data-testid="due-date"
+                  />
+                </UFormField>
+              </template>
+            </UCollapsible>
+
+            <UAlert
+              v-if="failure && step === 'form'"
+              color="error"
+              variant="subtle"
+              icon="i-lucide-circle-alert"
+              :title="failure"
+              :description="save.error.value?.retryable ? t('orders.preview.retryHint') : undefined"
+              role="alert"
+              data-testid="save-error"
+            />
           </div>
 
           <template v-if="step === 'preview' && template && draft && slipText.text.value">
@@ -363,7 +376,7 @@ function retryLoad() {
               {{ t('orders.preview.hint') }}
             </p>
             <UAlert
-              v-if="failure"
+              v-if="failure && step === 'preview'"
               color="error"
               variant="subtle"
               icon="i-lucide-circle-alert"
@@ -384,17 +397,31 @@ function retryLoad() {
 
         <BottomBarSpacer />
         <BottomBar v-if="ready && template">
-          <template v-if="step === 'form'">
+          <div
+            v-if="step === 'form'"
+            class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto"
+          >
             <UButton
               :label="t('orders.new.preview')"
               icon="i-lucide-eye"
+              color="neutral"
+              variant="outline"
               size="xl"
               block
-              class="sm:w-auto"
+              :disabled="save.pending.value"
               data-testid="preview"
               @click="preview"
             />
-          </template>
+            <UButton
+              :label="t('orders.new.save')"
+              icon="i-lucide-save"
+              size="xl"
+              block
+              :loading="save.pending.value"
+              data-testid="save-order"
+              @click="saveFromForm"
+            />
+          </div>
           <template v-else>
             <div class="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
               <UButton

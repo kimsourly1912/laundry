@@ -2,11 +2,10 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import { designSchema, elementSchema, keySchema } from '#shared/contracts/slip-design'
 import { publishProblems } from '#shared/slip/checks'
+import { createElement } from '#shared/slip/elements'
 import { checkHtml } from '#shared/html-slip/catalog'
-import { placeholderText } from '#shared/html-slip/build'
-import { hasIntakeItem, INTAKE_GROUPS, INTAKE_ITEMS, intakeField, intakeFieldId, intakeItem, slipPrices } from '../items'
+import { hasIntakeItem, INTAKE_GROUPS, INTAKE_ITEMS, intakeField, intakeFieldId, intakeItem } from '../items'
 import { newHtmlSlip } from '../presets'
-import { sampleOrder } from '../sample'
 
 describe('the laundry item list', () => {
   it('gives every item one key, one field id and a valid field', () => {
@@ -21,22 +20,47 @@ describe('the laundry item list', () => {
     }
   })
 
-  it('prices counts and weights by the item key, per piece or per kg', () => {
-    expect(intakeField(intakeItem('shirt'))).toMatchObject({ id: 'shirt_count', type: 'number', priceKey: 'shirt', unit: '' })
-    expect(intakeField(intakeItem('bedding_kg'))).toMatchObject({ id: 'bedding_kg', type: 'number', priceKey: 'bedding_kg', unit: 'kg', decimals: 2 })
+  it('adds counts and weights as quantities with no price (manual total)', () => {
+    expect(intakeField(intakeItem('shirt'))).toMatchObject({ id: 'shirt_count', type: 'number', unit: '' })
+    expect(intakeField(intakeItem('shirt'))).not.toHaveProperty('priceKey')
+    expect(intakeField(intakeItem('bedding_kg'))).toMatchObject({ id: 'bedding_kg', type: 'number', unit: 'kg', decimals: 2 })
+    expect(intakeField(intakeItem('bedding_kg'))).not.toHaveProperty('priceKey')
     expect(intakeField(intakeItem('express'))).toMatchObject({ id: 'express', type: 'checkbox' })
     expect(intakeField(intakeItem('note'))).toMatchObject({ id: 'note', type: 'textField', maxLength: 100 })
     expect(() => intakeItem('spacesuit')).toThrow()
   })
 
-  it('finds an item on a slip by its price key, whatever the field is called', () => {
-    const { elements } = newHtmlSlip('byWeight')
-    // By weight's field is `weight_kg`, priced as Wash & fold.
-    expect(hasIntakeItem(elements, intakeItem('wash_kg'))).toBe(true)
-    expect(hasIntakeItem(elements, intakeItem('wash_iron'))).toBe(true)
-    expect(hasIntakeItem(elements, intakeItem('shirt'))).toBe(false)
-    // A count with the same id but no price key isn't the item.
-    expect(hasIntakeItem([{ id: 'shirt_count', type: 'number' }], intakeItem('shirt'))).toBe(false)
+  it('finds an item on a slip by its field id, or by its price key whatever the field is called', () => {
+    const manual = newHtmlSlip('byWeight').elements
+    // By weight's `weight_kg` is no list item.
+    expect(hasIntakeItem(manual, intakeItem('wash_kg'))).toBe(false)
+    expect(hasIntakeItem(manual, intakeItem('wash_iron'))).toBe(true)
+    expect(hasIntakeItem(manual, intakeItem('shirt'))).toBe(false)
+    // A count added from the list is the item, so it isn't offered twice.
+    expect(hasIntakeItem([{ id: 'shirt_count', type: 'number' }], intakeItem('shirt'))).toBe(true)
+  })
+
+  it('remembers the list item a field came from', () => {
+    expect(intakeField(intakeItem('shirt'))).toMatchObject({ item: 'shirt' })
+    expect(intakeField(intakeItem('wash_iron'))).toMatchObject({ item: 'wash_iron' })
+  })
+
+  it('matches only fields of the item\'s kind, and follows the item when its id takes a suffix', () => {
+    // Review finding: a text field "Shirt count" takes the id `shirt_count` and blocked the Shirt count.
+    const custom = createElement('textField', { id: 'shirt_count' }, { label: 'Shirt count' })
+    const shirt = intakeItem('shirt')
+    expect(hasIntakeItem([custom], shirt)).toBe(false)
+    // Added after it, the Shirt count's id gets a suffix; the picker still knows it's on the slip.
+    const added = { ...intakeField(shirt), id: 'shirt_count_2' }
+    expect(hasIntakeItem([custom, added], shirt)).toBe(true)
+    // The custom text field isn't another list item either.
+    expect(INTAKE_ITEMS.filter(item => hasIntakeItem([custom], item))).toEqual([])
+    // Wash & iron is a weight and a service tick: each is matched by its own kind.
+    const tick = intakeField(intakeItem('wash_iron'))
+    expect(hasIntakeItem([tick], intakeItem('wash_iron_kg'))).toBe(false)
+    expect(hasIntakeItem([{ ...tick, id: 'wash_iron_kg', item: undefined }], intakeItem('wash_iron_kg'))).toBe(false)
+    // An untracked count is no weight, even with a weight item's id.
+    expect(hasIntakeItem([{ id: 'wash_kg', type: 'number', unit: '' }], intakeItem('wash_kg'))).toBe(false)
   })
 })
 
@@ -54,36 +78,5 @@ describe('the Kilos and pieces preset', () => {
       expect(design.html).toContain(`{{fields.${element.id}}}`)
     }
     expect(design.fillOrder).toEqual(['phone', 'wash_kg', 'shirt_count', 'trousers_count', 'dress_count', 'coat_count', 'blanket_count', 'towel_count', 'other', 'wash_iron', 'dry_clean', 'iron_only', 'express', 'received_by', 'total', 'paid'])
-  })
-
-  it('totals the kilos and the pieces from their prices', () => {
-    const typical = sampleOrder(design, { sample: 'typical', date: '2026-11-19' })
-    expect(typical.order.lines).toHaveLength(7)
-    expect(typical.order.lines![0]).toEqual({ label: 'Weight', unit: 'kg', quantity: 2500, lineTotal: 7500 })
-    expect(placeholderText('fields.wash_kg', design, typical)).toBe('2.50 kg')
-  })
-})
-
-describe('price keys on a slip (D43)', () => {
-  const withKey = (priceKey: string, unit = '') => {
-    const design = newHtmlSlip('byItem')
-    return { ...design, elements: design.elements.map(element => (element.id === 'shirt_count' ? { ...element, priceKey, unit } : element)) }
-  }
-
-  it('must name an item on the list, counted or weighed as the field is', () => {
-    expect(publishProblems(withKey('shirt')).errors).toEqual([])
-    expect(publishProblems(withKey('shirt.dry')).errors).toEqual([{ code: 'unknownPriceKey', key: 'shirt_count' }])
-    expect(publishProblems(withKey('wash_kg')).errors).toEqual([{ code: 'priceUnitMismatch', key: 'shirt_count' }])
-    expect(publishProblems(withKey('shirt', 'kg')).errors).toEqual([{ code: 'priceUnitMismatch', key: 'shirt_count' }])
-  })
-
-  it('lists each priced key once, named and united by the list, in slip order', () => {
-    expect(slipPrices([newHtmlSlip('byWeight'), newHtmlSlip('mixed')]).slice(0, 3)).toEqual([
-      { key: 'wash_kg', label: 'Wash & fold', unit: 'kg' },
-      { key: 'shirt', label: 'Shirt', unit: 'piece' },
-      { key: 'trousers', label: 'Trousers', unit: 'piece' },
-    ])
-    // A key from before D43 keeps its field's label and unit.
-    expect(slipPrices([{ elements: [{ type: 'number', label: 'Bags', unit: '', priceKey: 'bag.big' }] }])).toEqual([{ key: 'bag.big', label: 'Bags', unit: 'piece' }])
   })
 })
