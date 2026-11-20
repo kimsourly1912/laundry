@@ -1,263 +1,129 @@
-# Plan: the slip studio (D31)
+# Plan: the owner's paper slip (D44)
 
-The plan the owner agreed on 2026-11-17. It replaces the spec's step plan (§18) and the flow of D25–D28 and D30. Why: [decisions → D31](decisions.md#d31-the-slip-studio-a-template-is-the-paper-slip).
+The work plan, rewritten with the owner on 2026-11-20 ([D44](decisions.md#d44-the-owner-fills-the-slip-the-platform-owns-everything-else)). It keeps D31's idea (a template is the shop's paper slip) and removes what D39–D43 gave the owner on top of it. The earlier plan (D31, studio details §5) is in git history; the Studio itself is described in [html-template-studio-plan.md](html-template-studio-plan.md).
 
 > **Claude Code — read this first.**
-> - This page is the work plan. Resume from [§9 Steps](#9-steps), and keep the status in [`current-state.md`](current-state.md).
-> - The **studio details (§5) were agreed with the owner on 2026-11-17** (D32, D33). Ask about anything still open in [§10 Open questions](#10-open-questions) before the step that needs it. Don't fill gaps by guessing.
-> - Lines marked **🤖 Claude Code** are instructions or checks for you. Everything else is the agreed product.
-> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English only (D36), docs in the same PR, one PR per area with one commit per step (§9), and stop for review after each PR.
+> - Resume from [§9 Steps](#9-steps), and keep the status in [`current-state.md`](current-state.md).
+> - The rule behind every choice here: **the owner only fills their slip; anything that changes the slip is the platform's job.** A feature that gives the owner a setup task needs the owner's agreement first.
+> - The rules in [`AGENTS.md`](../AGENTS.md) still apply: tenant isolation, statements, `version`, one batch per write, English only (D36), docs in the same PR, one PR per area with one commit per step, and stop for review after each PR.
 
 ## 1. The goal
 
-Small laundry shops already work from a paper slip. The app gives them **the same slip on their phone**, and the customer gets **the same slip as a picture on Telegram**. The owner shouldn't have to learn anything new. All the setup work stays with the platform.
+Small laundry shops already work from a paper slip: the customer hands over clothes, the owner counts them, writes the slip and gives it to the customer to keep. The app does **the same thing on the phone**: the owner fills the same slip, and the customer gets it as a picture on Telegram. The owner learns nothing new. All setup and every change to the slip stays with the platform.
+
+This is deliberately unlike common laundry software, where the shop runs its own service list and the receipt is a standard layout (D44 → Alternatives).
 
 ## 2. Users
 
 | User | Does |
 |---|---|
-| **Super admin** (platform) | Designs templates in the studio, creates shops and owner accounts, attaches templates to shops |
-| **Shop owner** | Signs in on a phone, fills a slip for each customer, marks it paid and picked up |
-| **Customer** (no account) | Scans the Telegram QR and receives the slip as a PNG |
+| **Platform admin** | Builds each shop's slip in the Studio, creates shops and owners, publishes and assigns slips, makes every change the owner asks for |
+| **Shop owner** (and staff) | Fills a slip for each customer, marks orders ready, paid and picked up; asks the platform on Telegram for changes |
+| **Customer** (no account) | Scans the Telegram QR, receives the slip and the "ready for pickup" message |
 
 ## 3. The whole flow
 
-1. **The platform makes a template:** it has an AI tool (or a designer) make the slip's artwork, uploads it, places the form fields on it in the studio, and publishes it (D35).
-2. **The platform creates a shop**: the shop name, phone, address and currency (៛ or $), plus the owner's username and password. Then it **attaches** one or more templates to the shop.
-3. **The owner opens the portal** on their phone. It has a menu of three items:
-   - **Overview:** today's orders and a big **Create order** button (the quick action when a customer arrives).
-   - **Templates:** the templates attached to this shop, each with a preview. The owner taps one to make it the **default**.
-   - **Orders:** all orders, searchable by order number or phone.
-4. **Create order** opens the default template as the slip. The owner taps a box, enters the count or ticks it, goes to the next box, then types the amount, chooses paid or not paid, adds the phone (optional) and saves.
-5. After saving, the app shows the **order number in big digits** (to write on the bag) and a **Telegram QR**.
-6. **The customer scans the QR.** The bot sends the filled slip as a PNG.
-7. Later, the order page has **Mark paid**, **Picked up** and **Cancel**, and shows the QR again.
+**Setup (platform, once per shop)**
+1. Get a straight photo of the shop's blank slip and its paper size, and walk through one real order with the owner: which boxes take counts, ticks or text.
+2. Create the shop and the owner account.
+3. **Shops → the shop → Set up paper slip** opens the Studio for that shop. Build the slip: the shop's look and Khmer labels in the markup, the same boxes in the same order as intake fields. Check it with **Test order**.
+4. **Publish and assign.** The owner sees the slip at once.
+
+**At the counter (owner, every order)**
+1. The customer hands over clothes. The owner taps **New order**; the shop's slip opens.
+2. The owner fills the boxes as on paper: counts, ticks, the total, the phone. Customer and pickup day are under **More details**, for shops that want them.
+3. **Save order.** The app shows the order number in big digits (to write on the bag) and the Telegram QR. The customer scans it and gets the slip. It can also be printed at the slip's paper size.
+
+**Later**
+- **In progress → Ready.** Ready sends "ready for pickup" on Telegram.
+- The customer comes back. The owner finds the order by number or phone, then **Mark paid** and **Picked up**.
+- A mistake: **Cancel and copy** opens New order with the same values; saving makes a new order.
+
+**Changes (owner → platform)**
+- "Shirt is 2,500 now", "add Curtains", "move the phone box": the owner taps **Contact support** (Telegram) on Paper slips or in More. The platform edits the slip, publishes, and new orders use the new version. Old orders keep theirs.
 
 ## 4. Product rules
 
-- **Templates belong to the platform.** Only the platform creates or edits them, and the owner never edits a template.
-- **Templates are attached to shops by the platform.** An owner sees only the templates attached to their shop. Usually that's one, made to match their paper slip, plus any new designs added for them later. One template may be attached to several shops; that's the platform's choice per template.
-- **Default template:** the owner chooses one. If none is set, **Create order** first asks the owner to choose, then remembers the choice. If the platform detaches or archives a shop's default, the owner chooses again; old orders are unaffected.
-- **Template versions:** each **Publish** makes a fixed version. New orders use the latest published version. **An order keeps the version it was made on forever**, so a customer's image never changes.
-- **Order statuses:** `open` → `picked_up`, or `cancelled`. **Paid** is a separate yes/no. ~~There is no "ready" step.~~ **Replaced by [D39](decisions.md#d39-the-product-notes-larger-items-lifecycle-customers-prices-html-templates-requests-paper-size):** an open order is Received, In progress or Ready; only a Ready order is collected; Ready sends "ready for pickup" on Telegram.
-- **Mistakes:** no edit after save. **Cancel and copy** on the order page cancels the order and opens Create order filled with its values; the owner fixes and saves a new order (new number, new QR) ([D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes), Q7).
-- **Telegram sends the slip image**, and since D39 "ready for pickup"; no "collected" messages and no reminders.
-- **Never delete** orders (cancel instead), templates (archive instead) or shops (suspend instead).
-- **The platform never reads a shop's orders.** `/api/shop/**` still answers `403` to the super admin.
+- **Templates belong to the platform.** The owner never edits a template, a price or an item.
+- **The platform attaches templates to shops.** Usually one per shop, its own paper slip. With several, the owner picks a default; New order opens it.
+- **Versions:** each Publish makes a fixed version. New orders use the latest; an order keeps its version forever, so the customer's picture never changes.
+- **Manual total:** the owner types the total. The app calculates nothing.
+- **Order states:** Received → In progress → Ready → Collected, or Cancelled; Received may go straight to Ready, Ready may go back to In progress. **Paid** is separate (D39).
+- **No edit after save:** Cancel and copy (D36).
+- **Telegram** sends the slip and "ready for pickup"; no reminders.
+- **Never delete** orders (cancel), templates (archive) or shops (suspend).
+- **The platform never reads a shop's orders.** `/api/shop/**` answers `403` to the platform admin.
+- **English screens only** (D36). A shop's Khmer is on its slip's markup and field labels.
 
-## 5. The studio (artwork + fields, desktop, platform only)
+## 5. Scope
 
-> **Changed by [D35](decisions.md#d35-ai-made-artwork-and-fields-only) (owner, 2026-11-17).** The slip's look is made outside the app, by AI or any design tool, and uploaded as **artwork**. The studio only places **form fields** on it. The Canva-like drawing tools (text, shapes, icons, images, shop info, rotation) are gone. What follows is the agreed studio; the field rules are in [`studio-behaviour.md`](studio-behaviour.md).
+**In this round (the City Laundry pilot):**
+- Studio: build the slip from the shop's photo, place fields, Test order.
+- Shop setup: Set up paper slip, Publish and assign.
+- New order: fill the slip, Save order, More details.
+- After save: order number, Telegram QR, the slip as a picture, print.
+- Orders: search by number or phone; In progress, Ready, Mark paid, Picked up, Cancel and copy.
+- The Contact support link (Telegram) where the owner would want a change.
 
-### 5.1 Layout
+**Built before and kept:** customers and pickup day (behind More details), paper size, the lifecycle with Ready, the artwork studio for older templates.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────┐
-│ ← Templates │ Linda slip ✎ │ ↶ ↷ │      Saved ✓ │ Try it │ Shops │ Preview │ ⋯ │ Publish │
-├───────────────┬────────────────────────────────────────────────────────────────┤
-│ Fields        │  [ toolbar: the selected field's settings, or align for several ] │
-│  Number  Text │                                                                │
-│  Check  Choice│     ┌──────────────────────────────────────┐                   │
-│  Order No. …  │     │  the artwork (never selectable)      │                   │
-│               │     │      ┌────┐  ┌────┐                  │                   │
-│ Fill order    │     │      │ 3  │  │ ✓  │  ← form fields   │                   │
-│  1 Shirt      │     │      └────┘  └────┘                  │                   │
-│  2 Trousers   │     └──────────────────────────────────────┘                   │
-│  …            │                                         ─────●───── 78%  ⤢ Fit │
-└───────────────┴────────────────────────────────────────────────────────────────┘
-```
+**Removed by D44:** the owner's prices and every calculated total; price keys in the Studio; redesign requests.
 
-- **Top bar:** back to Templates; the name (click to rename); undo and redo; save status; **Try it**; **Shops**; **Preview** (the server's PNG); ⋯ (**Replace artwork**, archive or restore); **Publish**.
-- **Side panel:** the field types to add, then the **fill order**.
-- **Toolbar** above the canvas: the selected field's settings (§5.4), or align and spread for several.
-- **Floating toolbar** on the selection: duplicate, delete.
-- **Desktop only:** below 1280 px wide the studio shows "Open the studio on a computer".
-
-### 5.2 Artwork
-
-- **Made outside the app.** The platform asks an AI tool (or a designer) for the slip's look: a new design, or a redesign of a photo of the shop's paper slip. The artwork carries everything printed: the shop's name and contact details, labels, boxes, lines.
-- **New template** = a name + an artwork upload, or **a copy** of another template.
-- **Accepted:** PNG, JPEG and SVG, 200–2000 px a side.
-  - **An SVG is drawn to a PNG in the platform's browser** at upload, and only the PNG is stored. The browser draws Khmer correctly and runs no scripts or links inside an image; the server's renderer (resvg) can't shape Khmer and has no fonts, so it never sees an SVG. The platform sees the result before saving.
-  - An image over 1 MB is re-encoded in the browser (JPEG) to fit; the platform sees the result.
-  - Under 1000 px on its long side: a warning that the customer's image will look soft.
-- **The canvas is the artwork's size, and so is the customer's PNG**, pixel for pixel.
-- **Replace artwork** (⋯ menu): a new upload; the canvas takes its size and the fields stay where they are (a field off the canvas is a publish warning).
-
-### 5.3 Form fields
-
-On paper, a number or a tick goes **inside a box printed on the slip**. A form field is a box on the artwork where the owner's value is drawn. The box itself draws nothing unless "Draw a border" is on.
-
-#### 5.3.1 Every field has
-
-- a **label** ("Shirt", or "អាវ" for a shop that reads Khmer): one free-text string, what the owner sees while filling (D36). Required to publish
-- **Required** (on or off): the owner can't save the order without it
-- the **value style**: font size, bold, colour, alignment (left, centre, right) inside the box
-- **Draw a border** (off by default): a thin box, for designs with no printed box
-
-A value that's wider than its box **shrinks** to fit, down to half its font size, and is cut off after that. It never spills over the slip.
-
-#### 5.3.2 Field types
-
-| Type | The owner enters | Drawn as | Settings |
-|---|---|---|---|
-| **Number** | A number, with − and + buttons | `3`, `2.5` | Whole numbers or decimals (one or two places); minimum and maximum (0–999 by default); a unit drawn after it (`kg`), optional |
-| **Text** | A line of text | the text, wrapped in the box at spaces | Maximum length (40 by default, up to 200) |
-| **Checkbox** | A tick | ✓, ✗, a filled dot or a filled box | The mark |
-| **Choice** | One option of a group | the mark on the chosen option's spot | The group's label; its options, **each placed separately** on the canvas with its own label ("Washing iron", "Dry", "Iron"); the mark. At least two options |
-
-#### 5.3.3 Fixed-meaning fields (at most one of each per template)
-
-The app uses these to list, search and filter orders.
-
-| Field | Filled by | Drawn as |
-|---|---|---|
-| **Order No.** | The server: counts up per shop | `1024` |
-| **Date** | The server: the day the order was made, in the shop's time zone | `17/11/2026` |
-| **Phone** | The owner (optional) | `012 345 678` |
-| **Amount** | The owner | in the shop's currency: `12,000 ៛` or `$4.50` |
-| **Paid / Not paid** | The owner | a choice with two spots, "Paid" and "Not paid" |
-
-The order's values are checked by the server against the order's template version (§6.6).
-
-#### 5.3.4 Fill order and Try it
-
-- **Fill order:** the Form tab lists every field the owner fills (not Order No. or Date), in order. On the phone, **Next** goes through them in this order. A new field goes to the end.
-- **Try it:** a phone-sized frame inside the studio that fills the slip exactly as the owner will (step 3 builds the same component), with the live slip beside it. Nothing is saved.
-
-### 5.4 Toolbar
-
-| Selected | Toolbar |
-|---|---|
-| One field | Label, required, the type's settings (§5.3.2), value style, draw a border, position and size |
-| Several fields | Align left, centre or right; top, middle or bottom; spread evenly across or down |
-
-### 5.5 On the canvas and keyboard
-
-The full rules, with what is built and what is still to build, are in [`studio-behaviour.md`](studio-behaviour.md). In short: click, Shift+click and box select; drag to move (Shift locks the axis, Alt-drag copies); eight handles to resize (Shift keeps proportions); snapping to the artwork's edges and centre and to other fields (Ctrl turns it off); arrows nudge 1 px, Shift+arrows 10 px; Delete, Ctrl+D, Ctrl+C / Ctrl+V, Ctrl+Z / Ctrl+Y, Esc; zoom with Ctrl + scroll, Ctrl + `+` / `−` / `0`; pan with scroll or Space + drag. No rotation.
-
-### 5.6 Saving, undo, versions, publishing
-
-- The draft **saves by itself** about a second after each change, with `version`. A stale save answers `409 VERSION_CONFLICT`, and the studio says "This template changed in another window. Reload to see it." and stops saving.
-- **Undo and redo** keep the last 100 changes of this session; a gesture (one drag, one resize) is one change.
-- **Publish** shows the checks, then makes a fixed `template_versions` row (version 1, 2, …). New orders use it at once; existing orders keep theirs.
-- **Publish is refused** when: there's no Order No.; a choice group has fewer than two options; a field has no label; a fixed-meaning field appears twice.
-- **Publish warns** (and can go ahead) about: a field partly off the canvas; no Amount; no Phone; no fields at all besides Order No.
-- **Attach to shops** from the template's page or from the shop's page (step 2).
-
-### 5.7 Left out of the first version
-
-- drawing in the studio: text, shapes, lines, icons, images, colours, shop info elements, rotation (the artwork carries the look, D35)
-- an AI button inside the app (the platform uses its own AI tool; revisit once we know which gives good slips)
-- several pages per template
-- fonts other than Noto Sans Khmer for values
-- an owner-side editor
-- automatic line breaks inside Khmer words (D32)
+**Not planned:** the owner editing items or prices, discounts, deposits, reports, more staff roles, bag tags. If a shop later wants totals calculated, the direction is a Price box on each count or weight, typed by the platform and kept in the template version (D44 → Alternatives); not before a shop asks.
 
 ## 6. Technical design
 
-1. **A design is one JSON document:** canvas size, the artwork (an image id, drawn over a colour), and the fields. Every field has `id, type, x, y, w, h` plus its type's own settings (D35). One Valibot schema in `shared/contracts` checks it in both the browser and the server.
-2. **Drawn as SVG, in the browser and on the server.** One shared function, `design + values + shop → SVG`:
-   - the studio shows that SVG on screen
-   - the server passes it to resvg to make the PNG
-   - so what you design is what the customer gets.
+Unchanged by D44:
+- **A template is a design JSON** with intake fields; an HTML slip carries markup that places them as `{{fields.<id>}}` ([html-template-studio-plan.md](html-template-studio-plan.md), D39–D41). Artwork slips (D35) keep working.
+- **One renderer:** the server draws the slip as SVG (Satori for HTML slips, fontkit glyph paths for artwork slips), and resvg makes the PNG for Telegram ([reference → slip](reference/slip.md)).
+- **The server never trusts the client:** it checks every value against the order's template version, and sets the number, the date and the version. The amount is what the owner typed.
+- **Order create and Mark paid are idempotent** (`Idempotency-Key`).
 
-   Not Fabric or Konva: they mean two drawing paths that drift apart.
-3. **Values are shaped by fontkit 3 and drawn as glyph paths** ([D32](decisions.md#d32-studio-canvas-and-slip-text)). The shared function shapes each line with fontkit and writes `<path>`s, so the SVG holds no `<text>` and resvg only rasterises. The studio and the server load the same font files and build the same SVG. Lines wrap only at spaces and new lines (Q14). fontkit is pinned and checked against HarfBuzz by a test.
-4. **Handles, snapping and selecting several fields: Moveable + Selecto** (D32), over transparent boxes; each gesture writes x, y, w and h into the design. D35 keeps them: with the artwork static and only fields on the canvas, the redraw problem behind D34 is gone, and each field is drawn as its own piece. Our own interaction layer (D34) stays the fallback.
-5. **Undo and redo:** a history of design snapshots (a design is small).
-6. **The studio is desktop only.** The owner's screens are mobile first (content up to 640 px wide).
-7. **Fonts:** Noto Sans Khmer (regular and bold) for Khmer and Latin.
-8. **The server never trusts the client:**
-   - it checks every saved order's values against the order's template version (each value belongs to a real element, with the right type and range)
-   - it sets the order number, the date and the template version itself
-   - the amount is what the owner typed (there's no price list to recompute it from).
+## 7. Data
 
-## 7. Data (a fresh database)
+No new tables. D44 drops three (one migration, `order_items` first):
 
-There's no pilot shop, only test data, so **the migrations restart from `0000`**. Keep Better Auth's tables as they are.
-
-| Table | Holds |
+| Table | Why it goes |
 |---|---|
-| Better Auth tables | Users, sessions, organizations (an organization is a shop), members |
-| `shop_settings` | phone, address, logo image id, currency, language, status, `version` (the name is the organization's) |
-| `templates` | name, status (`draft`, `published`, `archived`), the draft design (JSON), `version`. The latest version is the highest `number` in `template_versions` |
-| `template_versions` | template id, number, design (JSON), created at. Never changes |
-| `template_shops` | which templates are attached to which shop, and **the shop's default** (a flag, at most one per shop) |
-| `images` | uploaded backgrounds and logos (≤ 1 MB, base64 as in D28), shared by the platform's templates; one used by a template version can't be deleted |
-| `orders` | `shop_id`, number, date, `template_version_id`, the values (JSON), **a copy of the shop's details** (JSON: name, phone, address, logo image id, currency, language, as at saving), phone, amount, paid, status, paid at, picked up at, `version` |
-| `order_counters`, `idempotency_keys`, `audit_events` | as today |
-| Telegram tables | invites, links, `notifications` (outbox), pointing at orders only (§8). `telegram_pending` comes back in step 4 only if the phone check stays (Q11) |
+| `order_items` | Lines of calculated orders; every order now has a typed total |
+| `price_items` | The owner's prices (D39, D43) |
+| `template_requests` | Redesign requests; changes come through Telegram |
 
-- **🤖 Claude Code:** `templates`, `template_versions` and `images` are platform tables with no `shop_id`. `template_shops`, `shop_settings`, `orders` and everything below them are shop-owned and need two-shop isolation tests.
-- **🤖 Claude Code:** the owner reads a template version only through an attached template or through their own order. Another shop's template answers `404`.
-- **Built in step 1** (2026-11-17), with three changes from the first draft of this table, all in [data-model.md](server/data-model.md): the default template is a flag on `template_shops` (so it is always attached, and detaching clears it); there is no "latest version" column (derived); no `telegram_pending` until Q11 is answered.
+The rest is as in [data-model.md](server/data-model.md): shops, templates and versions, attachments, images, orders and counters, customers, Telegram links and notifications, audit and idempotency.
 
 ## 8. What happens to the current code
 
-| Keep (adapt as needed) | Rework | Delete |
-|---|---|---|
-| Identity: Better Auth, roles, statements, access helpers, `/api/me`, sign-in, change password, account | `app/features/receipts/` (the receipt designer) → the studio | Pricing (`server/features/pricing`, `app/features/pricing`, `/prices` pages) |
-| Platform shops: create, detail, suspend, resume, reset password, revoke sessions | `server/features/receipts/` (renderer) → renders the new design format through the shared SVG function | Customers (`server/features/customers`, `app/features/customers`, `/customers` pages) |
-| Server core: errors, validation, batch, ids, logging, rate limits, request protection, audit, idempotency | `server/features/templates` → the new templates, versions and attachments | Current orders (lines, rework, start/ready, Today, board, edit page): rebuilt as §4 |
-| App shell: data layer, layouts, i18n, Noto Sans Khmer | `server/features/orders` → the new orders | `receipt_designs`, apply-template (D30), price-based templates (D25), reminders job (M4.3) |
-| Telegram: bot over `fetch`, webhook, QR tokens, outbox, `notifications:deliver` and `notifications:purge` | Telegram linking → order-only (below) | |
+| Keep | Remove (D44) |
+|---|---|
+| Identity, roles, statements, access helpers, platform shops | `app/features/prices`, `server/features/prices`, `/api/shop/prices/**`, `/api/platform/shops/:id/prices`, `MissingPricesAlert` |
+| Templates, versions, attachments, images, the HTML Studio and its renderer | `priceKey` on number fields, the Studio's Pricing section and `PriceKeySelect`, publish checks `unknownPriceKey` and `priceUnitMismatch` |
+| Orders: New order, lifecycle, search, paid, picked up, Cancel and copy, print | `shared/pricing.ts`, the itemized path in New order and the orders service, `QUOTE_CHANGED`, `order.itemLines` in the HTML catalog |
+| Customers and pickup day (More details) | Redesign requests: the owner's dialog, the platform's queue, their routes, `template_requests` |
+| Telegram: QR, slip picture, "ready for pickup" | Statements `price:read`, `price:write`, `template:request` |
+| The item list (D42) as Add from list, for labels and kinds | The item list's price-key role (`PRICED_ITEMS`, `slipPrices`) |
 
-- **Telegram linking:** today a link can follow a *customer* (D28). With no customers table, the first version links **one order**: scan, then receive that order's slip. **🤖 Claude Code:** confirm with the owner whether the phone check is still wanted. Without it the bot can send the image right after the scan.
-- **🤖 Claude Code:** delete code, not just its routes: its tests, `reference/` pages, locale keys, statements in the permission map, and the jobs in `nuxt.config.ts` that no longer exist. Update `data-model.md`, `security.md`, `operations.md` and the standards that mention removed features.
+**🤖 Claude Code:** delete code, not just routes: its tests, `reference/` pages, locale keys, statements in the permission map, and mentions in `data-model.md`, `security.md` and the standards.
 
 ## 9. Steps
 
-**PRs by area, not by step (owner, 2026-11-17).** Each PR holds a whole area, with **one commit per step**, and the owner reviews after each PR. Build the steps in the table's order.
+**One PR for this round (E. Paper-slip pilot), one commit per step**, on branch `plan/city-laundry-pilot`. The owner reviews the PR. Earlier PRs (A Reset, B Studio, B2 Simplify, C Owner + Telegram, D39 items, D Item list and prices) are merged or recorded in [current-state](current-state.md) and git history.
 
-| PR | Steps | Covers |
-|---|---|---|
-| **A. Reset** | 1 | The spike and these plan decisions (D32, D33), then the reset |
-| **B. Studio** | S1–S5, 2 | Everything the platform uses: the studio, the templates list, attaching templates to shops |
-| **B2. Simplify the studio** | R1, K1 | AI-made artwork + fields only (D35): the drawing tools removed, the artwork upload, the canvas for fields |
-| **C. Owner + Telegram** | 3, 4 | Everything the shop owner and the customer use |
-| **D. Item list and prices** | I1–I8 | The laundry item list for intake fields ([D42](decisions.md#d42-the-laundry-item-list-for-intake-fields)); the slips decide what is priced, the owner sets how much ([D43](decisions.md#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much)) |
+| # | Step | Size | Status |
+|---|---|---|---|
+| P1 | **Studio fields, placement, Test order** ([pilot plan §1](city-laundry-pilot-plan.md)): manual total by default, each field says whether the slip prints it, Insert placeholder, portal-only fields, unplaced-field warnings, Test order | Medium | Built, not committed |
+| P2 | **Set up the slip from the shop** (pilot plan §2): Set up paper slip, "For <shop>", Publish and assign, Retry assignment | Medium | Built, not committed |
+| P3 | **Fill the slip at the counter** (pilot plan §3): the slip's fields first, More details collapsed, Save order beside Preview, one order per double tap | Medium | Built, not committed |
+| P4 | **Remove prices and redesign requests** (D44, one step by the owner's choice): everything in §8's Remove column, the Studio's Pricing section, the itemized New order, the platform's price count, the owner's request dialog and the platform's queue; one migration dropping `order_items`, `price_items` and `template_requests`; New order always takes a typed total; Paper slips says "Need a change? Contact support" with the Telegram link | Large | Built, not committed |
+| P6 | **City Laundry's slip:** built from the shop's photo and field walk-through, assigned to the shop; printed at its paper size, its QR scanned from paper; Telegram bot on staging | Medium | Waiting for the shop's photo and paper size |
 
-| # | Step | PR | Size | Status |
-|---|---|---|---|---|
-| 1 | **Reset:** delete the removed features (§8), fresh migrations with the new tables (§7), and keep tests green | A | Medium | Done (PR A merged) |
-| S1 | **Design format + rendering:** the Valibot design schema, the shared SVG builder with fontkit text (and its HarfBuzz comparison test), server PNG from a design, templates with autosave, `version`, publish and versions; images upload; start from a photo, blank or a copy (§5.2) | B | Large | Done, in PR B |
-| S2 | **Canvas core:** zoom and pan, select, drag, resize, rotate, snapping, keyboard, undo and redo, the Layers tab | B | Large | Done, in PR B |
-| S3 | **Form fields:** every field type (§5.4), choice groups, fixed-meaning fields, shop info, fill order, Try it, the field toolbar, publish checks | B | Large | Done, in PR B |
-| S4 | **Drawing tools:** text (edited on the canvas), shapes, lines, icons, images on the canvas, their toolbars, Resize | B | Large | Done, in PR B |
-| S5 | **Polish:** align and spread several elements, copy and paste | B | Medium | Done, in PR B |
-| 2 | **Platform screens:** templates list (thumbnail, status, attached shops), attach templates from the template's page and the shop's page, shop create and detail with attached templates | B | Medium | Done, in PR B |
-| R1 | **Faster drawing:** each element drawn as its own piece, equal to the server's SVG | B2 | Medium | Done |
-| K1 | **Simplify (D35):** the drawing element types, tools and rotation removed; New template = artwork upload (PNG, JPEG, SVG drawn to PNG in the browser) or a copy; Replace artwork; the side panel is Fields only. The spec's "To build" rules follow | B2 | Large | Done (the spec's rules built 2026-11-18, but R5b) |
-| 3 | **Owner portal:** the three-item menu; Overview (today's orders and Create order); Templates (preview, set default); Create order (tap a box to fill it, Next through the fill order, sticky Save); Orders (search, filters); the order page (image, Mark paid, Picked up, Cancel, QR) | C | Large | Done: [D37](decisions.md#d37-the-owners-counter-new-order-preview-save-once-reprint) (Overview, New order, save once, Print again) and [D38](decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram) (Orders with search, Mark paid, Picked up, Cancel and copy, Paper slips with the default) |
-| 4 | **Telegram:** the QR after saving and on the order page; the bot sends the filled slip PNG | C | Small | Done ([D38](decisions.md#d38-the-owner-portals-rest-orders-actions-paper-slips-telegram)); to try on staging once the bot is set up |
-| I1 | **Item list:** `shared/html-slip/items.ts`, about 40 items in ten groups, with fixed keys and kinds, plus tests | D | Small | Done, not committed |
-| I2 | **Add from list** in the Intake fields panel: search, groups, several at once, items already on the slip ticked | D | Small | Done, not committed |
-| I3 | **Kilos and pieces preset** (`mixed`); By item and the services read from the list | D | Small | Done, not committed |
-| I4 | **Prices from the slips (server):** `GET /api/shop/prices` lists each priced key on the shop's attached slips (name and unit from the item list) plus the prices kept for old orders; `PUT /api/shop/prices/:key` sets one at the version read, 404 for a key not on the slips; the create, edit, archive and restore routes are gone | D | Medium | Done, not committed |
-| I5 | **Owner's Prices page:** a row per item with an amount box and Save, a warning for items with no price, and "Not on your slips any more" for the rest; Add price and the key field are gone | D | Small | Done, not committed |
-| I6 | **Studio:** Priced as picks an item from the list (per kg items for weights, per piece items for counts); Publish errors on a key not on the list or in the wrong unit | D | Small | Done, not committed |
-| I7 | **Counter:** a count with no price yet is disabled on New order and says who sets it; Overview warns the owner and staff | D | Small | Done, not committed |
-| I8 | **Platform shop page:** "Prices: 5 of 8 set" (`GET /api/platform/shops/:shopId/prices`, counts only) | D | Small | Done, not committed |
-
-**🤖 Claude Code:** PR B is large. Keep each step's commit self-contained (tests and docs pass at every commit), so the owner can review it commit by commit. Photo + fields stays the main use (D33): if PR B runs long, S1–S3 and step 2 are what PR C needs; S4–S5 can move to their own PR with the owner's agreement.
-
-Each step includes:
-- tests, with a two-shop isolation test for every shop-owned table and query
-- a test that fails when each new guard is removed
-- English strings in `en.json`
-- docs.
+Each step includes tests (two-shop isolation for every new query, a failing test for each removed guard's replacement), English strings in `en.json`, and docs.
 
 ## 10. Open questions
 
-**🤖 Claude Code:** ask the owner about these before the step that needs them, and record each answer here and in `decisions.md` if it's an architecture choice.
+| # | Question | Needed by |
+|---|---|---|
+| Q16 | Order number look: `#002139` (mockups) or `1, 2, …` (the app)? | P6 |
+| Q15 | Owner content width 768 px or 640 px | Next owner screen |
+| — | City Laundry: blank slip photo, paper size, which boxes are counts, ticks or text, where the QR goes | P6 |
 
-Answered on 2026-11-17:
-- **Q7:** no edit after save; **Cancel and copy** instead → [D36](decisions.md#d36-english-only-and-cancel-and-copy-for-mistakes). **English only** (no Khmer screens) → D36.
-- **Q11:** send the slip right after the scan; **no phone check** (no `telegram_pending`).
-- **Studio rework** (Phase 0 research, Q-S1–Q-S7) → [`studio-behaviour.md`](studio-behaviour.md), [D34](decisions.md#d34-the-studio-canvas-our-own-interaction-layer); then **simplified** to AI-made artwork + fields only → [D35](decisions.md#d35-ai-made-artwork-and-fields-only).
-- **Q13** (fontkit text as paths, Moveable + Selecto) and **Q14** (wrap at spaces and new lines only) → [D32](decisions.md#d32-studio-canvas-and-slip-text).
-- **Q9** (keep the Shop info elements; the order keeps a copy of the shop's details), **Q10** (the studio is English only), the main use (a photo with fields) and **Q12** (§5 as written: the owner accepted the defaults) → [D33](decisions.md#d33-studio-scope-photo-first-english-only-shop-details-copied-to-the-order).
-
-| # | Question | Recommendation | Needed by |
-|---|---|---|---|
+Answered on 2026-11-20 (D44): keep the Ready step; manual total; changes go through the Telegram support link.

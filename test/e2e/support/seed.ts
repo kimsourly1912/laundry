@@ -20,6 +20,8 @@ export const E2E_ACCOUNTS = {
   counterOwner: { username: 'e2e_counter_owner', password: 'e2e counter password 1', shop: 'Linda Laundry' },
   /** Another shop's owner: never sees the counter owner's orders (orders.test.ts). */
   otherOwner: { username: 'e2e_other_owner', password: 'e2e other password 1', shop: 'Beta Wash' },
+  /** A disposable shop with no slips: the platform sets one up from the shop (shop-setup.test.ts, pilot plan §2). */
+  pilotOwner: { username: 'e2e_pilot_owner', password: 'e2e pilot password 1', shop: 'Pilot Test Laundry' },
 } as const
 
 export type E2eAccounts = typeof E2E_ACCOUNTS
@@ -29,7 +31,7 @@ export async function seedE2e(dbFile: string) {
   const client = createClient({ url: `file:${dbFile}`, timeout: 5000 })
   const db = drizzle(client, { casing: 'snake_case' }) as unknown as Db
   try {
-    const { admin, newOwner, owner, settingsOwner, counterOwner, otherOwner } = E2E_ACCOUNTS
+    const { admin, newOwner, owner, settingsOwner, counterOwner, otherOwner, pilotOwner } = E2E_ACCOUNTS
     const { userId } = await seedPlatformAdmin({ db, username: admin.username, passwordHash: await hashPassword(admin.password) })
     const actor = { userId, platformRole: 'superadmin' as const }
     await createShop(db, actor, { name: newOwner.shop, slug: 'fresh-start', owner: { name: 'New Owner', username: newOwner.username, password: newOwner.password } })
@@ -37,8 +39,9 @@ export async function seedE2e(dbFile: string) {
     const settingsShop = await createShop(db, actor, { name: settingsOwner.shop, slug: 'siem-reap-wash', owner: { name: 'Settings Owner', username: settingsOwner.username, password: settingsOwner.password } })
     const counterShop = await createShop(db, actor, { name: counterOwner.shop, slug: 'linda-laundry', owner: { name: 'Counter Owner', username: counterOwner.username, password: counterOwner.password } })
     const otherShop = await createShop(db, actor, { name: otherOwner.shop, slug: 'beta-wash', owner: { name: 'Other Owner', username: otherOwner.username, password: otherOwner.password } })
+    const pilotShop = await createShop(db, actor, { name: pilotOwner.shop, slug: 'pilot-test-laundry', owner: { name: 'Pilot Owner', username: pilotOwner.username, password: pilotOwner.password } })
     // Past their first sign-in already: the admin and these owners have their own passwords.
-    for (const id of [userId, shop.owner!.id, settingsShop.owner!.id, counterShop.owner!.id, otherShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
+    for (const id of [userId, shop.owner!.id, settingsShop.owner!.id, counterShop.owner!.id, otherShop.owner!.id, pilotShop.owner!.id]) await db.update(user).set({ mustChangePassword: false }).where(eq(user.id, id))
   }
   finally {
     client.close()

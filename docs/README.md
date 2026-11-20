@@ -21,7 +21,8 @@ A conflict between them is recorded in [`current-state.md`](current-state.md) â†
 | Path | Holds |
 |---|---|
 | [`current-state.md`](current-state.md) | Where the project is, the next step, open questions, blockers. Short |
-| [`plan.md`](plan.md) | **The work plan (D31):** the slip studio, the owner's portal, data, steps, open questions |
+| [`plan.md`](plan.md) | **The work plan (D44):** the owner fills the slip, the platform owns the rest; flow, scope, steps, open questions |
+| [`city-laundry-pilot-plan.md`](city-laundry-pilot-plan.md) | Paper-slip pilot handoff covering Studio field placement, shop assignment, and counter intake |
 | [`studio-behaviour.md`](studio-behaviour.md) | **Studio behaviour spec (draft):** every canvas tool's rules and edge cases, with sources, for the studio rebuild |
 | [`decisions.md`](decisions.md) | Decisions: context, decision, alternatives, consequences |
 | [`standards/ui.md`](standards/ui.md) | Visual rules: Nuxt UI first, tokens, type, touch, actions, status, accessibility, expected behavior |

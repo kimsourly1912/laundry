@@ -29,7 +29,6 @@ export type TextPlaceholder = keyof typeof TEXT_PLACEHOLDERS
 
 /** Blocks the app draws in place of the placeholder. */
 export const BLOCK_PLACEHOLDERS = {
-  'order.itemLines': 'Rows of priced items: label, quantity or weight, line amount',
   'order.qrCode': 'The QR code for the order on Telegram (a sample one before saving)',
 } as const
 export type BlockPlaceholder = keyof typeof BLOCK_PLACEHOLDERS

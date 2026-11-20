@@ -81,27 +81,19 @@ Every value must belong to a field of the design, with its type and range; requi
 
 ## The laundry item list (`shared/html-slip/items.ts`)
 
-The items an HTML slip's intake fields come from ([D42](../decisions.md#d42-the-laundry-item-list-for-intake-fields)). The Studio's **Add from list** and the presets use it, so a field's price key is the same in every template and shop.
+The items an HTML slip's intake fields come from ([D42](../decisions.md#d42-the-laundry-item-list-for-intake-fields)). The Studio's **Add from list** and the presets use it, so an item has the same field id and label in every template. Labels and kinds only: nothing is priced ([D44](../decisions.md#d44-the-owner-fills-the-slip-the-platform-owns-everything-else)).
 
 ```ts
 import { hasIntakeItem, intakeField, intakeItem } from '#shared/html-slip/items'
 
 const shirt = intakeItem('shirt') // { key: 'shirt', label: 'Shirt', group: 'tops', kind: 'count' }
-const field = intakeField(shirt) // a number field: id 'shirt_count', priceKey 'shirt'
-const onSlip = hasIntakeItem(design.elements, shirt) // by price key for counts and weights, by id otherwise
+const field = intakeField(shirt) // a number field: id 'shirt_count', item 'shirt'
+const onSlip = hasIntakeItem(design.elements, shirt) // by the field's recorded item, or by id for an older field
 ```
 
-- `kind`: `count` (pieces) and `weight` (kg, two decimals) are priced by `key`. `checkbox` is a service, ticked with an X. `text` is free text (`received_by`, `other`, `note`).
+- `kind`: `count` (pieces), `weight` (kg, two decimals), `checkbox` (a service, ticked with an X) or `text` (free text: `received_by`, `other`, `note`).
 - Field id: `<key>_count` for a count, the key for everything else. A field the Studio adds with an id already in use gets `_2`, `_3`, and so on.
-- To add an item, append it to `INTAKE_ITEMS` with a new key. Never rename or reuse a key: price lists and published slips refer to it.
-- Prices (D43): `PRICED_ITEMS` and `pricedItem(key)` are the counts and weights a price key may name. `slipPrices(designs)` lists each priced key on some slips once, with the list's name and unit; the server builds a shop's Prices page from it. Publish (`publishProblems`) errors with `unknownPriceKey` for a key not on the list, and `priceUnitMismatch` for a per-kg item on a field that isn't in kg, or the reverse.
-
-```ts
-import { slipPrices } from '#shared/html-slip/items'
-import { newHtmlSlip } from '#shared/html-slip/presets'
-
-slipPrices([newHtmlSlip('byWeight')]) // [{ key: 'wash_kg', label: 'Wash & fold', unit: 'kg' }]
-```
+- To add an item, append it to `INTAKE_ITEMS` with a new key. Never rename or reuse a key: published slips refer to it.
 
 ## Tests
 

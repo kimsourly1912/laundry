@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * Add from list (D42): the laundry item list by group, with a search. Items the slip already has
- * show ticked and can't be picked again; Add hands the picked items back in the list's order, and
+ * show ticked and can't be picked again; a weight and a service tick say which they are, as "Wash &
+ * iron" is both. Each item adds a quantity or a tick with no price (manual total, D44); Add hands the picked items back in the list's order, and
  * the page turns each into its intake field.
  */
 import type { SlipElement } from '#shared/contracts/slip-design'
@@ -84,7 +85,7 @@ function add() {
                 :model-value="onSlip(item) || picked.has(item.key)"
                 :disabled="onSlip(item)"
                 :label="item.label"
-                :description="item.kind === 'weight' ? t('studio.html.itemList.perKg') : undefined"
+                :description="item.kind === 'weight' ? t('studio.html.itemList.perKg') : item.kind === 'checkbox' ? t('studio.html.itemList.tick') : undefined"
                 :data-testid="`item-${item.key}`"
                 @update:model-value="toggle(item, $event === true)"
               />

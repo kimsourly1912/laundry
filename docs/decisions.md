@@ -577,6 +577,7 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 **Consequences.**
 - No migration: the `orders` columns of step 1 are enough. `orders.values` is typed as `SlipValues`.
 - Left for the next milestones (current-state → Open questions): the 768 px content width the guide proposes, a zero-padded number (`#002139`), remembering a chosen default (sheet 05), the Telegram QR on the saved screen (plan step 4), the Orders list and search, Mark paid / Picked up / Cancel and copy.
+- **Scoped by the City Laundry pilot (§3, 2026-11-20):** on a manual-total slip (no count or weight linked to a price), **Save order** is the primary action on the form itself, with Preview beside it; both paths run the same checks, the same `POST /api/shop/orders` with the version and one `Idempotency-Key`, and land on the order page. The customer and the pickup day sit behind **More details** below the slip's fields, opened by themselves when they hold something (a copied order's customer). A priced slip keeps Preview, then Save, with the customer above the fields.
 
 ## D38. The owner portal's rest: Orders, actions, Paper slips, Telegram
 **2026-11-18.** The rest of plan steps 3 and 4 that is small to medium, on top of D37. The Ready / In progress lifecycle, item pricing, customers, redesign requests, the phone Studio and AI import stay out (they change D31's product rules or are large).
@@ -619,7 +620,7 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **Search:** text that reads as a phone matches the phone exactly; anything else, part of the name (`instr`, D1's pattern limit).
 - **Statements:** `customer:read`, `customer:write` for owner and staff. Audit rows name the changed fields, never their values.
 
-**Prices and itemized orders** (product notes → price list, How a counter order is saved; guide → Delivery order 4).
+**Prices and itemized orders** (product notes → price list, How a counter order is saved; guide → Delivery order 4). **Replaced by [D44](#d44-the-owner-fills-the-slip-the-platform-owns-everything-else):** manual total, no price list.
 - **`price_items`** (shop-owned): a stable `key`, a label, `piece` or `kg`, the price in minor units, `active`, `version`. One item per key in a shop; archived, never deleted. The owner manages them on Prices (More); staff read them.
 - **A slip opts in, field by field:** in the Studio a number field may carry a `priceKey` (D35's design gains one optional property; existing designs are unchanged). The platform uses the same keys across shops; each shop prices them. A slip with no linked field is free-entry and keeps the typed amount (D37).
 - **The server prices** each linked count with a value from the shop's active items: pieces times the price, or kg to whole grams times the price per kg, rounded to the nearest minor unit, halves up (`shared/pricing.ts`, shared so New order shows the same running total). The amount is the total. The owner's amount must equal it, else 409 `QUOTE_CHANGED` and the app reloads the prices and shows the new total ("return the updated quote for owner review"). A key with no active price, or part of a piece, is 422 on that field.
@@ -633,7 +634,7 @@ The owner pointed to [opentempl](https://github.com/noah-thing/opentempl) (MIT) 
 - **Print uses it:** the order page adds `@page { size: W mm H mm; margin: 0 }` and sizes `.print-slip` to it. The canvas stays pixels for the screen and Telegram; millimetres are for paper only.
 - **Not yet checked on a real printer** (the pilot's job, guide → Delivery order 6).
 
-**Redesign requests** (product notes → AI-assisted design; guide → sheets 05, 09).
+**Redesign requests** (product notes → AI-assisted design; guide → sheets 05, 09). **Replaced by [D44](#d44-the-owner-fills-the-slip-the-platform-owns-everything-else):** the owner asks through the Telegram support link.
 - **The owner asks from Paper slips:** a photo of their slip (scaled in the browser like an artwork, ≤ 2000 px and ≤ 1 MB; the server checks type and size from the bytes), Keep the layout or Redesign it, and notes. The dialog suggests a blank slip or covering customers' details. Their requests show with a status.
 - **`template_requests`** (shop-owned, in the templates feature): the photo as base64 in the row, as `images` (D28), never served to another shop (404). The platform's queue (Templates → Requests) lists them oldest first by status; the platform starts one, declines it, or marks it done naming the template it made, at the version read, audited. Attaching that template to the shop stays the platform's usual step.
 - **The photo's route** is `POST /api/shop/template-requests` with the bytes as the body (the Worker allows 1 MB on that path), like an image upload.
@@ -695,8 +696,11 @@ Create template opens a new split editor with an unsaved, empty design; a preset
 **Consequences.**
 - `HTML_INTAKE_PRESETS` adds `mixed`. This only adds a value, so saved designs still validate.
 - Followed by [D43](#d43-the-slips-decide-what-is-priced-the-owner-sets-how-much): the shop's prices come from its slips.
+- **Scoped by the City Laundry pilot (§1, 2026-11-20):** an item added from the list, and every preset field, is a quantity or a tick with **no price key** (manual total); the admin links a count or weight to its item under the Intake fields view's collapsed **Pricing**. A field id stays `<key>_count` (or the key). The field records the list item it came from (`item`), so the list finds it even when its id took a suffix; an older field is found by its id or price key, but only among fields of the item's kind (a text field called "Shirt count" isn't the Shirt count). Item rows say "Weight in kg" or "Service tick", so the weighed and the ticked Wash & iron read apart.
 
 ## D43. The slips decide what is priced, the owner sets how much
+
+**Replaced by [D44](#d44-the-owner-fills-the-slip-the-platform-owns-everything-else)** (2026-11-20): manual total; the owner sets no prices.
 
 **Owner, 2026-11-19.** Under D39 the owner made each price item by hand: key, label, per piece or per kg, price. The key had to match the slip's price key exactly, and nothing told the owner which keys their slips need. A typo, or a key the owner never added, left staff stuck at the counter with a 422. **This replaces D39's "the owner manages price items" (Prices: add, edit, archive).** Statements are unchanged: `price:read` for owner and staff, `price:write` for the owner.
 
@@ -720,3 +724,31 @@ Create template opens a new split editor with an unsaved, empty design; a preset
 - `GET /api/shop/prices` now answers `{ currency, items }` (`PriceList`); New order reads the same answer.
 - Attaching a template with new items to a shop adds "no price yet" rows for its owner, and the platform's shop page shows how many are set.
 - Published templates with keys that aren't on the list still work, and their rows use the field's label. Publishing them again needs list keys.
+- **Scoped by the City Laundry pilot (§1, 2026-11-20):** a slip is on a manual total unless the platform links a field. Priced as moved from each field card to a collapsed **Pricing** section; existing links are kept and still priced by the server. Pricing per kg or per piece still follows the field's unit.
+
+## D44. The owner fills the slip; the platform owns everything else
+
+**Owner, 2026-11-20.** After D39–D43 the owner had jobs a paper-slip shop never had: pricing price keys they didn't choose (D43), and a redesign request form (D39). The Studio had the platform link each field to a price key. A comparison with laundry software elsewhere (CleanCloud, Cents, Indonesian kiloan/satuan cashier apps, Philippine and Thai laundry POS apps) showed the usual model: the shop keeps its own service list, an order is a list of lines, and the receipt is a standard layout. The owner chose **not** to follow it: our shops keep working as they do on paper. **This replaces D39's prices and itemized orders, D39's redesign requests, and D43.**
+
+**Decision.**
+- **The owner's app is their paper slip.** A customer hands over clothes; the owner opens New order, fills the boxes they fill on paper today (counts, ticks, the total, the phone) and saves. The customer gets the slip on Telegram instead of on paper (it can still be printed).
+- **The platform owns everything that changes the slip:** its layout, its items, its labels, and any prices. To change a price or add an item, the owner contacts the platform through the Telegram support link (`NUXT_PUBLIC_SUPPORT_URL`), shown on Paper slips and in More. The platform edits the template in the Studio and publishes; new orders use the new version, old orders keep theirs.
+- **Manual total.** The owner types the total as on paper. The app does not calculate it. No price list, no price keys.
+- **Kept from D39:** the lifecycle with **Ready** and its Telegram "ready for pickup" message; customers and the pickup day, behind New order's More details; paper size.
+- **Removed:**
+  - the owner's Prices page, its warnings on Overview and New order, and the platform's "Prices: n of m set";
+  - `priceKey` on number fields, the Studio's Pricing section and its publish checks (`unknownPriceKey`, `priceUnitMismatch`);
+  - server pricing (`shared/pricing.ts`, `QUOTE_CHANGED`, the itemized path in New order), `price_items`, `order_items` and the `price:*` statements;
+  - redesign requests: the owner's dialog, the platform's queue, `template_requests` and `template:request`.
+  The item list (D42) stays as the Studio's Add from list, for labels and field kinds only.
+
+**Alternatives.**
+- **The market's model** (the owner manages services, an order is lines, a standard receipt): easier to build, but the owner learns a new way of working and loses their own slip. Rejected: copying today's paper routine is the product.
+- **Prices on the slip, typed by the platform** (a Price box on each count or weight, kept in the template version, so old orders keep their prices): the direction if a shop later wants the total calculated. Not built until a shop asks.
+- **The owner types prices next to their slip's items:** gives the owner a setup job again.
+- **Keep redesign requests for changes:** a form with a status is more than a message; the owner chose the Telegram link.
+
+**Consequences.**
+- No pilot shop has data, so the removal deletes code, routes, statements, locale keys, tests and `reference/` pages, and a migration drops `order_items`, `price_items` and `template_requests` (`order_items` first: it points at `price_items`). Staging's test orders lose their lines only.
+- An HTML slip's `order.itemLines` placeholder has nothing to draw; it is removed from the catalog (a new catalog version only if a published slip uses it).
+- The work plan is rewritten around this flow: [plan](plan.md).

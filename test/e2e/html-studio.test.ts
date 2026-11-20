@@ -45,6 +45,56 @@ it('edits markup with VS Code keys: Tab indents, Shift-Tab outdents, Escape then
   expect(await editor.evaluate(element => element.contains(document.activeElement))).toBe(false)
 })
 
+it('has editor shortcuts: Ctrl+S formats, Ctrl+B toggles the sidebar, Emmet expands, the font is a preference', async () => {
+  const page = await newDevice(browser, { width: 1440, height: 900 })
+  onTestFailed(screenshotOnFailure('html-studio-shortcuts', [page]))
+  await page.goto(`${host}/platform/templates`)
+  await page.waitForURL(/\/sign-in/)
+  await signIn(page, accounts.admin.username, accounts.admin.password)
+  await page.waitForURL(`${host}/platform/templates`)
+  await page.getByRole('link', { name: 'Create template' }).first().click()
+  await page.waitForURL('**/platform/templates/new')
+  const editor = page.getByTestId('html-source').locator('.cm-content:not([aria-readonly])')
+  await editor.waitFor()
+
+  // Ctrl+S formats the markup, as the Format button does, and doesn't open the browser's save dialog.
+  await editor.fill('<div><span>a</span></div>')
+  await editor.press('Control+s')
+  await expect.poll(() => editor.locator('.cm-line').count()).toBeGreaterThan(1)
+
+  // Ctrl+B collapses the sidebar and brings it back.
+  const sidebarTitle = page.getByText('Intake fields').first()
+  await sidebarTitle.waitFor()
+  await editor.press('Control+b')
+  await sidebarTitle.waitFor({ state: 'hidden' })
+  await editor.press('Control+b')
+  await sidebarTitle.waitFor()
+
+  // Emmet: an abbreviation plus Tab becomes elements.
+  await editor.press('Control+a')
+  await editor.press('Delete')
+  await editor.pressSequentially('div.p-4>span')
+  await editor.press('Tab')
+  await expect.poll(() => editor.textContent()).toContain('<div class="p-4"><span></span></div>')
+
+  // Only tags a slip allows are suggested.
+  await editor.press('Control+a')
+  await editor.press('Delete')
+  await editor.pressSequentially('<')
+  const suggestions = page.locator('.cm-tooltip-autocomplete')
+  await suggestions.waitFor()
+  expect(await suggestions.textContent()).toContain('span')
+  expect(await suggestions.textContent()).not.toContain('table')
+  await editor.press('Escape')
+
+  // The font is a preference that survives a reload.
+  await page.getByTestId('html-editor-font').click()
+  await page.getByRole('option', { name: 'Fira Code' }).click()
+  await page.reload()
+  await editor.waitFor()
+  await expect.poll(() => editor.evaluate(element => getComputedStyle(element.closest('.cm-scroller')!).fontFamily)).toContain('Fira Code')
+})
+
 it('creates an HTML draft from the split editor, previews bindings and publishes', async () => {
   const page = await newDevice(browser, { width: 1440, height: 900 })
   onTestFailed(screenshotOnFailure('html-studio', [page]))
@@ -194,12 +244,12 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await expect.poll(() => preview.getAttribute('src')).not.toBe(crowdedUrl)
 
   const sampleName = 'សុខ ចាន់ដារ៉ា Sok Chandara'
-  await page.getByRole('button', { name: 'Custom', exact: true }).click()
-  const custom = page.getByRole('dialog', { name: 'Custom sample' })
+  await page.getByRole('button', { name: 'Test order', exact: true }).click()
+  const custom = page.getByRole('dialog', { name: 'Test order' })
   const livePreview = custom.getByTestId('html-custom-preview').getByRole('img')
-  const customerName = custom.getByRole('textbox', { name: 'Sample customer name' })
+  const customerName = custom.getByRole('textbox', { name: 'Customer name' })
   const weight = custom.getByRole('textbox', { name: 'Weight (kg)' })
-  const useSample = custom.getByRole('button', { name: 'Use sample' })
+  const useSample = custom.getByRole('button', { name: 'Show in preview' })
   await livePreview.waitFor()
   expect((await livePreview.boundingBox())!.y).toBeLessThan((await customerName.boundingBox())!.y)
   const initialCustom = await livePreview.getAttribute('src')
@@ -233,12 +283,12 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
     return response.status
   }, customInput)).toBe(400)
   await page.getByRole('radio', { name: 'Typical' }).press('Space')
-  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  await page.getByRole('button', { name: 'Test order', exact: true }).click()
   expect(await customerName.inputValue()).toBe(sampleName)
   await customerName.fill('Discard this edit')
   await custom.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.getByRole('button', { name: 'Custom', exact: true }).click()
+  await page.getByRole('button', { name: 'Test order', exact: true }).click()
   await livePreview.waitFor()
   expect(await customerName.inputValue()).toBe(sampleName)
   expect((await livePreview.boundingBox())!.x).toBeGreaterThan((await customerName.boundingBox())!.x)
@@ -260,17 +310,24 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await expect.poll(() => page.getByTestId('field-bag_count').count()).toBe(1)
   await expect.poll(() => page.getByRole('button', { name: 'Copy {{fields.bag_count}}' }).count()).toBe(1)
 
-  // Add from list: the by-weight kilos are already there; picked items keep their price keys.
+  // Add from list: By weight's Weight is a plain weight, so Wash & fold is still offered; picked items are quantities and ticks.
   await page.getByTestId('add-from-list').click()
   const itemList = page.getByRole('dialog', { name: 'Add from the item list' })
-  expect(await itemList.getByRole('checkbox', { name: 'Wash & fold', exact: true }).isDisabled()).toBe(true)
+  expect(await itemList.getByRole('checkbox', { name: 'Wash & fold', exact: true }).isDisabled()).toBe(false)
+  // The service tick By weight prints is on the slip; it says it's a tick, apart from the per-kg Wash & iron.
+  expect(await itemList.getByTestId('item-wash_iron').isDisabled()).toBe(true)
+  const itemRow = (key: string) => itemList.getByRole('listitem').filter({ has: page.getByTestId(`item-${key}`) })
+  expect(await itemRow('wash_iron').textContent()).toContain('Service tick')
+  expect(await itemRow('wash_iron_kg').textContent()).toContain('Weight in kg')
   await itemList.getByTestId('item-search').fill('shi')
   await itemList.getByRole('checkbox', { name: 'Shirt', exact: true }).click()
   await itemList.getByTestId('item-search').fill('')
   await itemList.getByRole('checkbox', { name: 'Express', exact: true }).click()
   await itemList.getByTestId('item-add').click()
   await itemList.waitFor({ state: 'hidden' })
-  await expect.poll(() => page.getByTestId('field-shirt_count').getByLabel('Priced as').textContent()).toBe('Shirt')
+  await expect.poll(() => page.getByTestId('placement-shirt_count').textContent()).toBe('Not placed')
+  // D44: no pricing in the Studio; staff type the total.
+  expect(await page.getByTestId('pricing-toggle').count()).toBe(0)
   await expect.poll(() => page.getByTestId('field-express').count()).toBe(1)
 
   await editor.fill('<div class="flex">{{fields.bag')
@@ -297,6 +354,137 @@ it('creates an HTML draft from the split editor, previews bindings and publishes
   await page.getByTestId('html-publish').click()
   await page.getByTestId('html-publish-confirm').click()
   await expect.poll(() => page.getByText('Version 1 is published.').count()).toBeGreaterThan(0)
+})
+
+// Pilot plan §1, on a disposable fixture (not City Laundry's slip): Shirt from the list, placed in
+// its box, then Shirt = 5 and a typed total of 7,000៛ in Test order, with no order made.
+const PILOT_FIXTURE = [
+  '<div class="flex h-full w-full flex-col bg-white p-4">',
+  '  <span>{{order.number}}</span>',
+  '  <div class="flex">{{order.qrCode}}</div>',
+  '  <div class="flex flex-row border-2 border-black">',
+  '    <span>Shirt</span>',
+  '    <span>SHIRTBOX</span>',
+  '  </div>',
+  '  <div class="flex flex-row border-2 border-black">',
+  '    <span>Total</span>',
+  '    <span>{{order.total}}</span>',
+  '  </div>',
+  '</div>',
+].join('\n')
+
+it('places Shirt from the list in its box and checks it with Test order, creating nothing (pilot §1)', async () => {
+  const page = await newDevice(browser, { width: 1440, height: 900 })
+  onTestFailed(screenshotOnFailure('html-studio-pilot', [page]))
+  await page.goto(`${host}/platform/templates`)
+  await page.waitForURL(/\/sign-in/)
+  await signIn(page, accounts.admin.username, accounts.admin.password)
+  await page.waitForURL(`${host}/platform/templates`)
+  const writes: string[] = []
+  page.on('request', (request) => {
+    if (request.method() !== 'GET' && !request.url().endsWith('/api/platform/templates/preview')) writes.push(`${request.method()} ${request.url()}`)
+  })
+  await page.getByRole('link', { name: 'Create template' }).first().click()
+  await page.waitForURL('**/platform/templates/new')
+  const editor = page.getByTestId('html-source').locator('.cm-content')
+  await editor.waitFor()
+  await editor.fill(PILOT_FIXTURE)
+  await page.getByTestId('html-ok').waitFor()
+
+  // Add Shirt from the list: a count, not placed yet.
+  await page.getByTestId('add-from-list').click()
+  const itemList = page.getByRole('dialog', { name: 'Add from the item list' })
+  await itemList.getByRole('checkbox', { name: 'Shirt', exact: true }).click()
+  await itemList.getByTestId('item-add').click()
+  await itemList.waitFor({ state: 'hidden' })
+  await expect.poll(() => page.getByTestId('placement-shirt_count').textContent()).toBe('Not placed')
+  expect(await page.getByTestId('placement-summary').textContent()).toContain('not placed')
+
+  // Place it: select the Shirt box's stand-in, then Insert puts the placeholder there.
+  const token = await editor.evaluate((root) => {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent!.indexOf('SHIRTBOX')
+      if (at < 0) continue
+      const range = document.createRange()
+      range.setStart(node, at)
+      range.setEnd(node, at + 'SHIRTBOX'.length)
+      const box = range.getBoundingClientRect()
+      return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    }
+    throw new Error('No SHIRTBOX in the editor')
+  })
+  await page.mouse.dblclick(token.x, token.y)
+  await page.getByTestId('insert-shirt_count').click()
+  await expect.poll(() => editor.textContent()).toContain('<span>{{fields.shirt_count}}</span>')
+  expect(await editor.textContent()).not.toContain('SHIRTBOX')
+  await expect.poll(() => page.getByTestId('placement-shirt_count').textContent()).toBe('On the slip')
+
+  // Test order: Shirt = 5 and a typed total, independent of the count.
+  await page.getByTestId('fields-test-order').click()
+  const test = page.getByRole('dialog', { name: 'Test order' })
+  await test.getByTestId('html-custom-preview').getByRole('img').waitFor()
+  const rendered = page.waitForResponse(response => response.url().endsWith('/api/platform/templates/preview')
+    && response.request().postDataJSON().custom?.values.shirt_count === 5
+    && response.request().postDataJSON().custom?.amount === 7000)
+  await test.getByRole('textbox', { name: 'Shirt', exact: true }).fill('5')
+  await test.getByRole('textbox', { name: 'Total', exact: true }).fill('7,000')
+  expect((await rendered).ok()).toBe(true)
+  await test.getByRole('button', { name: 'Show in preview' }).click()
+  await test.waitFor({ state: 'hidden' })
+  await expect.poll(() => page.getByRole('button', { name: 'Edit test order' }).count()).toBe(1)
+  // Nothing was saved or created: no draft, no order.
+  expect(writes).toEqual([])
+})
+
+it('keeps a required internal field off the slip, and a custom field doesn\'t block a list item (pilot §1 review)', async () => {
+  const page = await newDevice(browser, { width: 1440, height: 900 })
+  onTestFailed(screenshotOnFailure('html-studio-pilot-review', [page]))
+  await page.goto(`${host}/platform/templates`)
+  await page.waitForURL(/\/sign-in/)
+  await signIn(page, accounts.admin.username, accounts.admin.password)
+  await page.waitForURL(`${host}/platform/templates`)
+  await page.getByRole('link', { name: 'Create template' }).first().click()
+  await page.waitForURL('**/platform/templates/new')
+  const editor = page.getByTestId('html-source').locator('.cm-content')
+  await editor.waitFor()
+  await editor.fill(PILOT_FIXTURE)
+  await page.getByTestId('html-ok').waitFor()
+
+  async function addTextField(label: string) {
+    await page.getByTestId('new-field').click()
+    await page.getByTestId('count-label').fill(label)
+    await page.getByRole('combobox', { name: 'Field type' }).click()
+    await page.getByRole('option', { name: 'Text', exact: true }).click()
+    await page.getByTestId('add-count').click()
+  }
+
+  // Staff initials: Portal only, then Required. It stays off the slip and required for staff.
+  await addTextField('Staff initials')
+  await page.getByTestId('portal-only-staff_initials').click()
+  await expect.poll(() => page.getByTestId('placement-staff_initials').textContent()).toBe('Portal only')
+  await page.getByTestId('required-staff_initials').click()
+  await expect.poll(() => page.getByTestId('required-staff_initials').getAttribute('aria-pressed')).toBe('true')
+  expect(await page.getByTestId('placement-staff_initials').textContent()).toBe('Portal only')
+
+  // A text field called Shirt count takes `shirt_count`, yet Shirt is still on the list.
+  await addTextField('Shirt count')
+  await expect.poll(() => page.getByTestId('field-shirt_count').count()).toBe(1)
+  await page.getByTestId('add-from-list').click()
+  const itemList = page.getByRole('dialog', { name: 'Add from the item list' })
+  const shirt = itemList.getByRole('checkbox', { name: 'Shirt', exact: true })
+  expect(await shirt.isDisabled()).toBe(false)
+  await shirt.click()
+  await itemList.getByTestId('item-add').click()
+  await itemList.waitFor({ state: 'hidden' })
+  // The list's Shirt count takes a suffix and is a count, apart from the text field.
+  await expect.poll(() => page.getByTestId('field-shirt_count_2').count()).toBe(1)
+  expect(await page.getByTestId('field-shirt_count_2').getByLabel('Whole number').count()).toBe(1)
+  // Reopened, the picker knows Shirt is on the slip.
+  await page.getByTestId('add-from-list').click()
+  await itemList.waitFor()
+  expect(await shirt.isDisabled()).toBe(true)
+  expect(await shirt.isChecked()).toBe(true)
 })
 
 it('inserts a library image at the cursor, and the preview draws it (D41)', async () => {

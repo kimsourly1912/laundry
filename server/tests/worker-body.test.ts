@@ -30,7 +30,6 @@ describe('workerBodyLimit', () => {
     expect(workerBodyLimit('/orders/new')).toBeUndefined()
     // The studio's design and image upload (plan S1), and nothing else under their paths.
     expect(workerBodyLimit('/api/platform/images')).toBe(IMAGE_MAX_BYTES)
-    expect(workerBodyLimit('/api/shop/template-requests')).toBe(IMAGE_MAX_BYTES)
     expect(workerBodyLimit('/api/platform/images/x')).toBe(MAX_JSON_BYTES)
     expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001')).toBe(MAX_DESIGN_BYTES)
     expect(workerBodyLimit('/api/platform/templates/0190f2a0-0000-7000-8000-000000000001/preview')).toBe(MAX_DESIGN_BYTES)

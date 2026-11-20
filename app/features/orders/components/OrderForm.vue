@@ -3,7 +3,7 @@
  * New order's fields (implementation guide → sheet 01): every field of the paper slip as a row to
  * fill directly, in the slip's fill order (plan §5.3.4), with the platform's own labels (D36).
  * Counts have − and + beside a box that takes the numeric keypad; the amount is typed by hand on
- * a free-entry slip. Problems show under their field once the owner asks to preview.
+ * every slip (D44). Problems show under their field once the owner asks to preview.
  */
 import type { SlipDesign, SlipElement, SlipShop } from '#shared/contracts/slip-design'
 import type { FillProblems, SlipFill } from '#shared/slip/values'
@@ -17,15 +17,10 @@ const props = defineProps<{
   problems: FillProblems
   /** The server's own words for a field it refused, by the same keys. */
   serverErrors: Record<string, string>
-  /** D39: the shop's prices by key, for a slip whose counts are linked to them; the amount is then their total. */
-  prices?: ReadonlyMap<string, { label: string, unit: 'piece' | 'kg', price: number }>
-  /** The itemized total (minor units), shown in place of a typed amount. */
-  total?: number | null
 }>()
 const fill = defineModel<SlipFill>({ required: true })
 
 const { t } = useI18n()
-const { can } = useSession()
 const steps = computed(() => fillSteps(props.design))
 
 function labelOf(step: FillStep): string {
@@ -79,20 +74,6 @@ function setAmount(text: string) {
   fill.value = { ...fill.value, amount: text.trim() ? parseMoney(text, props.currency) ?? -1 : null }
 }
 
-/** A count or weight linked to a key the shop hasn't priced yet (D43): it can't be filled, since the server would refuse it. */
-function unpriced(step: FillStep): boolean {
-  if (step.kind !== 'number' || step.element.type !== 'number' || !step.element.priceKey || !props.prices) return false
-  return !props.prices.has(step.element.priceKey)
-}
-
-/** "2,000៛ each" or "3,000៛ per kg" under a count linked to a price (D39); a missing price says who sets it (D43). */
-function priceHint(step: FillStep): string | undefined {
-  if (step.kind !== 'number' || step.element.type !== 'number' || !step.element.priceKey || !props.prices) return undefined
-  const item = props.prices.get(step.element.priceKey)
-  if (!item) return t(can('price:write') ? 'orders.form.noPriceOwner' : 'orders.form.noPrice')
-  return t(item.unit === 'kg' ? 'orders.form.perKg' : 'orders.form.each', { price: formatMoney(item.price, props.currency) })
-}
-
 /** Focuses the first field with a problem (after Preview found some). */
 function focusFirstProblem() {
   const first = steps.value.find(step => errorOf(step))
@@ -119,7 +100,6 @@ defineExpose({ focusFirstProblem })
       <UFormField
         v-if="step.kind === 'number' && step.element.type === 'number'"
         :label="labelOf(step)"
-        :description="priceHint(step)"
         :required="isRequired(step)"
         :error="errorOf(step)"
         orientation="horizontal"
@@ -131,7 +111,6 @@ defineExpose({ focusFirstProblem })
           :range="step.element"
           :label="labelOf(step)"
           :test-id="`field-${step.key}`"
-          :disabled="unpriced(step)"
           @update:model-value="setValue(step.key, $event)"
         />
       </UFormField>
@@ -214,16 +193,7 @@ defineExpose({ focusFirstProblem })
         :error="errorOf(step)"
         :ui="{ label: 'text-base' }"
       >
-        <p
-          v-if="total !== undefined && total !== null"
-          class="text-2xl font-semibold text-highlighted tabular-nums"
-          data-testid="field-total"
-        >
-          {{ formatMoney(total, currency) }}
-          <span class="block text-sm font-normal text-muted">{{ t('orders.form.fromPrices') }}</span>
-        </p>
         <UInput
-          v-else
           :model-value="amountText"
           inputmode="decimal"
           autocomplete="off"

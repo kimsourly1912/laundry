@@ -213,7 +213,13 @@ export default defineNuxtConfig({
     // Self-hosted at build (CSP font-src 'self'). Khmer needs its own subset: the default subsets
     // are Latin only, which left Khmer to a system font that doesn't stack vowel signs.
     defaults: { weights: [400, 500, 600, 700], subsets: ['latin', 'latin-ext'] },
-    families: [{ name: 'Noto Sans Khmer', provider: 'google', subsets: ['khmer'], weights: [400, 500, 600, 700], global: true }],
+    families: [
+      { name: 'Noto Sans Khmer', provider: 'google', subsets: ['khmer'], weights: [400, 500, 600, 700], global: true },
+      // The HTML studio's code editor: the author picks one (HtmlStudioPage's EDITOR_FONTS).
+      { name: 'JetBrains Mono', provider: 'google', weights: [400, 700], styles: ['normal', 'italic'], global: true },
+      { name: 'Fira Code', provider: 'google', weights: [400, 700], global: true },
+      { name: 'Source Code Pro', provider: 'google', weights: [400, 700], styles: ['normal', 'italic'], global: true },
+    ],
   },
   i18n: {
     // English only (D36): one locale keeps every string in app/locales/en.json, and a second

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * The templates a shop may use (plan §4, step 2), on the shop's page: attach a published template,
- * or detach one. Detaching the shop's default leaves it with none; its owner chooses again.
+ * or detach one. Detaching the shop's default leaves it with none; its owner chooses again. Set up
+ * paper slip opens the Studio for this shop (pilot plan §2).
  */
 import type { Page } from '#shared/contracts/common'
 import type { ShopTemplate, TemplateSummary } from '#shared/contracts/templates'
@@ -41,6 +42,17 @@ async function onAttach() {
     :description="t('platform.shop.templates.description')"
     variant="subtle"
   >
+    <!-- Pilot plan §2: a new paper slip made for this shop; Publish and assign attaches it here. -->
+    <div v-if="can('template:write') && can('shop:update')">
+      <UButton
+        :label="t('platform.shop.templates.setUp')"
+        icon="i-lucide-file-plus-2"
+        color="neutral"
+        variant="outline"
+        :to="{ path: '/platform/templates/new', query: { shop: shopId } }"
+        data-testid="set-up-slip"
+      />
+    </div>
     <PageLoadError
       v-if="attached.error.value && !attached.data.value"
       :error="attached.error.value"

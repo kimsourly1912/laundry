@@ -70,6 +70,17 @@ const valueStyle = {
 /** "Draw a border": a thin box, for designs with no printed box (plan §5.3.1). */
 const border = { border: v.boolean() }
 const printBinding = { printRequired: v.optional(v.boolean()) }
+/**
+ * An HTML slip's field the admin keeps off the printout on purpose (pilot plan §1): staff still
+ * enter it, and the Studio stops reporting it as not placed. Absent: the slip should print it.
+ */
+const placement = { portalOnly: v.optional(v.boolean()) }
+/**
+ * The laundry item list's key a field was added from (D42), kept when its id takes a suffix, so the
+ * Studio's Add from list knows the item is on the slip. Absent: a field the admin made, or one from
+ * before it was tracked.
+ */
+const catalog = { item: v.optional(keySchema) }
 
 /** Number fields: 0–999 by default (plan §5.3.2). */
 export const NUMBER_LIMIT = 1_000_000
@@ -83,6 +94,8 @@ export const elementSchema = v.variant('type', [
     label: labelSchema,
     required: v.boolean(),
     ...printBinding,
+    ...placement,
+    ...catalog,
     ...valueStyle,
     ...border,
     /** 0: whole numbers; 1 or 2: decimal places. */
@@ -91,11 +104,6 @@ export const elementSchema = v.variant('type', [
     max: bounded(-NUMBER_LIMIT, NUMBER_LIMIT),
     /** Drawn after the value (`kg`); empty for none. */
     unit: v.pipe(v.string(), v.trim(), v.maxLength(10)),
-    /**
-     * A price-list key (D39): the count is priced by the shop's item of that key, per piece or per
-     * kg, and the order's amount is the server's total. Absent: a plain count.
-     */
-    priceKey: v.optional(v.pipe(v.string(), v.regex(/^[a-z\d][a-z\d._-]{0,39}$/, 'Letters, digits, dots and dashes'))),
   }),
   v.strictObject({
     ...base,
@@ -103,11 +111,13 @@ export const elementSchema = v.variant('type', [
     label: labelSchema,
     required: v.boolean(),
     ...printBinding,
+    ...placement,
+    ...catalog,
     ...valueStyle,
     ...border,
     maxLength: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(TEXT_FIELD_MAX)),
   }),
-  v.strictObject({ ...base, type: v.literal('checkbox'), label: labelSchema, required: v.boolean(), ...printBinding, ...border, mark: v.picklist(MARKS), color: colorSchema }),
+  v.strictObject({ ...base, type: v.literal('checkbox'), label: labelSchema, required: v.boolean(), ...printBinding, ...placement, ...catalog, ...border, mark: v.picklist(MARKS), color: colorSchema }),
   /** One spot of a choice group (`groups`): the group's mark is drawn here when it's the chosen one. */
   v.strictObject({ ...base, type: v.literal('option'), group: keySchema, label: labelSchema, ...border, color: colorSchema }),
 
@@ -116,9 +126,9 @@ export const elementSchema = v.variant('type', [
   v.strictObject({ ...base, type: v.literal('orderNo'), ...valueStyle, ...border }),
   /** Filled by the server: the shop's day the order was made. */
   v.strictObject({ ...base, type: v.literal('date'), ...valueStyle, ...border }),
-  v.strictObject({ ...base, type: v.literal('phone'), label: labelSchema, required: v.boolean(), ...valueStyle, ...border }),
+  v.strictObject({ ...base, type: v.literal('phone'), label: labelSchema, required: v.boolean(), ...placement, ...valueStyle, ...border }),
   /** In the order's currency (the copy of the shop's details). */
-  v.strictObject({ ...base, type: v.literal('amount'), label: labelSchema, required: v.boolean(), ...valueStyle, ...border }),
+  v.strictObject({ ...base, type: v.literal('amount'), label: labelSchema, required: v.boolean(), ...placement, ...valueStyle, ...border }),
   /** The "Paid" spot and the "Not paid" spot: the owner's choice is the order's `paid`. */
   v.strictObject({ ...base, type: v.literal('paid'), value: v.picklist(['paid', 'unpaid']), label: labelSchema, ...border, mark: v.picklist(MARKS), color: colorSchema }),
 ])
@@ -204,21 +214,10 @@ export interface SlipOrder {
   /** Minor units of the shop copy's currency. */
   amount: number | null
   paid: boolean | null
-  /** D39, drawn by HTML slips only: the customer's name, the promised day, the priced lines, the QR's address. */
+  /** D39, drawn by HTML slips only: the customer's name, the promised day, the QR's address. */
   customerName?: string | null
   dueDate?: string | null
-  lines?: SlipLine[]
   qrUrl?: string | null
-}
-
-/** A priced line as an HTML slip's `{{order.itemLines}}` draws it (D39). */
-export interface SlipLine {
-  label: string
-  unit: 'piece' | 'kg'
-  /** Pieces, or grams for `kg`. */
-  quantity: number
-  /** Minor units. */
-  lineTotal: number
 }
 
 /** The copy of the shop's details an order keeps (D33): the amount is drawn in its currency. */

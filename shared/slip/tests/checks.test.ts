@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign, SlipElement } from '#shared/contracts/slip-design'
-import { publishProblems } from '#shared/slip/checks'
+import { fieldPlacement, publishProblems, usedPlaceholders } from '#shared/slip/checks'
 import { createElement, createGroup } from '#shared/slip/elements'
 import { checkFill, cleanValues } from '#shared/slip/values'
 
@@ -103,5 +103,41 @@ describe('an HTML slip\'s publish checks (D39)', () => {
     expect(codes(publishProblems(html('<div>{{fields.n}}</div>')).errors)).toEqual(['noOrderNo', 'noQrCode'])
     expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}<img></div>')).errors)).toEqual(['htmlInvalid'])
     expect(codes(publishProblems(html('<div>{{order.number}}{{order.qrCode}}</div>')).warnings)).not.toContain('offCanvas:n')
+  })
+})
+
+describe('where an HTML slip prints each intake field (pilot plan §1)', () => {
+  const shirt = createElement('number', { id: 'shirt_count' }, { label: 'Shirt' })
+  const slip = (markup: string, elements: SlipElement[] = [shirt]) => ({ ...design(elements), paper: { widthMm: 80, heightMm: 52 }, html: `<div>{{order.number}}<div>{{order.qrCode}}</div>${markup}</div>` })
+
+  it('is placed when its placeholder is in the markup, else not placed', () => {
+    expect(fieldPlacement(shirt, usedPlaceholders(slip('<div>{{fields.shirt_count}}</div>')))).toBe('placed')
+    expect(fieldPlacement(shirt, usedPlaceholders(slip('')))).toBe('unplaced')
+    expect(fieldPlacement({ ...shirt, portalOnly: true }, usedPlaceholders(slip('')))).toBe('portalOnly')
+    // Printed wins over a portal-only flag left behind.
+    expect(fieldPlacement({ ...shirt, portalOnly: true }, usedPlaceholders(slip('<div>{{fields.shirt_count}}</div>')))).toBe('placed')
+  })
+
+  it('warns about an unplaced field in review, unless it\'s portal-only; it never blocks Publish', () => {
+    expect(codes(publishProblems(slip('')).warnings)).toContain('unplacedField:fields.shirt_count')
+    expect(publishProblems(slip('')).errors).toEqual([])
+    expect(codes(publishProblems(slip('<div>{{fields.shirt_count}}</div>')).warnings)).not.toContain('unplacedField:fields.shirt_count')
+    expect(codes(publishProblems(slip('', [{ ...shirt, portalOnly: true }])).warnings)).not.toContain('unplacedField:fields.shirt_count')
+  })
+
+  it('counts the phone and the total as placed by the order\'s own placeholders', () => {
+    const phone = createElement('phone', { id: 'phone' })
+    const total = createElement('amount', { id: 'total' })
+    const used = usedPlaceholders(slip('<div>{{order.phone}} {{order.total}}</div>', [phone, total]))
+    expect(fieldPlacement(phone, used)).toBe('placed')
+    expect(fieldPlacement(total, used)).toBe('placed')
+    expect(codes(publishProblems(slip('', [phone, total])).warnings)).toEqual(expect.arrayContaining(['unplacedField:order.phone', 'unplacedField:order.total']))
+  })
+
+  it('keeps the error for a required print binding, portal-only or not', () => {
+    const required = { ...shirt, required: true, printRequired: true }
+    expect(codes(publishProblems(slip('', [required])).errors)).toEqual(['missingPrintBinding:fields.shirt_count'])
+    expect(codes(publishProblems(slip('', [{ ...required, portalOnly: true }])).errors)).toEqual(['missingPrintBinding:fields.shirt_count'])
+    expect(codes(publishProblems(slip('', [required])).warnings)).not.toContain('unplacedField:fields.shirt_count')
   })
 })

@@ -73,6 +73,8 @@ erDiagram
 
 `templates` (platform): `id`, `name`, `status` (`draft` \| `published` \| `archived`), `design` (JSON: the draft being edited, checked by `designSchema` on every write, ≤ 256 KB), `version`, `created_by` (→ `user.id`), timestamps.
 - The design may carry `paper` (mm, D39) and `html` (an HTML slip's markup, ≤ 64 KB, D39); both are fixed in each published version with the rest. No column changes.
+- An intake field (count, weight, text, checkbox, phone, amount) may carry `portalOnly: true` (City Laundry pilot §1): staff enter it, the HTML slip doesn't print it on purpose, and the Studio stops reporting it as not placed. Optional, so saved designs still validate. No column changes. A required portal-only field is required for staff (`required`) but not on the printout (`printRequired` false); Publish still refuses a field with `printRequired` and no binding.
+- A count, weight, text or checkbox field added from the laundry item list carries `item` (the list's key, D42), kept when its id takes a suffix (`shirt_count_2`). Optional; fields made by hand and older fields have none.
 - UNIQUE `lower(name)`: the platform finds a template by name. Index `(status, updated_at)`.
 - **Archived, never deleted.** Its versions and the orders made on them stay.
 
@@ -89,11 +91,9 @@ erDiagram
 - Slip backgrounds, pictures on a slip, shop logos, shared by every template (plan §5.9). The type and size are read from the file's bytes, never from the request (D28).
 - Base64 text, not a BLOB: D1 returns a BLOB as an array of numbers, and the SVG wants base64 anyway. 1 MB of image is 1.34 MB of text, under D1's 2 MB row limit. **Every query leaves `data` out** but the ones that draw or serve the image.
 
-## `template_requests` (owner: `templates`)
+## Dropped by D44: `template_requests`, `price_items`, `order_items`
 
-**Status:** built (D39, migration `0006`).
-
-`template_requests` (shop-owned): `id`, `shop_id`, `requested_by` (→ `user.id`), `kind` (`keep` \| `redesign`), `notes`, `status` (`new` \| `in_progress` \| `done` \| `declined`), `template_id` (FK restrict, null until done), `photo_type`, `photo_width`, `photo_height`, `photo_size` (1 B–1 MB), `photo_data` (base64), `version`, timestamps. Indexes `(status, created_at)` the platform's queue, `(shop_id, created_at)` a shop's own. **Kept, never deleted.** Every query leaves `photo_data` out but the photo's own.
+Migration `0007_drop_prices_requests` drops them (`order_items` first: it pointed at `price_items`). Redesign requests (D39), the owner's prices (D39, D43) and calculated order lines are gone: the owner types every total, and asks the platform for changes on Telegram ([D44](../decisions.md#d44-the-owner-fills-the-slip-the-platform-owns-everything-else)). Only test data was in them.
 
 ## `order_counters`, `orders` (owner: `orders`)
 
@@ -133,15 +133,9 @@ erDiagram
 - **Never deleted:** `orders.customer_id` points at it (restrict).
 - `orders` gains `customer_id` (FK → `customers.id`, null for a walk-in; the service takes only the shop's own) and `customer_name` (the name at saving). Index `(shop_id, customer_id, created_at)`: a customer's orders.
 
-## `price_items` (owner: `prices`), `order_items` (owner: `orders`)
+## `orders.due_date` (owner: `orders`)
 
 **Status:** built (D39, migration `0005`).
-
-`price_items` (shop-owned): `id`, `shop_id`, `key` (stable, lowercase), `label`, `unit` (`piece` \| `kg`), `price` (minor units per piece or per kg, ≥ 0), `active`, `version`, timestamps. UNIQUE `(shop_id, key)`, index `(shop_id, label)`, UNIQUE `(shop_id, id)`. **Archived, never deleted.**
-
-Since D43 (no migration): a row is made by the owner's first price for a key on the shop's slips, with `label` and `unit` from the item list (`shared/html-slip/items.ts`). Every later price sets them again and `active = true`. Nothing archives a row any more: `active = false` is only on rows from before D43, and the list shows them as unpriced. A row whose key left the slips stays, for the orders that name it.
-
-`order_items`: `id`, `shop_id`, `order_id` (composite FK → the shop's order, restrict), `field_id` (the slip field), `position`, `price_item_id` (FK restrict), `key`, `label`, `unit`, `quantity` (pieces, or grams for kg; > 0), `unit_price`, `line_total`. UNIQUE `(order_id, position)`. Written with the order; never changed.
 
 `orders.due_date` (text null, `YYYY-MM-DD`, CHECK on the format): the promised pickup day.
 

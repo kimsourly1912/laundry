@@ -4,7 +4,6 @@
  * and contact support (the platform makes changes on request, D26).
  */
 import { customersNavigation } from '~/features/customers'
-import { pricesNavigation } from '~/features/prices'
 import { paperSlipsNavigation } from '~/features/orders'
 import { shopSettingsNavigation } from '~/features/shop-settings'
 
@@ -13,7 +12,7 @@ definePageMeta({ layout: 'shop', area: 'shop', title: 'more.title' })
 const { t } = useI18n()
 const { supportUrl } = useRuntimeConfig().public
 const links = computed(() => [
-  ...[...paperSlipsNavigation, ...customersNavigation, ...pricesNavigation].map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
+  ...[...paperSlipsNavigation, ...customersNavigation].map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
   ...shopSettingsNavigation.map(link => ({ label: t(link.label), icon: link.icon, to: link.to })),
   { label: t('account.page.title'), icon: 'i-lucide-circle-user', to: '/account' },
 ])

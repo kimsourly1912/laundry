@@ -3,7 +3,6 @@ import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
 import { createOrder, orderSlipSvg, previewOrderSvg } from '#server/features/orders'
-import { setPrice } from '#server/features/prices'
 import { createCustomer } from '#server/features/customers'
 import type { ShopActor } from '#server/features/identity'
 import type { Db } from '#server/utils/batch'
@@ -26,11 +25,11 @@ function htmlDesign(): SlipDesign {
   return {
     ...blankDesign(600, 400),
     elements: [
-      createElement('number', { id: 'shirt' }, { label: 'Shirt', priceKey: 'shirt' }),
+      createElement('number', { id: 'shirt' }, { label: 'Shirt' }),
       createElement('amount', { id: 'total' }),
     ],
     fillOrder: ['shirt', 'total'],
-    html: '<div class="flex flex-col p-4"><span>No. {{order.number}}</span><span>{{customer.name}}</span><div>{{order.itemLines}}</div><span>{{order.total}}</span><div>{{order.qrCode}}</div></div>',
+    html: '<div class="flex flex-col p-4"><span>No. {{order.number}}</span><span>{{customer.name}}</span><span>{{fields.shirt}}</span><span>{{order.total}}</span><div>{{order.qrCode}}</div></div>',
   }
 }
 
@@ -43,14 +42,14 @@ beforeEach(async () => {
   const template = await createTestTemplate(db, ownerA.userId, { design: htmlDesign() })
   versionId = template.versionId
   await attachTestTemplate(db, { shopId: a.shopId, templateId: template.templateId })
-  await setPrice(db, a, 'shirt', { price: 2000, version: null })
 })
 
 describe('an order on an HTML slip', () => {
   it('saves like any other, and its slip is the server\'s SVG with the QR when the page has its link', async () => {
     const dara = await createCustomer(db, a, { name: 'Dara', phone: null })
     const { order } = await createOrder(db, a, { input: { templateVersionId: versionId, customerId: dara.id, values: { shirt: 2 }, phone: '', amount: 4000, paid: false }, key: newId() })
-    expect(order.items).toMatchObject([{ key: 'shirt', quantity: 2, lineTotal: 4000 }])
+    // D44: the total is what the owner typed.
+    expect(order).toMatchObject({ amount: 4000, values: { shirt: 2 } })
     const sample = await orderSlipSvg(db, a, { orderId: order.id })
     expect(sample.startsWith('<svg')).toBe(true)
     expect(sample).not.toContain('<image')
@@ -58,7 +57,7 @@ describe('an order on an HTML slip', () => {
     expect(linked).toContain('<image')
   })
 
-  it('previews a draft priced from the list, with no number and nothing saved', async () => {
+  it('previews a draft with no number and nothing saved', async () => {
     const svg = await previewOrderSvg(db, a, { templateVersionId: versionId, customerId: null, dueDate: null, values: { shirt: 3 }, phone: '', amount: null, paid: false })
     expect(svg.startsWith('<svg')).toBe(true)
     expect(await db.$count((await import('#server/features/orders/orders.schema')).orders)).toBe(0)

@@ -194,7 +194,7 @@ function presetFields(preset: HtmlIntakePreset): { counts: OwnerField[], rest: O
   const checkboxes = (list: readonly Service[]) => list.map(({ id }) => intakeField(intakeItem(id)))
   if (preset === 'byWeight') {
     return {
-      counts: [createElement('number', { id: 'weight_kg' }, { label: 'Weight', unit: 'kg', decimals: 2, min: 0.01, max: 100, required: true, printRequired: true, priceKey: 'wash_kg' })],
+      counts: [createElement('number', { id: 'weight_kg' }, { label: 'Weight', unit: 'kg', decimals: 2, min: 0.01, max: 100, required: true, printRequired: true })],
       rest: checkboxes(SERVICES),
     }
   }

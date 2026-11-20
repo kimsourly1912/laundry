@@ -5,8 +5,6 @@ const props = defineProps<{
   label: string
   range: { min: number, max: number, decimals: number }
   testId?: string
-  /** No input at all, e.g. a count with no price yet (D43). */
-  disabled?: boolean
 }>()
 const count = defineModel<number>()
 const { t } = useI18n()
@@ -36,7 +34,6 @@ function step(direction: 1 | -1) {
       color="neutral"
       variant="outline"
       :aria-label="t('orders.form.less', { label })"
-      :disabled="disabled"
       @click="step(-1)"
     />
     <UInput
@@ -47,7 +44,6 @@ function step(direction: 1 | -1) {
       :ui="{ base: 'text-center tabular-nums' }"
       :aria-label="label"
       :data-testid="testId"
-      :disabled="disabled"
       @update:model-value="updateText(String($event))"
     />
     <UButton
@@ -56,7 +52,6 @@ function step(direction: 1 | -1) {
       color="neutral"
       variant="outline"
       :aria-label="t('orders.form.more', { label })"
-      :disabled="disabled"
       @click="step(1)"
     />
   </UFieldGroup>

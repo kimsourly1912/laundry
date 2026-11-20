@@ -1,5 +1,5 @@
 import { renderSVG } from 'uqr'
-import type { SlipData, SlipDesign, SlipLine } from '#shared/contracts/slip-design'
+import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import { formatMoney } from '#shared/format'
 import { formatPhone } from '#shared/contracts/phone'
 import { formatSlipDate, valueText } from '#shared/slip/fields'
@@ -10,7 +10,7 @@ import type { HtmlElement, HtmlNode } from './parse'
 /**
  * An HTML slip's tree filled with an order's data, as the element tree Satori draws (D39). Values
  * become text children, never markup, so nothing in an order can change the slip's structure. The
- * item lines and the QR are the app's own elements.
+ * QR is the app's own element.
  */
 
 /** Satori's element: `type`, and `props` with `children`, Tailwind classes (`tw`) or a style. */
@@ -50,32 +50,6 @@ export function placeholderText(name: string, design: SlipDesign, data: SlipData
     return `${value.toFixed(element.decimals)} kg`
   }
   return valueText(element, data)
-}
-
-function lineQuantity(line: SlipLine): string {
-  return line.unit === 'kg' ? `${(line.quantity / 1000).toFixed(2)} kg` : String(line.quantity)
-}
-
-/** `{{order.itemLines}}`: one row per priced line; label, quantity, amount. */
-function itemLines(data: SlipData): SatoriNode {
-  const lines = data.order.lines ?? []
-  return {
-    type: 'div',
-    props: {
-      style: { display: 'flex', flexDirection: 'column', width: '100%' },
-      children: lines.map((line): SatoriNode => ({
-        type: 'div',
-        props: {
-          style: { display: 'flex', flexDirection: 'row', width: '100%' },
-          children: [
-            { type: 'span', props: { style: { flexGrow: 1 }, children: line.label } },
-            { type: 'span', props: { style: { width: '20%', textAlign: 'right' }, children: lineQuantity(line) } },
-            { type: 'span', props: { style: { width: '30%', textAlign: 'right' }, children: formatMoney(line.lineTotal, data.shop.currency) } },
-          ],
-        },
-      })),
-    },
-  }
 }
 
 /** `{{order.qrCode}}`: the order's QR, or a neutral sample before there is one (Studio, preview). */
@@ -129,8 +103,7 @@ function children(nodes: readonly HtmlNode[], context: TreeContext): (SatoriNode
     for (const match of node.text.matchAll(PLACEHOLDER)) {
       if (match.index > last) out.push(node.text.slice(last, match.index))
       const name = match[1]!
-      if (name === 'order.itemLines') out.push(itemLines(data))
-      else if (name === 'order.qrCode') out.push(qrCode(data))
+      if (name === 'order.qrCode') out.push(qrCode(data))
       else out.push(placeholderText(name, design, data))
       last = match.index + match[0].length
     }

@@ -12,8 +12,8 @@ const DESIGN_PATH = /^\/api\/platform\/templates\/[^/]+(?:\/preview)?$/
  */
 export function workerBodyLimit(path: string): number | undefined {
   if (!path.startsWith('/api/')) return undefined
-  // An uploaded image, and a redesign request's photo (D39).
-  if (path === '/api/platform/images' || path === '/api/shop/template-requests') return IMAGE_MAX_BYTES
+  // An uploaded image.
+  if (path === '/api/platform/images') return IMAGE_MAX_BYTES
   if (path === '/api/platform/templates/preview') return MAX_HTML_PREVIEW_BYTES
   if (DESIGN_PATH.test(path)) return MAX_DESIGN_BYTES
   return MAX_JSON_BYTES

@@ -236,43 +236,6 @@ watch([() => order.data.value, () => slipText.text.value], async ([value, text])
             </template>
           </dl>
 
-          <table
-            v-if="order.data.value.items.length"
-            class="w-full text-sm print:hidden"
-            data-testid="order-items"
-          >
-            <thead class="text-left text-muted">
-              <tr>
-                <th class="py-1 font-normal">
-                  {{ t('orders.order.item') }}
-                </th>
-                <th class="py-1 text-right font-normal">
-                  {{ t('orders.order.quantity') }}
-                </th>
-                <th class="py-1 text-right font-normal">
-                  {{ t('orders.order.lineTotal') }}
-                </th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-default border-y border-default">
-              <tr
-                v-for="item in order.data.value.items"
-                :key="item.fieldId"
-              >
-                <td class="py-1.5 break-words">
-                  {{ item.label }}
-                  <span class="block text-xs text-muted">{{ t(item.unit === 'kg' ? 'orders.form.perKg' : 'orders.form.each', { price: formatMoney(item.unitPrice, order.data.value.currency) }) }}</span>
-                </td>
-                <td class="py-1.5 text-right tabular-nums">
-                  {{ item.unit === 'kg' ? t('orders.order.kg', { kg: (item.quantity / 1000).toFixed(2) }) : item.quantity }}
-                </td>
-                <td class="py-1.5 text-right tabular-nums">
-                  {{ formatMoney(item.lineTotal, order.data.value.currency) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
           <OrderActions
             :order="order.data.value"
             @changed="changed"
