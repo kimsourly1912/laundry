@@ -77,7 +77,8 @@ async function focusField() {
   await nextTick()
   const field = fields.value?.querySelector<HTMLElement>('input:not([type="hidden"]), [role="checkbox"], [role="radio"]')
   field?.focus({ preventScroll: true })
-  field?.scrollIntoView({ block: 'nearest' })
+  // The whole card, clear of the page's Save bar (its scroll margin).
+  fields.value?.scrollIntoView({ block: 'nearest' })
 }
 
 defineExpose({ focusField })
@@ -86,7 +87,7 @@ defineExpose({ focusField })
 <template>
   <div
     ref="fields"
-    class="rounded-lg border border-default bg-default p-4"
+    class="scroll-mb-16 rounded-lg border border-default bg-default p-4"
   >
     <div
       v-for="step in steps.filter(item => item.key === selectedKey)"

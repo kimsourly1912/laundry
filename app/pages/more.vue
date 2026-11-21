@@ -22,7 +22,11 @@ const links = computed(() => [
         :toggle="false"
         :title="t('more.title')"
         icon="i-lucide-menu"
-      />
+      >
+        <template #right>
+          <UColorModeButton />
+        </template>
+      </UDashboardNavbar>
     </template>
 
     <template #body>
@@ -66,6 +70,11 @@ const links = computed(() => [
             />
           </div>
         </UPageCard>
+
+        <SignOutButton
+          variant="outline"
+          data-testid="sign-out"
+        />
       </div>
     </template>
   </UDashboardPanel>

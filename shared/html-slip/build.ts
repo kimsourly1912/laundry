@@ -101,6 +101,12 @@ function editableKey(name: string): string | undefined {
   if (name === 'order.paymentStatus') return 'paid'
 }
 
+/**
+ * An empty field in the owner's draft: invisible text about three characters wide, so the field
+ * keeps a box to tap. Whitespace would collapse to 0–7px, and `min-width` does nothing inline.
+ */
+const EMPTY_FIELD: SatoriNode = { type: 'span', props: { style: { color: 'transparent' }, children: '00000' } }
+
 function wholeField(nodes: readonly HtmlNode[]): string | undefined {
   const [node] = nodes
   if (nodes.length !== 1 || !node || !('text' in node)) return
@@ -128,9 +134,10 @@ function children(nodes: readonly HtmlNode[], context: TreeContext, parentKey?: 
       else {
         const key = editable ? editableKey(name) : undefined
         const value = placeholderText(name, design, data)
-        // Keep empty fields present in the draft layout so their boxes can be tapped.
-        if (key && !parentKey) out.push({ key, type: 'span', props: { children: value || '\u00a0' } })
-        else out.push(key ? value || '\u00a0' : value)
+        // Keep empty fields present in the draft layout so their boxes can be tapped. Only the
+        // editable draft: the saved slip draws an empty field as nothing.
+        if (key && !parentKey) out.push({ key, type: 'span', props: { children: value || EMPTY_FIELD } })
+        else out.push(key ? value || EMPTY_FIELD : value)
       }
       last = match.index + match[0].length
     }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { blankDesign } from '#shared/contracts/slip-design'
 import type { SlipData, SlipDesign } from '#shared/contracts/slip-design'
 import { createElement } from '#shared/slip/elements'
-import { htmlSlipSvg, renderSlipPng, serverSlipText } from '#server/features/templates/templates.render'
+import { htmlSlipSvg, renderPaperDraft, renderSlipPng, serverSlipText } from '#server/features/templates/templates.render'
 
 // HTML slips drawn by Satori (D39): text as paths in the shop's Khmer font, shaped like HarfBuzz
 // (our fontkit text is checked against HarfBuzz, shared/slip/tests/text.test.ts), the order's
@@ -98,5 +98,22 @@ describe('htmlSlipSvg: images and inline SVG (D41)', () => {
     const svg = await htmlSlipSvg({ design: design('<div class="flex"><svg viewBox="0 0 10 10" class="w-20"><rect width="10" height="10" fill="#ff0000"/></svg></div>', 200, 200), data, images: new Map() })
     expect(boxes(svg)).toEqual(['80×80'])
     expect(redPixels(svg)).toBeGreaterThan(80 * 80 * 0.95)
+  })
+})
+
+describe('renderPaperDraft: the owner\'s tap boxes', () => {
+  const blank: SlipData = { ...data, values: {}, order: { ...data.order, amount: null } }
+
+  it('gives an empty field a box wide enough to tap, inline or in a flex row, and draws nothing there', async () => {
+    // Whitespace alone collapses: no box inline, a 7px one in a flex row.
+    await renderSlipPng({ design: design('<div>.</div>', 200, 200), data, images: new Map() })
+    const draw = (html: string) => renderPaperDraft({ design: design(html, 300, 100), data: blank, images: new Map() })
+    for (const html of ['<div class="p-4">Tel: {{order.phone}}</div>', '<div class="flex p-4"><span>Price:</span><span>{{order.total}}</span></div>']) {
+      const { svg, fields } = await draw(html)
+      expect(fields).toHaveLength(1)
+      expect(fields[0]!.width).toBeGreaterThan(48)
+      // The label's ink only.
+      expect(inkRight(svg)).toBe(inkRight((await draw(html.replace(/\{\{[^}]+\}\}/, ''))).svg))
+    }
   })
 })
