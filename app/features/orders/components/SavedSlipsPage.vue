@@ -32,6 +32,7 @@ const orders = useApiQuery('orders:list', () => apiFetch<Page<OrderListItem>>('/
         icon="i-lucide-receipt-text"
       >
         <template #right>
+          <UColorModeButton />
           <UButton
             v-if="can('order:create')"
             icon="i-lucide-plus"

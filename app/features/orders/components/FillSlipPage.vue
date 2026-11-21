@@ -117,7 +117,11 @@ function retryLoad() {
       <UDashboardNavbar
         :toggle="false"
         :title="t('orders.new.title')"
-      />
+      >
+        <template #right>
+          <UColorModeButton />
+        </template>
+      </UDashboardNavbar>
     </template>
 
     <template #body>
@@ -129,7 +133,7 @@ function retryLoad() {
         />
         <USkeleton
           v-else-if="!ready"
-          class="aspect-[10/7] w-full"
+          class="aspect-10/7 w-full"
         />
         <UEmpty
           v-else-if="!templates.data.value?.length"
@@ -188,9 +192,13 @@ function retryLoad() {
           </div>
         </template>
 
+        <!--
+          Save above the tab bar. Sticky offsets count from inside the body's bottom padding, which
+          already clears the tab bar plus 1rem (tailwind.css), so -1rem puts the bar right on it.
+        -->
         <div
           v-if="ready && template"
-          class="sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] z-10 bg-default py-2"
+          class="sticky -bottom-4 z-10 bg-default py-2"
         >
           <UButton
             :label="t('orders.new.save')"
